@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-const DefaultPort = "8000"
+const DefaultPort = "5000"
 
 func main() {
 
