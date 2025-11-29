@@ -1,0 +1,24 @@
+# Compiled binaries for the current platform
+*.exe
+*.dll
+*.so
+*.o
+
+# Air/Delve/Testing Files
+__debug_bin
+tmp/
+*.test
+
+# Compiled Go packages
+*.a
+*.dynlib
+*.cgo1.go
+*.cgo2.c
+_obj/
+_test/
+vet-x/
+
+# IDE/Editor Specific files
+.idea/
+.vscode/
+.DS_Store
