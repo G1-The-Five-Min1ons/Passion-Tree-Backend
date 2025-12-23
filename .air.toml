@@ -1,0 +1,25 @@
+# Air configuration for Go hot-reload in Docker
+root = "."
+tmp_dir = "./tmp"
+
+[build]
+# Build the binary
+cmd = "go build -o ./bin/app main.go"
+bin = "./bin/app"
+# Rebuild and restart when these extensions change
+include_ext = ["go", "mod", "sum"]
+# Skip directories not relevant to builds
+exclude_dir = ["vendor", "bin", "tmp", "__pycache__"]
+# Minimal rebuild delay
+delay = 1000
+stop_on_error = true
+
+[log]
+time = true
+
+[color]
+main = "yellow"
+
+[env]
+# Ensure the app uses the Compose-provided port
+PORT = "8080"
