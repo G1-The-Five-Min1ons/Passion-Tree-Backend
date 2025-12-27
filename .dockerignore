@@ -1,0 +1,29 @@
+# Ignore build artifacts
+bin/
+tmp/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore development files
+.air.toml
+.env
+.env.*
+
+# Ignore Git
+.git/
+.gitignore
+
+# Ignore IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore test cache
+*.test
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
