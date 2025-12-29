@@ -5,6 +5,22 @@
 - Prereqs: Install Docker Desktop.
 - This uses Air to rebuild and restart on code changes.
 
+### Troubleshooting
+
+**If you see `archive/tar: unknown file mode` error:**
+
+Run this command once:
+```bash
+git config core.fileMode false
+```
+
+Then rebuild:
+```bash
+cd ../Passion-Tree-Infrastructure
+docker compose down
+./scripts/dev-up.sh  # or dev-up.ps1 on Windows
+```
+
 ### Start
 
 From the infrastructure folder:
