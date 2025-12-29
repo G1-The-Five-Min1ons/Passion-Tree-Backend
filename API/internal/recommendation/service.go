@@ -1,8 +1,8 @@
 package recommendation
 
 type Service interface {
-	GetGeneralRecommendations(userID int) ([]RecommendedItem, error)
-	GetTreeRecommendations(treeID int, req TreeRequest) ([]RecommendedItem, error)
+	GetGeneralRecommendations(userID string) ([]RecommendedItem, error)
+	GetTreeRecommendations(req TreeRequest) ([]RecommendedItem, error)
 }
 
 type service struct {
@@ -13,8 +13,8 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) GetGeneralRecommendations(userID int) ([]RecommendedItem, error) {
-	if userID == 0 {
+func (s *service) GetGeneralRecommendations(userID string) ([]RecommendedItem, error) {
+	if userID == "" {
 		return s.repo.GetPopularItems()
 	}
 
@@ -30,6 +30,6 @@ func (s *service) GetGeneralRecommendations(userID int) ([]RecommendedItem, erro
 	return items, nil
 }
 
-func (s *service) GetTreeRecommendations(treeID int, req TreeRequest) ([]RecommendedItem, error) {
-	return s.repo.GetNextPathInTree(treeID, req.UserID)
+func (s *service) GetTreeRecommendations(req TreeRequest) ([]RecommendedItem, error) {
+	return s.repo.GetNextPathInTree(req.Tree_id, req.User_id)
 }

@@ -4,8 +4,8 @@ import "database/sql"
 
 type Repository interface {
 	GetPopularItems() ([]RecommendedItem, error)
-	GetPersonalizedItems(userID int) ([]RecommendedItem, error)
-	GetNextPathInTree(treeID int, userID int) ([]RecommendedItem, error)
+	GetPersonalizedItems(userID string) ([]RecommendedItem, error)
+	GetNextPathInTree(treeID string, userID string) ([]RecommendedItem, error)
 }
 
 type repository struct {
@@ -17,31 +17,57 @@ func NewRepository(db *sql.DB) Repository {
 }
 
 func (r *repository) GetPopularItems() ([]RecommendedItem, error) {
-	// return []RecommendedItem{
-	// 	{ID: 101, Name: "Popular: Go Basics", Score: 5.0},
-	// 	{ID: 102, Name: "Popular: SQL Fundamentals", Score: 4.8},
-	// }, nil
+	query := `
+		SELECT path_id
+		FROM learning_path lp
+		ORDER BY avg_rating DESC 
+		LIMIT 10
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	return nil, nil
+	var items []RecommendedItem
+	for rows.Next() {
+		var item RecommendedItem
+		if err := rows.Scan(&item.Path_id); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+
+	return items, nil
 }
 
-func (r *repository) GetPersonalizedItems(userID int) ([]RecommendedItem, error) {
-	// if userID == 999 {
-	// 	return []RecommendedItem{}, nil
-	// }
-	
-	// return []RecommendedItem{
-	// 	{ID: 201, Name: "Personal: Advanced Go", Score: 4.9},
-	// }, nil
+func (r *repository) GetPersonalizedItems(userID string) ([]RecommendedItem, error) {
+	query := `
+		SELECT lp.path_id
+		FROM learning_path lp
+		JOIN path_enroll pe ON lp.path_id = pe.path_id
+		WHERE pe.user_id = $1
+	`
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	return nil, nil
+	var items []RecommendedItem
+	for rows.Next() {
+		var item RecommendedItem
+		if err := rows.Scan(&item.Path_id); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
-func (r *repository) GetNextPathInTree(treeID int, userID int) ([]RecommendedItem, error) {
-	// Logic: Query ดูว่าใน Tree นี้ User เรียนถึง Node ไหนแล้ว แล้ว return Node ถัดไป
-	// return []RecommendedItem{
-	// 	{ID: 305, Name: "Tree Step: Next Node in Tree " + strconv.Itoa(treeID), Score: 1.0},
-	// }, nil
-	
+func (r *repository) GetNextPathInTree(treeID string, userID string) ([]RecommendedItem, error) {
+	// query := `
+
+	// `
 	return nil, nil
 }
