@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	_ "github.com/microsoft/go-mssqldb"
@@ -42,6 +43,39 @@ func NewDatabase(connString string) (Database, error) {
 	}
 
 	return &sqlDatabase{db: db}, nil
+}
+
+// NewDatabaseWithRetry เชื่อมต่อ Database พร้อม Retry Logic สำหรับ Cloud DB
+// maxRetries: จำนวนครั้งที่จะลองใหม่ (แนะนำ 5-10 ครั้ง)
+// initialDelay: ระยะเวลารอครั้งแรก (แนะนำ 2-5 วินาที)
+func NewDatabaseWithRetry(connString string, maxRetries int, initialDelay time.Duration) (Database, error) {
+	var lastErr error
+	delay := initialDelay
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		log.Printf("Attempting to connect to database (attempt %d/%d)...", attempt, maxRetries)
+
+		db, err := NewDatabase(connString)
+		if err == nil {
+			log.Printf("Database connected successfully on attempt %d", attempt)
+			return db, nil
+		}
+
+		lastErr = err
+		log.Printf("Connection attempt %d failed: %v", attempt, err)
+
+		if attempt < maxRetries {
+			log.Printf("Waiting %v before retry...", delay)
+			time.Sleep(delay)
+			// Exponential backoff: เพิ่มระยะเวลารอเป็น 2 เท่า (สูงสุด 30 วินาที)
+			delay *= 2
+			if delay > 30*time.Second {
+				delay = 30 * time.Second
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (s *sqlDatabase) GetDB() *sql.DB {

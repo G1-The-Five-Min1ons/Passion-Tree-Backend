@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -10,7 +11,6 @@ import (
 
 	"passiontree/internal/config"
 	"passiontree/internal/database"
-	"passiontree/internal/database/migrations"
 	"passiontree/internal/routes"
 )
 
@@ -23,20 +23,13 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize database connection
-	db, err := database.NewDatabase(cfg.DBConnString)
+	// database connection with retry logic
+	db, err := database.NewDatabaseWithRetry(cfg.DBConnString, 10, 3*time.Second)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to connect to database after multiple retries: %v", err)
 	}
 	defer db.Close()
-	log.Println("✅ Database connected successfully")
 
-	// Run migrations
-	if err := migrations.RunMigrations(db.GetDB()); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
-	}
-
-	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
 		AppName: "Passion Tree Backend v1.0",
 	})
@@ -57,6 +50,6 @@ func main() {
 		port = DefaultPort
 	}
 
-	log.Printf("🚀 Starting Fiber server on port %s", port)
+	log.Printf("Starting Fiber server on port %s", port)
 	log.Fatal(app.Listen(":" + port))
 }

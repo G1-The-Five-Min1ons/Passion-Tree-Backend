@@ -12,7 +12,7 @@ RUN go build -ldflags "-s -w" -o /out/app ./
 
 # 2) Runtime stage
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates && update-ca-certificates
+RUN apk add --no-cache ca-certificates curl && update-ca-certificates
 WORKDIR /app
 COPY --from=builder /out/app ./app
 # Create non-root user
