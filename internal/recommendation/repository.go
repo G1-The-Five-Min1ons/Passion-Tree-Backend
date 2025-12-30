@@ -1,6 +1,10 @@
 package recommendation
 
-import "database/sql"
+import (
+	"database/sql"
+	
+	"passiontree/internal/database" 
+)
 
 type Repository interface {
 	GetPopularItems() ([]RecommendedItem, error)
@@ -12,8 +16,10 @@ type repository struct {
 	db *sql.DB
 }
 
-func NewRepository(db *sql.DB) Repository {
-	return &repository{db: db}
+func NewRepository(ds database.Database) Repository {
+	return &repository{
+		db: ds.GetDB(), 
+	}
 }
 
 func (r *repository) GetPopularItems() ([]RecommendedItem, error) {

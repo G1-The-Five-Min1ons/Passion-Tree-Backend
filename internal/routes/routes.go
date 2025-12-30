@@ -4,6 +4,8 @@ import (
 	"passiontree/internal/database"
 
 	"github.com/gofiber/fiber/v2"
+
+	"passiontree/internal/recommendation"
 )
 
 // Setup configures all routes for the application
@@ -14,6 +16,11 @@ func Setup(app *fiber.App, db database.Database) {
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return healthCheck(c, db)
 	})
+
+	recRepo := recommendation.NewRepository(db)
+	recSvc := recommendation.NewService(recRepo)
+	recHandler := recommendation.NewHandler(recSvc)
+	recHandler.RegisterRoutes(api)
 }
 
 // healthCheck returns the service health status
