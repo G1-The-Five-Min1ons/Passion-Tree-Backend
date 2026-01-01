@@ -2,7 +2,6 @@ package learningpath
 
 import (
 	"net/http"
-	"strconv"
 	"github.com/gin-gonic/gin"
 )
 
@@ -27,15 +26,12 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup) {
 
 	userPaths := r.Group("/user/paths")
 	{
-		userPaths.GET("/:path_id/progress", h.GetProgress)
+		userPaths.GET("/:path_id/status", h.GetEnrollmentStatus)
 	}
 }
 
 func (h *Handler) GetAll(c *gin.Context) {
-	category := c.Query("category")
-	search := c.Query("search")
-	
-	paths, err := h.svc.GetPaths(category, search)
+	paths, err := h.svc.GetPaths()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -55,21 +51,23 @@ func (h *Handler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "created", "id": id})
+	c.JSON(http.StatusCreated, gin.H{"message": "created", "path_id": id})
 }
 
 func (h *Handler) GetOne(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("path_id"))
+	id := c.Param("path_id")
+	
 	path, err := h.svc.GetPathDetails(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "path not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "path not found or error fetching data"})
 		return
 	}
 	c.JSON(http.StatusOK, path)
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("path_id"))
+	id := c.Param("path_id")
+	
 	var req UpdatePathRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -84,7 +82,8 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("path_id"))
+	id := c.Param("path_id")
+	
 	if err := h.svc.DeletePath(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -93,11 +92,11 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Start(c *gin.Context) {
-	pathID, _ := strconv.Atoi(c.Param("path_id"))
+	pathID := c.Param("path_id")
 	
 	var req StartPathRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
 
@@ -108,14 +107,19 @@ func (h *Handler) Start(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "enrolled successfully"})
 }
 
-func (h *Handler) GetProgress(c *gin.Context) {
-	pathID, _ := strconv.Atoi(c.Param("path_id"))
-	userID, _ := strconv.Atoi(c.Query("user_id"))
+func (h *Handler) GetEnrollmentStatus(c *gin.Context) {
+	pathID := c.Param("path_id")
+	userID := c.Query("user_id")
 
-	progress, err := h.svc.GetPathProgress(pathID, userID)
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	status, err := h.svc.GetEnrollmentStatus(pathID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": progress})
+	c.JSON(http.StatusOK, gin.H{"data": status})
 }

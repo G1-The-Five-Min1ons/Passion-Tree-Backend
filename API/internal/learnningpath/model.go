@@ -1,19 +1,31 @@
 package learningpath
 
+import "time"
+
 type LearningPath struct {
-	ID          int    `json:"id"`
-	Title       string `json:"title"`
-	Category    string `json:"category"`
-	Description string `json:"description"`
-	CoverImage  string `json:"cover_image"`
-	Nodes       []Node `json:"nodes,omitempty"`
+	PathID      string    `json:"path_id"`
+	Title       string    `json:"title"`
+	CoverImgURL string    `json:"cover_img_url"`
+	Objective   string    `json:"objective"`
+	Description string    `json:"description"`
+	AvgRating   float64   `json:"avg_rating"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"create_at"`
+	UpdatedAt   time.Time `json:"update_at"`
+	Nodes       []Node    `json:"nodes,omitempty"`
 }
 
 type Node struct {
-	ID          int    `json:"node_id"`
+	NodeID      string `json:"node_id"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
-	Order       int    `json:"order"`
+}
+
+type PathEnroll struct {
+	EnrollID   string     `json:"enroll_id"`
+	Status     string     `json:"status"`
+	EnrollAt   time.Time  `json:"enroll_at"`
+	CompleteAt *time.Time `json:"complete_at"`
 }
 
 type NodeProgress struct {
@@ -23,18 +35,20 @@ type NodeProgress struct {
 
 type CreatePathRequest struct {
 	Title       string `json:"title" binding:"required"`
-	Category    string `json:"category"`
+	Objective   string `json:"objective"`
 	Description string `json:"description"`
-	CoverImage  string `json:"cover_image"`
+	CoverImgURL string `json:"cover_img_url"`
+	Status      string `json:"status"`
 }
 
 type UpdatePathRequest struct {
 	Title       string `json:"title"`
-	Category    string `json:"category"`
+	Objective   string `json:"objective"`
 	Description string `json:"description"`
-	CoverImage  string `json:"cover_image"`
+	CoverImgURL string `json:"cover_img_url"`
+	Status      string `json:"status"`
 }
 
 type StartPathRequest struct {
-	UserID int `json:"user_id" binding:"required"`
+	UserID string `json:"user_id" binding:"required"`
 }

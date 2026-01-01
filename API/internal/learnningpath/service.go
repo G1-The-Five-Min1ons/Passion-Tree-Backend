@@ -1,15 +1,20 @@
 package learningpath
 
-import "errors"
+import (
+	"errors"
+)
 
 type Service interface {
-	GetPaths(category, search string) ([]LearningPath, error)
-	GetPathDetails(id int) (*LearningPath, error)
-	CreatePath(req CreatePathRequest) (int, error)
-	UpdatePath(id int, req UpdatePathRequest) error
-	DeletePath(id int) error
-	StartPath(pathID int, userID int) error
-	GetPathProgress(pathID int, userID int) ([]NodeProgress, error)
+	GetPaths() ([]LearningPath, error)
+	
+	GetPathDetails(id string) (*LearningPath, error)
+	CreatePath(req CreatePathRequest) (string, error)
+	UpdatePath(id string, req UpdatePathRequest) error
+	DeletePath(id string) error
+	
+	StartPath(pathID string, userID string) error
+	
+	GetEnrollmentStatus(pathID string, userID string) (*PathEnroll, error)
 }
 
 type service struct {
@@ -20,36 +25,36 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) GetPaths(category, search string) ([]LearningPath, error) {
-	return s.repo.GetAll(category, search)
+func (s *service) GetPaths() ([]LearningPath, error) {
+	return s.repo.GetAll()
 }
 
-func (s *service) GetPathDetails(id int) (*LearningPath, error) {
+func (s *service) GetPathDetails(id string) (*LearningPath, error) {
 	return s.repo.GetByID(id)
 }
 
-func (s *service) CreatePath(req CreatePathRequest) (int, error) {
+func (s *service) CreatePath(req CreatePathRequest) (string, error) {
 	if req.Title == "" {
-		return 0, errors.New("title is required")
+		return "", errors.New("title is required")
 	}
 	return s.repo.Create(req)
 }
 
-func (s *service) UpdatePath(id int, req UpdatePathRequest) error {
+func (s *service) UpdatePath(id string, req UpdatePathRequest) error {
 	return s.repo.Update(id, req)
 }
 
-func (s *service) DeletePath(id int) error {
+func (s *service) DeletePath(id string) error {
 	return s.repo.Delete(id)
 }
 
-func (s *service) StartPath(pathID int, userID int) error {
-	if userID == 0 {
-		return errors.New("invalid user")
+func (s *service) StartPath(pathID string, userID string) error {
+	if userID == "" {
+		return errors.New("invalid user id")
 	}
 	return s.repo.EnrollUser(pathID, userID)
 }
 
-func (s *service) GetPathProgress(pathID int, userID int) ([]NodeProgress, error) {
-	return s.repo.GetUserProgress(pathID, userID)
+func (s *service) GetEnrollmentStatus(pathID string, userID string) (*PathEnroll, error) {
+	return s.repo.GetEnrollmentStatus(pathID, userID)
 }
