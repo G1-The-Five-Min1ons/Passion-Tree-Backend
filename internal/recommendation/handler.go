@@ -1,7 +1,6 @@
 package recommendation
 
 import (
-	"net/http"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -22,15 +21,15 @@ func (h *Handler) PostGeneral(c *fiber.Ctx) error {
 	var req GeneralRequest
 	
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	items, err := h.svc.GetGeneralRecommendations(req.User_id)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.Status(http.StatusOK).JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"user_id": req.User_id,
 		"data":    items,
 	})
@@ -39,15 +38,15 @@ func (h *Handler) PostGeneral(c *fiber.Ctx) error {
 func (h *Handler) PostTree(c *fiber.Ctx) error {
 	var req TreeRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
 	items, err := h.svc.GetTreeRecommendations(req)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.Status(http.StatusOK).JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"user_id": req.User_id,
 		"tree_id": req.Tree_id,
 		"data":    items,
