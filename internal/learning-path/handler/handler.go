@@ -3,9 +3,17 @@ package handler
 import "passiontree/internal/learning-path/service"
 
 type Handler struct {
-	svc service.Service
+	pathSvc    service.ServiceLearningPath
+	nodeSvc    service.ServiceNode
+	commentSvc service.ServiceComment
+	quizSvc    service.ServiceQuiz
 }
 
 func NewHandler(svc service.Service) *Handler {
-	return &Handler{svc: svc}
+	return &Handler{
+		pathSvc:    svc,
+		nodeSvc:    svc,
+		commentSvc: svc,
+		quizSvc:    svc,
+	}
 }

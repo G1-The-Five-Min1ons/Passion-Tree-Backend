@@ -6,7 +6,7 @@ import (
 	"passiontree/internal/learning-path/model"
 )
 
-type Repository interface {
+type RepositoryLearningPath interface {
 	GetAllLearnningPath() ([]model.LearningPath, error)
 	GetLearnningPathByID(id string) (*model.LearningPath, error)
 	CreateLearnningPath(req model.CreatePathRequest) (string, error)
@@ -14,7 +14,9 @@ type Repository interface {
 	DeleteLearnningPath(id string) error
 	EnrollLearnningPathUser(pathID string, userID string) error
 	GetLearnningPathEnrollmentStatus(pathID string, userID string) (*model.PathEnroll, error)
+}
 
+type RepositoryNode interface {
 	CreateNode(req model.CreateNodeRequest) (string, error)
 	GetNodesByPathID(pathID string) ([]model.Node, error)
 	UpdateNode(nodeID string, req model.UpdateNodeRequest) error
@@ -22,20 +24,31 @@ type Repository interface {
 	CreateMaterial(req model.CreateMaterialRequest) (string, error)
 	GetMaterialsByNodeID(nodeID string) ([]model.NodeMaterial, error)
 	DeleteMaterial(materialID string) error
+}
 
+type RepositoryComment interface {
 	CreateComment(req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeID(nodeID string) ([]model.NodeComment, error)
 	DeleteComment(commentID string) error
 	CreateReaction(req model.CreateReactionRequest) error
 	GetReactionsByCommentID(commentID string) ([]model.CommentReaction, error)
 	CreateMention(req model.CreateMentionRequest) (string, error)
+}
 
+type RepositoryQuiz interface {
 	CreateQuestion(req model.CreateQuestionRequest) (string, error)
 	GetQuestionsByNodeID(nodeID string) ([]model.NodeQuestion, error)
 	DeleteQuestion(questionID string) error
 	CreateChoice(req model.CreateChoiceRequest) (string, error)
 	GetChoicesByQuestionID(questionID string) ([]model.QuestionChoice, error)
 	DeleteChoice(choiceID string) error
+}
+
+type Repository interface {
+	RepositoryLearningPath
+	RepositoryNode
+	RepositoryComment
+	RepositoryQuiz
 }
 
 type repository struct {

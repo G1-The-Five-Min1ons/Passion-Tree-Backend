@@ -13,7 +13,7 @@ func (h *Handler) CreateNode(c *fiber.Ctx) error {
 	}
 	req.PathID = pathID
 
-	id, err := h.svc.AddNode(req)
+	id, err := h.nodeSvc.AddNode(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -27,14 +27,14 @@ func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	if err := h.svc.EditNode(nodeID, req); err != nil {
+	if err := h.nodeSvc.EditNode(nodeID, req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "node updated"})
 }
 
 func (h *Handler) DeleteNode(c *fiber.Ctx) error {
-	if err := h.svc.RemoveNode(c.Params("node_id")); err != nil {
+	if err := h.nodeSvc.RemoveNode(c.Params("node_id")); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "node deleted"})
@@ -48,7 +48,7 @@ func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 	}
 	req.NodeID = nodeID
 
-	id, err := h.svc.AddMaterial(req)
+	id, err := h.nodeSvc.AddMaterial(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -56,7 +56,7 @@ func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 }
 
 func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
-	if err := h.svc.RemoveMaterial(c.Params("material_id")); err != nil {
+	if err := h.nodeSvc.RemoveMaterial(c.Params("material_id")); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "material deleted"})

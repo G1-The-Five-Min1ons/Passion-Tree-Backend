@@ -6,7 +6,7 @@ import (
 )
 
 func (h *Handler) GetAll(c *fiber.Ctx) error {
-	paths, err := h.svc.GetPaths()
+	paths, err := h.pathSvc.GetPaths()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -19,7 +19,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	id, err := h.svc.CreatePath(req)
+	id, err := h.pathSvc.CreatePath(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -28,7 +28,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 
 func (h *Handler) GetOne(c *fiber.Ctx) error {
 	id := c.Params("path_id")
-	path, err := h.svc.GetPathDetails(id)
+	path, err := h.pathSvc.GetPathDetails(id)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "path not found or error fetching data"})
 	}
@@ -42,7 +42,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	if err := h.svc.UpdatePath(id, req); err != nil {
+	if err := h.pathSvc.UpdatePath(id, req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "updated"})
@@ -50,7 +50,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("path_id")
-	if err := h.svc.DeletePath(id); err != nil {
+	if err := h.pathSvc.DeletePath(id); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "deleted"})
@@ -63,7 +63,7 @@ func (h *Handler) Start(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	if err := h.svc.StartPath(pathID, req.UserID); err != nil {
+	if err := h.pathSvc.StartPath(pathID, req.UserID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "enrolled successfully"})
@@ -77,7 +77,7 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "user_id is required"})
 	}
 
-	status, err := h.svc.GetEnrollmentStatus(pathID, userID)
+	status, err := h.pathSvc.GetEnrollmentStatus(pathID, userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

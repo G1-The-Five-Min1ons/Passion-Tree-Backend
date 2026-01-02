@@ -7,7 +7,7 @@ import (
 
 func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	questions, err := h.svc.GetQuestions(nodeID)
+	questions, err := h.quizSvc.GetQuestions(nodeID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -22,7 +22,7 @@ func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 	}
 	req.NodeID = nodeID
 
-	id, err := h.svc.AddQuestion(req)
+	id, err := h.quizSvc.AddQuestion(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -30,7 +30,7 @@ func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 }
 
 func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
-	if err := h.svc.RemoveQuestion(c.Params("question_id")); err != nil {
+	if err := h.quizSvc.RemoveQuestion(c.Params("question_id")); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "question deleted"})
@@ -44,7 +44,7 @@ func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 	}
 	req.QuestionID = questionID
 
-	id, err := h.svc.AddChoice(req)
+	id, err := h.quizSvc.AddChoice(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -52,7 +52,7 @@ func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 }
 
 func (h *Handler) DeleteChoice(c *fiber.Ctx) error {
-	if err := h.svc.RemoveChoice(c.Params("choice_id")); err != nil {
+	if err := h.quizSvc.RemoveChoice(c.Params("choice_id")); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "choice deleted"})

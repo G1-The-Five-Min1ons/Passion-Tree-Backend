@@ -5,21 +5,21 @@ import (
 )
 
 func (s *service) AddComment(req model.CreateCommentRequest) (string, error) {
-	return s.repo.CreateComment(req)
+	return s.commentRepo.CreateComment(req)
 }
 
 func (s *service) GetNodeComments(nodeID string) ([]model.NodeComment, error) {
-	return s.repo.GetCommentsByNodeID(nodeID)
+	return s.commentRepo.GetCommentsByNodeID(nodeID)
 }
 
 func (s *service) RemoveComment(commentID string) error {
-	return s.repo.DeleteComment(commentID)
+	return s.commentRepo.DeleteComment(commentID)
 }
 
 func (s *service) AddReaction(req model.CreateReactionRequest) error {
-	return s.repo.CreateReaction(req)
+	return s.commentRepo.CreateReaction(req)
 }
 
 func (s *service) AddMention(req model.CreateMentionRequest) (string, error) {
-	return s.repo.CreateMention(req)
+	return s.commentRepo.CreateMention(req)
 }

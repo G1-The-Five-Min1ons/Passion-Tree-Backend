@@ -6,35 +6,35 @@ import (
 )
 
 func (s *service) GetPaths() ([]model.LearningPath, error) {
-	return s.repo.GetAllLearnningPath()
+	return s.pathRepo.GetAllLearnningPath()
 }
 
 func (s *service) GetPathDetails(id string) (*model.LearningPath, error) {
-	return s.repo.GetLearnningPathByID(id)
+	return s.pathRepo.GetLearnningPathByID(id)
 }
 
 func (s *service) CreatePath(req model.CreatePathRequest) (string, error) {
 	if req.Title == "" {
 		return "", errors.New("title is required")
 	}
-	return s.repo.CreateLearnningPath(req)
+	return s.pathRepo.CreateLearnningPath(req)
 }
 
 func (s *service) UpdatePath(id string, req model.UpdatePathRequest) error {
-	return s.repo.UpdateLearnningPath(id, req)
+	return s.pathRepo.UpdateLearnningPath(id, req)
 }
 
 func (s *service) DeletePath(id string) error {
-	return s.repo.DeleteLearnningPath(id)
+	return s.pathRepo.DeleteLearnningPath(id)
 }
 
 func (s *service) StartPath(pathID string, userID string) error {
 	if userID == "" {
 		return errors.New("invalid user id")
 	}
-	return s.repo.EnrollLearnningPathUser(pathID, userID)
+	return s.pathRepo.EnrollLearnningPathUser(pathID, userID)
 }
 
 func (s *service) GetEnrollmentStatus(pathID string, userID string) (*model.PathEnroll, error) {
-	return s.repo.GetLearnningPathEnrollmentStatus(pathID, userID)
+	return s.pathRepo.GetLearnningPathEnrollmentStatus(pathID, userID)
 }

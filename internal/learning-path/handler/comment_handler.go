@@ -6,7 +6,7 @@ import (
 )
 
 func (h *Handler) GetComments(c *fiber.Ctx) error {
-	comments, err := h.svc.GetNodeComments(c.Params("node_id"))
+	comments, err := h.commentSvc.GetNodeComments(c.Params("node_id"))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -21,7 +21,7 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	}
 	req.NodeID = nodeID
 
-	id, err := h.svc.AddComment(req)
+	id, err := h.commentSvc.AddComment(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -29,7 +29,7 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 }
 
 func (h *Handler) DeleteComment(c *fiber.Ctx) error {
-	if err := h.svc.RemoveComment(c.Params("comment_id")); err != nil {
+	if err := h.commentSvc.RemoveComment(c.Params("comment_id")); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "comment deleted"})
@@ -43,7 +43,7 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	}
 	req.CommentID = commentID
 
-	if err := h.svc.AddReaction(req); err != nil {
+	if err := h.commentSvc.AddReaction(req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "reaction added"})
@@ -55,7 +55,7 @@ func (h *Handler) CreateMention(c *fiber.Ctx) error {
 	c.BodyParser(&req)
 	req.CommentID = commentID
 
-	id, err := h.svc.AddMention(req)
+	id, err := h.commentSvc.AddMention(req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

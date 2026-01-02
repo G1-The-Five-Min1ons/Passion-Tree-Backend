@@ -5,21 +5,21 @@ import (
 )
 
 func (s *service) AddQuestion(req model.CreateQuestionRequest) (string, error) {
-	return s.repo.CreateQuestion(req)
+	return s.quizRepo.CreateQuestion(req)
 }
 
 func (s *service) GetQuestions(nodeID string) ([]model.NodeQuestion, error) {
-	return s.repo.GetQuestionsByNodeID(nodeID)
+	return s.quizRepo.GetQuestionsByNodeID(nodeID)
 }
 
 func (s *service) RemoveQuestion(questionID string) error {
-	return s.repo.DeleteQuestion(questionID)
+	return s.quizRepo.DeleteQuestion(questionID)
 }
 
 func (s *service) AddChoice(req model.CreateChoiceRequest) (string, error) {
-	return s.repo.CreateChoice(req)
+	return s.quizRepo.CreateChoice(req)
 }
 
 func (s *service) RemoveChoice(choiceID string) error {
-	return s.repo.DeleteChoice(choiceID)
+	return s.quizRepo.DeleteChoice(choiceID)
 }
