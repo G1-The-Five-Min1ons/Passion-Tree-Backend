@@ -23,10 +23,7 @@ func Setup(app *fiber.App, db database.Database) {
 	recHandler := recommendation.NewHandler(recSvc)
 	recHandler.RegisterRoutes(api)
 
-	learningpathRepo := learningpath.NewRepository(db)
-	learningpathSvc := learningpath.NewService(learningpathRepo)
-	learningpathHandler := learningpath.NewHandler(learningpathSvc)
-	learningpathHandler.RegisterRoutes(api)
+	learningpath.RegisterRoutes(api, db)
 }
 
 // healthCheck returns the service health status
