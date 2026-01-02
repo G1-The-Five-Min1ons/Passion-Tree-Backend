@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"passiontree/internal/recommendation"
+	"passiontree/internal/learning-path"
 )
 
 // Setup configures all routes for the application
@@ -21,6 +22,11 @@ func Setup(app *fiber.App, db database.Database) {
 	recSvc := recommendation.NewService(recRepo)
 	recHandler := recommendation.NewHandler(recSvc)
 	recHandler.RegisterRoutes(api)
+
+	learningpathRepo := learningpath.NewRepository(db)
+	learningpathSvc := learningpath.NewService(learningpathRepo)
+	learningpathHandler := learningpath.NewHandler(learningpathSvc)
+	learningpathHandler.RegisterRoutes(api)
 }
 
 // healthCheck returns the service health status
