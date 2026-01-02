@@ -13,7 +13,7 @@ func NewHandler(svc Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(r fiber.Router) {
-	paths := r.Group("/paths")
+	paths := r.Group("/learningpaths")
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
@@ -24,7 +24,7 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 		paths.Post("/:path_id/nodes", h.CreateNode)
 	}
 
-	nodes := r.Group("/nodes")
+	nodes := r.Group("/learningpaths/nodes")
 	{
 		nodes.Put("/:node_id", h.UpdateNode)
 		nodes.Delete("/:node_id", h.DeleteNode)
@@ -35,22 +35,22 @@ func (h *Handler) RegisterRoutes(r fiber.Router) {
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
 	}
 
-	questions := r.Group("/questions")
+	questions := r.Group("/learningpaths/questions")
 	{
 		questions.Delete("/:question_id", h.DeleteQuestion)
 		questions.Post("/:question_id/choices", h.CreateChoice)
 	}
 
-	userPaths := r.Group("/user/paths")
+	userPaths := r.Group("/user/learningpaths")
 	{
 		userPaths.Get("/:path_id/status", h.GetEnrollmentStatus)
 	}
 
-	r.Post("/comments/:comment_id/mentions", h.CreateMention)
-	r.Post("/comments/:comment_id/reactions", h.CreateReaction)
-	r.Delete("/comments/:comment_id", h.DeleteComment)
-	r.Delete("/choices/:choice_id", h.DeleteChoice)
-	r.Delete("/materials/:material_id", h.DeleteMaterial)
+	r.Post("/learningpaths/comments/:comment_id/mentions", h.CreateMention)
+	r.Post("/learningpaths/comments/:comment_id/reactions", h.CreateReaction)
+	r.Delete("/learningpaths/comments/:comment_id", h.DeleteComment)
+	r.Delete("/learningpaths/choices/:choice_id", h.DeleteChoice)
+	r.Delete("/learningpaths/materials/:material_id", h.DeleteMaterial)
 }
 
 func (h *Handler) GetAll(c *fiber.Ctx) error {
