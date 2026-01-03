@@ -46,7 +46,7 @@ type Service interface {
 	ServiceQuiz
 }
 
-type service struct {
+type serviceImpl struct {
 	pathRepo    repository.RepositoryLearningPath
 	nodeRepo    repository.RepositoryNode
 	commentRepo repository.RepositoryComment
@@ -54,7 +54,7 @@ type service struct {
 }
 
 func NewService(repo repository.Repository) Service {
-	return &service{
+	return &serviceImpl{
 		pathRepo:    repo,
 		nodeRepo:    repo,
 		commentRepo: repo,

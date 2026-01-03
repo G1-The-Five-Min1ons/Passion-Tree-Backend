@@ -51,12 +51,12 @@ type Repository interface {
 	RepositoryQuiz
 }
 
-type repository struct {
+type repositoryImpl struct {
 	db *sql.DB
 }
 
 func NewRepository(ds database.Database) Repository {
-	return &repository{
+	return &repositoryImpl{
 		db: ds.GetDB(),
 	}
 }
