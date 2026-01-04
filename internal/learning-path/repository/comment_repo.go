@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"time"
     "github.com/google/uuid"
     "passiontree/internal/learning-path/model"
@@ -33,6 +34,11 @@ func (r *repositoryImpl) GetCommentsByNodeID(nodeID string) ([]model.NodeComment
 
 		comments = append(comments, c)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetCommentsByNodeID row iteration failed: %w", err)
+	}
+
 	return comments, nil
 }
 
@@ -64,6 +70,11 @@ func (r *repositoryImpl) GetReactionsByCommentID(commentID string) ([]model.Comm
 		}
 		reactions = append(reactions, rc)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetReactionsByCommentID row iteration failed: %w", err)
+	}
+
 	return reactions, nil
 }
 

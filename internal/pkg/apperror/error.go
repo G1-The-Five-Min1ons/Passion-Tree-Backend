@@ -23,7 +23,7 @@ func (e *AppError) Unwrap() error {
 func NewNotFound(format string, args ...interface{}) *AppError {
 	return &AppError{
 		Code:    fiber.StatusNotFound,
-		Message: fmt.Sprintf(format, args...), // <--- ใช้ fmt ตรงนี้ครับ
+		Message: fmt.Sprintf(format, args...),
 	}
 }
 

@@ -22,7 +22,7 @@ func NewHandler(svc service.Service) *Handler {
 	}
 }
 
-func handleError(c *fiber.Ctx, err error) error {
+func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 	if appErr, ok := err.(*apperror.AppError); ok {
 		if appErr.Log != nil {
 			log.Printf("[APP ERROR] Code: %d, Msg: %s, Cause: %v", appErr.Code, appErr.Message, appErr.Log)

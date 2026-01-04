@@ -28,6 +28,11 @@ func (r *repositoryImpl) GetAllLearnningPath() ([]model.LearningPath, error) {
 		}
 		paths = append(paths, p)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetAllLearnningPath row iteration failed: %w", err)
+	}
+
 	return paths, nil
 }
 
