@@ -89,17 +89,18 @@ func (r *repositoryImpl) GetMaterialsByNodeID(nodeID string) ([]model.NodeMateri
 
 	var mats []model.NodeMaterial
 	for rows.Next() {
-		var m model.NodeMaterial
-		if err := rows.Scan(&m.MaterialID, &m.Type, &m.URL, &m.NodeID); err == nil {
-			mats = append(mats, m)
-		}
-	}
+        var m model.NodeMaterial
+        if err := rows.Scan(&m.MaterialID, &m.Type, &m.URL, &m.NodeID); err != nil {
+            return nil, fmt.Errorf("repo.GetMaterialsByNodeID scan failed: %w", err)
+        }
+        mats = append(mats, m)
+    }
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("repo.GetMaterialsByNodeID row iteration failed: %w", err)
-	}
+        return nil, fmt.Errorf("repo.GetMaterialsByNodeID row iteration failed: %w", err)
+    }
 
-	return mats, nil
+    return mats, nil
 }
 
 func (r *repositoryImpl) DeleteMaterial(materialID string) error {
