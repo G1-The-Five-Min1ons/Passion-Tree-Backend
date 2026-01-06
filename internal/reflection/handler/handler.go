@@ -2,22 +2,23 @@ package handler
 
 import (
     "log"
-
     "github.com/gofiber/fiber/v2"
-    "passiontree/internal/pkg/apperror"
     "passiontree/internal/reflection/service"
+    "passiontree/internal/pkg/apperror"
 )
 
 type Handler struct {
-    service service.reflectSvc
+    reflectSvc service.svc
 }
 
-func NewHandler(s service.ReflectionService) *Handler {
-    return &Handler{service: s}
+func NewHandler(svc service.svc) *Handler {
+    return &Handler{
+        reflectSvc: svc,
+    }
 }
 
 func (h *Handler) handleError(c *fiber.Ctx, err error) error {
-    if appErr, ok := err.(apperror.AppError); ok {
+    if appErr, ok := err.(*apperror.AppError); ok {
         if appErr.Log != nil {
             log.Printf("[APP ERROR] Code: %d, Msg: %s, Cause: %v", appErr.Code, appErr.Message, appErr.Log)
         }
@@ -32,4 +33,4 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
         "success": false,
         "error": "internal server error",
     })
-
+}
