@@ -1,13 +1,33 @@
 package handler
 
 import (
-	"passiontree/internal/reflection/service"
+    "log"
+
+    "github.com/gofiber/fiber/v2"
+    "passiontree/internal/pkg/apperror"
+    "passiontree/internal/reflection/service"
 )
 
-type ReflectionHandler struct {
-	service service.ReflectionService
+type Handler struct {
+    service service.ReflectionService
 }
 
-func NewReflectionHandler(s service.ReflectionService) *ReflectionHandler {
-	return &ReflectionHandler{service: s}
+func NewHandler(s service.ReflectionService) *Handler {
+    return &Handler{service: s}
 }
+
+func (h *Handler) handleError(c *fiber.Ctx, err error) error {
+    if appErr, ok := err.(apperror.AppError); ok {
+        if appErr.Log != nil {
+            log.Printf("[APP ERROR] Code: %d, Msg: %s, Cause: %v", appErr.Code, appErr.Message, appErr.Log)
+        }
+        return c.Status(appErr.Code).JSON(fiber.Map{
+            "error": appErr.Message,
+        })
+    }
+
+    log.Printf("[UNKNOWN ERROR] %v", err)
+    return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+        "error": "internal server error",
+    })
+

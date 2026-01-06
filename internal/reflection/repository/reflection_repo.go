@@ -13,7 +13,7 @@ import (
 func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (string, error) {
 	id := uuid.New().String()
 
-	query := `INSERT INTO Reflect 
+	query := `INSERT INTO Reflect
 		(reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, tree_node_id) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)`
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"passiontree/internal/reflection/model"
 	"passiontree/internal/reflection/repository"
-	"passiontree/internal/pkg/reflecterror"
+	"passiontree/internal/pkg/apperror"
 )
 
 type ReflectionService interface {
