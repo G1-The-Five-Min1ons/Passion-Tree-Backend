@@ -13,14 +13,17 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	res, err := h.service.CreateReflection(c.Context(), req)
+	res, err := h.reflectSvc.CreateReflection(c.Context(), req)
 	if err != nil {
-		return h.handleError(c, apperror.NewInternal(err))
+		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
 		"message": "reflection created successfully",
-		"data":    res,
+		"data": fiber.Map{
+			"reflect_id": res,
+		},
 	})
 }
 
@@ -32,47 +35,61 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	if err := h.service.UpdateReflection(c.Context(), id, req); err != nil {
-		return h.handleError(c, apperror.NewInternal(err))
+	if err := h.reflectSvc.UpdateReflection(c.Context(), id, req); err != nil {
+		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
 		"message": "reflection updated successfully",
+		"data": fiber.Map{
+			"reflect_id": id,
+		},
 	})
 }
 
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
-	if err := h.service.DeleteReflection(c.Context(), id); err != nil {
-		return h.handleError(c, apperror.NewInternal(err))
+	if err := h.reflectSvc.DeleteReflection(c.Context(), id); err != nil {
+		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
 		"message": "reflection deleted successfully",
+		"data": fiber.Map{
+			"reflect_id": id,
+		},
 	})
 }
 
 func (h *Handler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
-	res, err := h.service.GetReflectionByID(c.Context(), id)
+	res, err := h.reflectSvc.GetReflectionByID(c.Context(), id)
 	if err != nil {
-		return h.handleError(c, apperror.NewInternal(err))
+		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"data": res,
+		"success": true,
+		"message": "reflection retrieved successfully",
+		"data": fiber.Map{
+			"reflect_id": res,
+		},
 	})
 }
 
 func (h *Handler) GetAll(c *fiber.Ctx) error {
-	res, err := h.service.GetAllReflections(c.Context())
+	res, err := h.reflectSvc.GetAllReflections(c.Context())
 	if err != nil {
-		return h.handleError(c, apperror.NewInternal(err))
+		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "reflections retrieved successfully",
 		"data": res,
 	})
 }
