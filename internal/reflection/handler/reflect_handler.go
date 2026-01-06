@@ -6,7 +6,7 @@ import (
 	"passiontree/internal/reflection/model"
 )
 
-func (h *Handler) Create(c *fiber.Ctx) error {
+func (h *ReflectionHandler) Create(c *fiber.Ctx) error {
 	var req model.CreateReflectionRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -27,7 +27,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) Update(c *fiber.Ctx) error {
+func (h *ReflectionHandler) Update(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
 	var req model.UpdateReflectionRequest
@@ -48,7 +48,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) Delete(c *fiber.Ctx) error {
+func (h *ReflectionHandler) Delete(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
 	if err := h.reflectSvc.DeleteReflection(c.Context(), id); err != nil {
@@ -64,7 +64,7 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) GetByID(c *fiber.Ctx) error {
+func (h *ReflectionHandler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
 	res, err := h.reflectSvc.GetReflectionByID(c.Context(), id)
@@ -81,7 +81,7 @@ func (h *Handler) GetByID(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) GetAll(c *fiber.Ctx) error {
+func (h *ReflectionHandler) GetAll(c *fiber.Ctx) error {
 	res, err := h.reflectSvc.GetAllReflections(c.Context())
 	if err != nil {
 		return h.handleError(c, err)

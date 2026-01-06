@@ -67,18 +67,3 @@ func NewForbidden(format string, args ...interface{}) AppError {
         Message: fmt.Sprintf(format, args...),
     }
 }
-
-// HandleError sends error response with appropriate status code
-func HandleError(c *fiber.Ctx, err error) error {
-    if appErr, ok := err.(AppError); ok {
-        return c.Status(appErr.Code).JSON(fiber.Map{
-            "error":   appErr.Message,
-            "message": appErr.Message,
-        })
-    }
-    
-    return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-        "error":   "internal_server_error",
-        "message": "An unexpected error occurred",
-    })
-}

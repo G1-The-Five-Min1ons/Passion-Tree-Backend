@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"passiontree/internal/pkg/apperor"
 	"passiontree/internal/reflection/model"
 )
 
@@ -30,7 +29,7 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 	)
 
 	if err != nil {
-		return "", apperor.NewInternal(err)
+		return "", fmt.Errorf("repo.CreateReflection exec failed: %w", err)
 	}
 
 	return id, nil
@@ -57,9 +56,9 @@ func (r *repositoryImpl) GetReflectionByID(ctx context.Context, reflectID string
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, apperor.NewNotFound("reflection with id '%s' not found", reflectID)
+			return nil, fmt.Errorf("repo.GetReflectionByID: no rows for id '%s': %w", reflectID, err)
 		}
-		return nil, apperor.NewInternal(err)
+		return nil, fmt.Errorf("repo.GetReflectionByID query failed: %w", err)
 	}
 
 	return &ref, nil
@@ -71,7 +70,7 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context) ([]model.Reflect
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, apperor.NewInternal(err)
+		return nil, fmt.Errorf("repo.GetAllReflections query failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -103,15 +102,15 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context) ([]model.Reflect
 }
 
 func (r *repositoryImpl) UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
-	query := `UPDATE Reflect 
-		SET 
-			reflect_score = ?, 
-			reflect_description = ?, 
-			reflect = ?, 
-			mood = ?, 
-			tag = ?, 
-			progress_score = ?, 
-			challenge_score = ? 
+	query := `UPDATE Reflect
+		SET
+			reflect_score = ?,
+			reflect_description = ?,
+			reflect = ?,
+			mood = ?,
+			tag = ?,
+			progress_score = ?,
+			challenge_score = ?
 		WHERE reflect_id = ?`
 
 	res, err := r.db.ExecContext(ctx, query,
@@ -126,12 +125,12 @@ func (r *repositoryImpl) UpdateReflection(ctx context.Context, reflectID string,
 	)
 
 	if err != nil {
-		return apperor.NewInternal(err)
+		return fmt.Errorf("repo.UpdateReflection exec failed: %w", err)
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		return apperor.NewNotFound("reflection with id '%s' not found", reflectID)
+		return fmt.Errorf("repo.UpdateReflection: reflection with id '%s' not found", reflectID)
 	}
 
 	return nil
@@ -142,12 +141,12 @@ func (r *repositoryImpl) DeleteReflection(ctx context.Context, reflectID string)
 
 	res, err := r.db.ExecContext(ctx, query, reflectID)
 	if err != nil {
-		return apperor.NewInternal(err)
+		return fmt.Errorf("repo.DeleteReflection exec failed: %w", err)
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		return apperor.NewNotFound("reflection with id '%s' not found", reflectID)
+		return fmt.Errorf("repo.DeleteReflection: reflection with id '%s' not found", reflectID)
 	}
 
 	return nil

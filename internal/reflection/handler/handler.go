@@ -8,11 +8,12 @@ import (
 )
 
 type Handler struct {
-    reflectSvc service.svc
+    reflectSvc service.ReflectionService
 }
 
 func NewHandler(svc service.svc) *Handler {
-    return &Handler{
+    return &ReflectionHandler{
+        func (h *ReflectionHandler) handleError
         reflectSvc: svc,
     }
 }
