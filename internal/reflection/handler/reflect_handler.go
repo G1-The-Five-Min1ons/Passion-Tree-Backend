@@ -1,12 +1,13 @@
 package handler
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
+
+	"github.com/gofiber/fiber/v2"
 )
 
-func (h *ReflectionHandler) Create(c *fiber.Ctx) error {
+func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreateReflectionRequest
 
 	if err := c.BodyParser(&req); err != nil {
@@ -27,7 +28,7 @@ func (h *ReflectionHandler) Create(c *fiber.Ctx) error {
 	})
 }
 
-func (h *ReflectionHandler) Update(c *fiber.Ctx) error {
+func (h *Handler) Update(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
 	var req model.UpdateReflectionRequest
@@ -48,7 +49,7 @@ func (h *ReflectionHandler) Update(c *fiber.Ctx) error {
 	})
 }
 
-func (h *ReflectionHandler) Delete(c *fiber.Ctx) error {
+func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
 	if err := h.reflectSvc.DeleteReflection(c.Context(), id); err != nil {
@@ -64,7 +65,7 @@ func (h *ReflectionHandler) Delete(c *fiber.Ctx) error {
 	})
 }
 
-func (h *ReflectionHandler) GetByID(c *fiber.Ctx) error {
+func (h *Handler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
 
 	res, err := h.reflectSvc.GetReflectionByID(c.Context(), id)
@@ -81,7 +82,7 @@ func (h *ReflectionHandler) GetByID(c *fiber.Ctx) error {
 	})
 }
 
-func (h *ReflectionHandler) GetAll(c *fiber.Ctx) error {
+func (h *Handler) GetAll(c *fiber.Ctx) error {
 	res, err := h.reflectSvc.GetAllReflections(c.Context())
 	if err != nil {
 		return h.handleError(c, err)
@@ -90,6 +91,6 @@ func (h *ReflectionHandler) GetAll(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "reflections retrieved successfully",
-		"data": res,
+		"data":    res,
 	})
 }
