@@ -15,6 +15,7 @@ func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "Questions retrieved successfully",
 		"data":    questions,
 	})
 }

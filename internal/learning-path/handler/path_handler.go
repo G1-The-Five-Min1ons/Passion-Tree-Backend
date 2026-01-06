@@ -14,6 +14,7 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "Learning paths retrieved all successfully",
 		"data":    paths,
 	})
 }
@@ -26,6 +27,7 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "Learning path retrieved by one successfully",
 		"data":    path,
 	})
 }
@@ -73,7 +75,13 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 	if err := h.pathSvc.DeletePath(id); err != nil {
 		return h.handleError(c, err)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "deleted"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Learning path deleted successfully",
+		"data": fiber.Map{
+			"path_id": id,
+		},
+	})
 }
 
 func (h *Handler) Start(c *fiber.Ctx) error {
@@ -108,5 +116,9 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": status})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Enrollment status retrieved successfully",
+		"data":    status,
+	})
 }

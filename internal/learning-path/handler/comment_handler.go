@@ -13,6 +13,7 @@ func (h *Handler) GetComments(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "Comments retrieved successfully",
 		"data":    comments,
 	})
 }
