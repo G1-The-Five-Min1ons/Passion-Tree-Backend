@@ -9,7 +9,7 @@ import (
 )
 
 type Handler struct {
-    service service.ReflectionService
+    service service.reflectSvc
 }
 
 func NewHandler(s service.ReflectionService) *Handler {
@@ -22,12 +22,14 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
             log.Printf("[APP ERROR] Code: %d, Msg: %s, Cause: %v", appErr.Code, appErr.Message, appErr.Log)
         }
         return c.Status(appErr.Code).JSON(fiber.Map{
+            "success": false,
             "error": appErr.Message,
         })
     }
 
     log.Printf("[UNKNOWN ERROR] %v", err)
     return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+        "success": false,
         "error": "internal server error",
     })
 
