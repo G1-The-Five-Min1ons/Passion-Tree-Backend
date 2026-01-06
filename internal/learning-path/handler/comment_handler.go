@@ -1,8 +1,9 @@
 package handler
 
 import (
-    "github.com/gofiber/fiber/v2"
-    "passiontree/internal/learning-path/model"
+	"passiontree/internal/learning-path/model"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetComments(c *fiber.Ctx) error {
@@ -10,7 +11,10 @@ func (h *Handler) GetComments(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": comments})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    comments,
+	})
 }
 
 func (h *Handler) CreateComment(c *fiber.Ctx) error {
@@ -25,14 +29,27 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"comment_id": id})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"message": "Comment created successfully",
+		"data": fiber.Map{
+			"comment_id": id,
+		},
+	})
 }
 
 func (h *Handler) DeleteComment(c *fiber.Ctx) error {
-	if err := h.commentSvc.RemoveComment(c.Params("comment_id")); err != nil {
+	commentID := c.Params("comment_id")
+	if err := h.commentSvc.RemoveComment(commentID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "comment deleted"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Comment deleted successfully",
+		"data": fiber.Map{
+			"comment_id": commentID,
+		},
+	})
 }
 
 func (h *Handler) CreateReaction(c *fiber.Ctx) error {
@@ -46,7 +63,13 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	if err := h.commentSvc.AddReaction(req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "reaction added"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Reaction added successfully",
+		"data": fiber.Map{
+			"comment_id": commentID,
+		},
+	})
 }
 
 func (h *Handler) CreateMention(c *fiber.Ctx) error {
@@ -59,5 +82,11 @@ func (h *Handler) CreateMention(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"mention_id": id})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"message": "Mention created successfully",
+		"data": fiber.Map{
+			"mention_id": id,
+		},
+	})
 }

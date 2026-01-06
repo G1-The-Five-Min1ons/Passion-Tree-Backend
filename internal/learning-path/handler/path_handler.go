@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetAll(c *fiber.Ctx) error {
@@ -11,7 +12,22 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": paths})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    paths,
+	})
+}
+
+func (h *Handler) GetOne(c *fiber.Ctx) error {
+	id := c.Params("path_id")
+	path, err := h.pathSvc.GetPathDetails(id)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    path,
+	})
 }
 
 func (h *Handler) Create(c *fiber.Ctx) error {
@@ -31,15 +47,6 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 			"path_id": id,
 		},
 	})
-}
-
-func (h *Handler) GetOne(c *fiber.Ctx) error {
-	id := c.Params("path_id")
-	path, err := h.pathSvc.GetPathDetails(id)
-	if err != nil {
-		return h.handleError(c, err)
-	}
-	return c.Status(fiber.StatusOK).JSON(path)
 }
 
 func (h *Handler) Update(c *fiber.Ctx) error {

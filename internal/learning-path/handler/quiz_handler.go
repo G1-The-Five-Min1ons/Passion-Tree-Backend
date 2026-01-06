@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetQuestions(c *fiber.Ctx) error {
@@ -12,7 +13,10 @@ func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"data": questions})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    questions,
+	})
 }
 
 func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
