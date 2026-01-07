@@ -2,15 +2,14 @@ package routes
 
 import (
 	"passiontree/internal/database"
+	"passiontree/internal/platform/aiclient"
 
-	"github.com/gofiber/fiber/v2"
-
-	"passiontree/internal/recommendation"
 	"passiontree/internal/learning-path"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Setup configures all routes for the application
-func Setup(app *fiber.App, db database.Database) {
+func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient) {
 	// Health check endpoint
 	api := app.Group("/api/v1")
 
@@ -18,12 +17,7 @@ func Setup(app *fiber.App, db database.Database) {
 		return healthCheck(c, db)
 	})
 
-	recRepo := recommendation.NewRepository(db)
-	recSvc := recommendation.NewService(recRepo)
-	recHandler := recommendation.NewHandler(recSvc)
-	recHandler.RegisterRoutes(api)
-
-	learningpath.RegisterRoutes(api, db)
+	learningpath.RegisterRoutes(api, db, aiClient)
 }
 
 // healthCheck returns the service health status

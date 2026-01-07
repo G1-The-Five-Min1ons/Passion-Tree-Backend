@@ -6,17 +6,19 @@ import (
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/learning-path/service"
 	"passiontree/internal/database"
+	"passiontree/internal/platform/aiclient"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database) {
+func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient) {
     repo := repository.NewRepository(db)
-    svc := service.NewService(repo)
+    svc := service.NewService(repo, aiClient)
     h := handler.NewHandler(svc)
 
 	paths := r.Group("/learningpaths")
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
+		paths.Post("/search", h.Search)
 		paths.Get("/:path_id", h.GetOne)
 		paths.Put("/:path_id", h.Update)
 		paths.Delete("/:path_id", h.Delete)

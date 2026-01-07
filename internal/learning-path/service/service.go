@@ -3,6 +3,7 @@ package service
 import (
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
+	"passiontree/internal/platform/aiclient"
 )
 
 type ServiceLearningPath interface {
@@ -13,6 +14,10 @@ type ServiceLearningPath interface {
 	DeletePath(id string) error
 	StartPath(pathID string, userID string) error
 	GetEnrollmentStatus(pathID string, userID string) (*model.PathEnroll, error)
+}
+
+type ServiceSearch interface {
+	SearchLearningPaths(req model.SearchPathRequest) (*model.SearchPathResponse, error)
 }
 
 type ServiceNode interface {
@@ -41,6 +46,7 @@ type ServiceQuiz interface {
 
 type Service interface {
 	ServiceLearningPath
+	ServiceSearch
 	ServiceNode
 	ServiceComment
 	ServiceQuiz
@@ -51,13 +57,15 @@ type serviceImpl struct {
 	nodeRepo    repository.RepositoryNode
 	commentRepo repository.RepositoryComment
 	quizRepo    repository.RepositoryQuiz
+	aiClient    *aiclient.AIClient
 }
 
-func NewService(repo repository.Repository) Service {
+func NewService(repo repository.Repository, aiClient *aiclient.AIClient) Service {
 	return &serviceImpl{
 		pathRepo:    repo,
 		nodeRepo:    repo,
 		commentRepo: repo,
 		quizRepo:    repo,
+		aiClient:    aiClient,
 	}
 }

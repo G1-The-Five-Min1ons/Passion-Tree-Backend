@@ -8,6 +8,7 @@ import (
 )
 type Handler struct {
 	pathSvc    service.ServiceLearningPath
+	searchSvc  service.ServiceSearch
 	nodeSvc    service.ServiceNode
 	commentSvc service.ServiceComment
 	quizSvc    service.ServiceQuiz
@@ -16,6 +17,7 @@ type Handler struct {
 func NewHandler(svc service.Service) *Handler {
 	return &Handler{
 		pathSvc:    svc,
+		searchSvc:  svc,
 		nodeSvc:    svc,
 		commentSvc: svc,
 		quizSvc:    svc,

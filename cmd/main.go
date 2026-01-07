@@ -11,6 +11,7 @@ import (
 
 	"passiontree/internal/config"
 	"passiontree/internal/database"
+	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/routes"
 )
 
@@ -30,6 +31,10 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize AI client
+	aiClient := aiclient.NewAIClient(cfg.AIServiceURL)
+	log.Printf("AI Service URL: %s", cfg.AIServiceURL)
+
 	app := fiber.New(fiber.Config{
 		AppName: "Passion Tree Backend v1.0",
 	})
@@ -41,8 +46,8 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
-	// Setup routes with database instance
-	routes.Setup(app, db)
+	// Setup routes with database instance and AI client
+	routes.Setup(app, db, aiClient)
 
 	// Get port from environment
 	port := os.Getenv("PORT")
