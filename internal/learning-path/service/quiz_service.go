@@ -16,6 +16,12 @@ func (s *serviceImpl) AddQuestion(req model.CreateQuestionRequest) (string, erro
 
 	id, err := s.quizRepo.CreateQuestion(req)
 	if err != nil {
+		if apperror.IsDuplicateKeyError(err) {
+			return "", apperror.NewConflict("question with this ID already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return "", apperror.NewBadRequest("invalid node_id: node does not exist")
+		}
 		return "", apperror.NewInternal(err)
 	}
 	return id, nil
@@ -40,6 +46,9 @@ func (s *serviceImpl) RemoveQuestion(questionID string) error {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("cannot delete: question id '%s' not found", questionID)
 		}
+		if apperror.IsForeignKeyError(err) {
+			return apperror.NewConflict("cannot delete question: there are existing choices associated with this question")
+		}
 		return apperror.NewInternal(err)
 	}
 	return nil
@@ -52,6 +61,12 @@ func (s *serviceImpl) AddChoice(req model.CreateChoiceRequest) (string, error) {
 
 	id, err := s.quizRepo.CreateChoice(req)
 	if err != nil {
+		if apperror.IsDuplicateKeyError(err) {
+			return "", apperror.NewConflict("choice with this ID already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return "", apperror.NewBadRequest("invalid question_id: question does not exist")
+		}
 		return "", apperror.NewInternal(err)
 	}
 	return id, nil

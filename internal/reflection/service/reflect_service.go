@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"database/sql"
-	"strings"
-	"passiontree/internal/reflection/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/reflection/model"
+	"strings"
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
@@ -29,6 +29,12 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	}
 	id, err := s.refRepo.CreateReflection(ctx, req)
 	if err != nil {
+		if apperror.IsDuplicateKeyError(err) {
+			return nil, apperror.NewConflict("reflection with this ID already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return nil, apperror.NewBadRequest("invalid tree_node_id or user_id: node or user does not exist")
+		}
 		return nil, apperror.NewInternal(err)
 	}
 	return &model.ReflectionResponse{
@@ -85,6 +91,12 @@ func (s *serviceImpl) UpdateReflection(ctx context.Context, reflectID string, re
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("cannot update: reflection id '%s' not found", reflectID)
 		}
+		if apperror.IsDuplicateKeyError(err) {
+			return apperror.NewConflict("reflection with this information already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return apperror.NewBadRequest("invalid tree_node_id: node does not exist")
+		}
 		return apperror.NewInternal(err)
 	}
 	return nil
@@ -97,6 +109,9 @@ func (s *serviceImpl) DeleteReflection(ctx context.Context, reflectID string) er
 	if err := s.refRepo.DeleteReflection(ctx, reflectID); err != nil {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("reflection with id '%s' not found", reflectID)
+		}
+		if apperror.IsForeignKeyError(err) {
+			return apperror.NewConflict("cannot delete reflection: there are existing dependencies associated with this reflection")
 		}
 		return apperror.NewInternal(err)
 	}

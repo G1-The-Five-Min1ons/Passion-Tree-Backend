@@ -2,6 +2,8 @@ package apperror
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -66,4 +68,28 @@ func NewForbidden(format string, args ...interface{}) *AppError {
 		Code:    fiber.StatusForbidden,
 		Message: fmt.Sprintf(format, args...),
 	}
+}
+
+// Helper functions to check database error types
+func IsDuplicateKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	// MSSQL duplicate key error messages
+	return strings.Contains(errMsg, "duplicate key") ||
+		strings.Contains(errMsg, "unique constraint") ||
+		strings.Contains(errMsg, "violation of unique key") ||
+		strings.Contains(errMsg, "cannot insert duplicate")
+}
+
+func IsForeignKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	// MSSQL foreign key error messages
+	return strings.Contains(errMsg, "foreign key constraint") ||
+		strings.Contains(errMsg, "the delete statement conflicted with the reference constraint") ||
+		strings.Contains(errMsg, "reference constraint")
 }

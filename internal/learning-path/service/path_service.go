@@ -34,6 +34,12 @@ func (s *serviceImpl) CreatePath(req model.CreatePathRequest) (string, error) {
 	}
 	id, err := s.pathRepo.CreateLearnningPath(req)
 	if err != nil {
+		if apperror.IsDuplicateKeyError(err) {
+			return "", apperror.NewConflict("learning path with this title or ID already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return "", apperror.NewBadRequest("invalid creator_id: user does not exist")
+		}
 		return "", apperror.NewInternal(err)
 	}
 	return id, nil
@@ -58,6 +64,12 @@ func (s *serviceImpl) UpdatePath(id string, req model.UpdatePathRequest) error {
 	}
 
 	if err := s.pathRepo.UpdateLearnningPath(id, req); err != nil {
+		if apperror.IsDuplicateKeyError(err) {
+			return apperror.NewConflict("learning path with this title already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return apperror.NewBadRequest("invalid creator_id: user does not exist")
+		}
 		return apperror.NewInternal(err)
 	}
 	return nil
@@ -68,6 +80,9 @@ func (s *serviceImpl) DeletePath(id string) error {
 		return apperror.NewBadRequest("path_id is required")
 	}
 	if err := s.pathRepo.DeleteLearnningPath(id); err != nil {
+		if apperror.IsForeignKeyError(err) {
+			return apperror.NewConflict("cannot delete path: there are existing enrollments or nodes associated with this path")
+		}
 		return apperror.NewInternal(err)
 	}
 	return nil
@@ -81,6 +96,9 @@ func (s *serviceImpl) StartPath(pathID string, userID string) error {
 		return apperror.NewBadRequest("path_ID is required")
 	}
 	if err := s.pathRepo.EnrollLearnningPathUser(pathID, userID); err != nil {
+		if apperror.IsDuplicateKeyError(err) {
+			return apperror.NewConflict("user is already enrolled in this learning path")
+		}
 		return apperror.NewInternal(err)
 	}
 	return nil
