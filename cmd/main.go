@@ -35,6 +35,20 @@ func main() {
 	aiClient := aiclient.NewAIClient(cfg.AIServiceURL)
 	log.Printf("AI Service URL: %s", cfg.AIServiceURL)
 
+	// Initialize Azure Storage client (optional)
+	var storageClient *database.StorageClient
+	if cfg.AzureStorageConnString != "" {
+		var err error
+		storageClient, err = database.NewStorageClient(cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize Azure Storage client: %v", err)
+		} else {
+			log.Printf("Azure Storage client initialized successfully")
+		}
+	} else {
+		log.Printf("Azure Storage not configured, skipping initialization")
+	}
+
 	app := fiber.New(fiber.Config{
 		AppName: "Passion Tree Backend v1.0",
 	})
@@ -46,8 +60,8 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
-	// Setup routes with database instance and AI client
-	routes.Setup(app, db, aiClient)
+	// Setup routes with database instance, AI client, and storage client
+	routes.Setup(app, db, aiClient, storageClient)
 
 	// Get port from environment
 	port := os.Getenv("PORT")

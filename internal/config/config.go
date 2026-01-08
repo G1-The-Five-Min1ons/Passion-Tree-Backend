@@ -8,8 +8,11 @@ import (
 )
 
 type Config struct {
-	DBConnString string
-	AIServiceURL string
+	DBConnString            string
+	AIServiceURL            string
+	AzureStorageConnString  string
+	ContainerLearningPath   string
+	ContainerProfile        string
 }
 
 func LoadDBConfig() (*Config, error) {
@@ -22,6 +25,11 @@ func LoadDBConfig() (*Config, error) {
 	port := os.Getenv("AZURESQL_PORT")
 	database := os.Getenv("AZURESQL_DATABASE")
 	aiServiceURL := os.Getenv("AI_SERVICE_URL")
+	
+	// Azure Storage
+	storageConnString := os.Getenv("AZURE_STORAGE_CONNECTION_STRING")
+	containerLearningPath := os.Getenv("CONTAINER_LEARNING_PATH")
+	containerProfile := os.Getenv("CONTAINER_PROFILE")
 
 	if server == "" || user == "" || password == "" || database == "" {
 		return nil, fmt.Errorf("missing required database environment variables")
@@ -29,6 +37,14 @@ func LoadDBConfig() (*Config, error) {
 
 	if port == "" {
 		port = "1433" // ค่า Default ของ Azure SQL
+	}
+	
+	if containerLearningPath == "" {
+		containerLearningPath = "learning-path-cover-imgs"
+	}
+
+	if containerProfile == "" {
+		containerProfile = "profile-imgs"
 	}
 
 	if aiServiceURL == "" {
@@ -40,7 +56,10 @@ func LoadDBConfig() (*Config, error) {
 		server, user, password, port, database)
 
 	return &Config{
-		DBConnString: connString,
-		AIServiceURL: aiServiceURL,
+		DBConnString:           connString,
+		AIServiceURL:           aiServiceURL,
+		AzureStorageConnString: storageConnString,
+		ContainerLearningPath:  containerLearningPath,
+		ContainerProfile:       containerProfile,
 	}, nil
 }
