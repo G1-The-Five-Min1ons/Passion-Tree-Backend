@@ -4,6 +4,7 @@ import (
 	"passiontree/internal/database"
 	"passiontree/internal/platform/aiclient"
 
+	auth "passiontree/internal/auth"
 	learningpath "passiontree/internal/learning-path"
 	reflection "passiontree/internal/reflection"
 
@@ -19,6 +20,7 @@ func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, st
 		return healthCheck(c, db, storageClient)
 	})
 
+	auth.RegisterRoutes(api, db)
 	learningpath.RegisterRoutes(api, db, aiClient)
 	reflection.RegisterRoutes(api, db)
 }
