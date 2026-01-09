@@ -15,7 +15,12 @@ import (
 	"passiontree/internal/routes"
 )
 
-const DefaultPort = "5000"
+const (
+	DefaultPort     = "5000"
+	DBRetryAttempts = 10
+	DBRetryDelay    = 3 * time.Second
+	AppName         = "Passion Tree Backend v1.0"
+)
 
 func main() {
 	// Load configuration
@@ -24,51 +29,82 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// database connection with retry logic
-	db, err := database.NewDatabaseWithRetry(cfg.DBConnString, 10, 3*time.Second)
+	// Initialize database connection
+	db, err := initializeDatabase(cfg.DBConnString)
 	if err != nil {
-		log.Fatalf("Failed to connect to database after multiple retries: %v", err)
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
 
 	// Initialize AI client
-	aiClient := aiclient.NewAIClient(cfg.AIServiceURL)
-	log.Printf("AI Service URL: %s", cfg.AIServiceURL)
+	aiClient := initializeAIClient(cfg.AIServiceURL)
 
 	// Initialize Azure Storage client (optional)
-	var storageClient *database.StorageClient
-	if cfg.AzureStorageConnString != "" {
-		var err error
-		storageClient, err = database.NewStorageClient(cfg)
-		if err != nil {
-			log.Printf("Warning: Failed to initialize Azure Storage client: %v", err)
-		} else {
-			log.Printf("Azure Storage client initialized successfully")
-		}
-	} else {
-		log.Printf("Azure Storage not configured, skipping initialization")
+	storageClient := initializeStorageClient(cfg)
+
+	app := createFiberApp()
+	routes.Setup(app, db, aiClient, storageClient)
+
+	// Start server
+	port := getPort()
+	log.Printf("Starting server on port %s", port)
+	log.Fatal(app.Listen(":" + port))
+}
+
+// initializeDatabase connects to the database with retry logic
+func initializeDatabase(connString string) (database.Database, error) {
+	db, err := database.NewDatabaseWithRetry(connString, DBRetryAttempts, DBRetryDelay)
+	if err != nil {
+		return nil, err
+	}
+	log.Println("Database connected successfully")
+	return db, nil
+}
+
+// initializeAIClient creates and configures the AI service client
+func initializeAIClient(serviceURL string) *aiclient.AIClient {
+	client := aiclient.NewAIClient(serviceURL)
+	log.Printf("AI Service configured: %s", serviceURL)
+	return client
+}
+
+// initializeStorageClient creates Azure Storage client if configured
+func initializeStorageClient(cfg *config.Config) *database.StorageClient {
+	if cfg.AzureStorageConnString == "" {
+		log.Println("Azure Storage not configured, skipping initialization")
+		return nil
 	}
 
+	storageClient, err := database.NewStorageClient(cfg)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Azure Storage: %v", err)
+		return nil
+	}
+
+	log.Println("Azure Storage initialized successfully")
+	return storageClient
+}
+
+// createFiberApp creates and configures the Fiber application with middleware
+func createFiberApp() *fiber.App {
 	app := fiber.New(fiber.Config{
-		AppName: "Passion Tree Backend v1.0",
+		AppName: AppName,
 	})
 
-	// Middleware
+	// Apply middleware
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
-	// Setup routes with database instance, AI client, and storage client
-	routes.Setup(app, db, aiClient, storageClient)
+	return app
+}
 
-	// Get port from environment
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = DefaultPort
+// getPort returns the server port from environment or default
+func getPort() string {
+	if port := os.Getenv("PORT"); port != "" {
+		return port
 	}
-
-	log.Printf("Starting Fiber server on port %s", port)
-	log.Fatal(app.Listen(":" + port))
+	return DefaultPort
 }

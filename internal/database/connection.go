@@ -10,50 +10,55 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 )
 
-// 1. สร้าง Interface เพื่อให้ Mock ได้ง่ายเวลาเขียน Test
+// Connection pool configuration
+const (
+	MaxOpenConns      = 10
+	MaxIdleConns      = 5
+	ConnMaxLifetime   = 5 * time.Minute
+	PingTimeout       = 5 * time.Second
+	MaxRetryDelay     = 30 * time.Second
+	BackoffMultiplier = 2
+)
+
+// Database interface for easy mocking in tests
 type Database interface {
 	GetDB() *sql.DB
 	CheckConnection() error
 	Close() error
 }
 
-// 2. ใช้ Struct เก็บสถานะ แทนการใช้ Global Variable
+// sqlDatabase implements the Database interface
 type sqlDatabase struct {
 	db *sql.DB
 }
 
-// NewDatabase ทำหน้าที่เป็น Constructor รับ Connection String เข้ามา
-// วิธีนี้ทำให้เราส่ง Connection String จำลอง (Mock) เข้ามาเทสได้ง่าย
+// NewDatabase creates a new database connection with the provided connection string
 func NewDatabase(connString string) (Database, error) {
 	db, err := sql.Open("sqlserver", connString)
 	if err != nil {
-		return nil, fmt.Errorf("error creating connection pool: %w", err)
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
-	// ตั้งค่า Pool เพื่อประสิทธิภาพ (Best Practice)
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	// Configure connection pool for optimal performance
+	configureConnectionPool(db)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		return nil, fmt.Errorf("database ping failed: %w", err)
+	// Verify connection
+	if err := pingDatabase(db); err != nil {
+		return nil, err
 	}
 
 	return &sqlDatabase{db: db}, nil
 }
 
-// NewDatabaseWithRetry เชื่อมต่อ Database พร้อม Retry Logic สำหรับ Cloud DB
-// maxRetries: จำนวนครั้งที่จะลองใหม่ (แนะนำ 5-10 ครั้ง)
-// initialDelay: ระยะเวลารอครั้งแรก (แนะนำ 2-5 วินาที)
+// NewDatabaseWithRetry creates a database connection with retry logic for cloud databases
+// maxRetries: number of retry attempts (recommended: 5-10)
+// initialDelay: initial delay before first retry (recommended: 2-5 seconds)
 func NewDatabaseWithRetry(connString string, maxRetries int, initialDelay time.Duration) (Database, error) {
 	var lastErr error
 	delay := initialDelay
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		log.Printf("Attempting to connect to database (attempt %d/%d)...", attempt, maxRetries)
+		log.Printf("Database connection attempt %d/%d", attempt, maxRetries)
 
 		db, err := NewDatabase(connString)
 		if err == nil {
@@ -65,29 +70,58 @@ func NewDatabaseWithRetry(connString string, maxRetries int, initialDelay time.D
 		log.Printf("Connection attempt %d failed: %v", attempt, err)
 
 		if attempt < maxRetries {
-			log.Printf("Waiting %v before retry...", delay)
+			log.Printf("Retrying in %v...", delay)
 			time.Sleep(delay)
-			// Exponential backoff: เพิ่มระยะเวลารอเป็น 2 เท่า (สูงสุด 30 วินาที)
-			delay *= 2
-			if delay > 30*time.Second {
-				delay = 30 * time.Second
-			}
+			delay = calculateNextDelay(delay)
 		}
 	}
 
-	return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, lastErr)
+	return nil, fmt.Errorf("failed to connect after %d attempts: %w", maxRetries, lastErr)
 }
 
+// configureConnectionPool sets optimal connection pool settings
+func configureConnectionPool(db *sql.DB) {
+	db.SetMaxOpenConns(MaxOpenConns)
+	db.SetMaxIdleConns(MaxIdleConns)
+	db.SetConnMaxLifetime(ConnMaxLifetime)
+}
+
+// pingDatabase verifies database connectivity
+func pingDatabase(db *sql.DB) error {
+	ctx, cancel := context.WithTimeout(context.Background(), PingTimeout)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("database ping failed: %w", err)
+	}
+	return nil
+}
+
+// calculateNextDelay implements exponential backoff with max delay cap
+func calculateNextDelay(currentDelay time.Duration) time.Duration {
+	nextDelay := currentDelay * BackoffMultiplier
+	if nextDelay > MaxRetryDelay {
+		return MaxRetryDelay
+	}
+	return nextDelay
+}
+
+// GetDB returns the underlying sql.DB instance
 func (s *sqlDatabase) GetDB() *sql.DB {
 	return s.db
 }
 
+// CheckConnection verifies the database connection is still alive
 func (s *sqlDatabase) CheckConnection() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	return s.db.PingContext(ctx)
 }
 
+// Close closes the database connection
 func (s *sqlDatabase) Close() error {
-	return s.db.Close()
+	if s.db != nil {
+		return s.db.Close()
+	}
+	return nil
 }
