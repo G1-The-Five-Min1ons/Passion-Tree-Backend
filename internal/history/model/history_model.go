@@ -2,7 +2,6 @@ package model
 
 import "time"
 
-// HistoryResponse ใช้สำหรับส่งข้อมูลประวัติการเรียนกลับไปให้ Frontend
 type HistoryResponse struct {
 	EnrollID    string     `json:"enroll_id"`
 	Status      string     `json:"status"`
