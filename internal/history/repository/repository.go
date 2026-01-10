@@ -24,19 +24,22 @@ func NewRepository(ds database.Database) RepositoryHistory {
 func (r *repositoryImpl) GetHistoryByUserID(userID string) ([]model.HistoryResponse, error) {
 	query := `
 		SELECT 
-			pe.enroll_id, 
-			pe.status, 
-			pe.enroll_at, 
-			pe.complete_at,
-			lp.path_id, 
-			lp.title, 
-			lp.cover_img_url, 
-			lp.objective, 
-			IFNULL(lp.creator_ID, '')
-		FROM path_enroll pe
-		JOIN learning_path lp ON pe.path_id = lp.path_id
-		WHERE pe.user_id = ?
-		ORDER BY pe.enroll_at DESC`
+    		target_path.path_id,
+    		n.node_id
+		FROM (
+    		SELECT path_id
+    		FROM path_enroll
+    		WHERE user_id = ?
+    		ORDER BY update_at DESC
+    		LIMIT 1
+		) AS target_path
+		JOIN node n ON target_path.path_id = n.path_id
+		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = ? 
+		WHERE 
+    		(np.status IS NULL OR np.status != 'completed')
+		ORDER BY 
+    		n.created_at ASC 
+		LIMIT 1;`
 
 	rows, err := r.db.Query(query, userID)
 	if err != nil {
@@ -48,15 +51,8 @@ func (r *repositoryImpl) GetHistoryByUserID(userID string) ([]model.HistoryRespo
 	for rows.Next() {
 		var h model.HistoryResponse
 		if err := rows.Scan(
-			&h.EnrollID, 
-			&h.Status, 
-			&h.EnrollAt, 
-			&h.CompleteAt, 
-			&h.PathID, 
-			&h.Title, 
-			&h.CoverImgURL, 
-			&h.Objective, 
-			&h.CreatorID,
+			&h.Target_path,
+			&h.Path_id,
 		); err != nil {
 			return nil, fmt.Errorf("historyRepo.GetHistoryByUserID scan failed: %w", err)
 		}
