@@ -3,6 +3,7 @@ package handler
 import (
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -46,11 +47,26 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	// Auto-login: Generate token after registration
+	user.UserID = userID // Set the generated user ID
+	token, err := h.userSvc.Login(user.Username, req.Password)
+	if err != nil {
+		// Registration succeeded but auto-login failed, return without token
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+			"success": true,
+			"message": "User registered successfully. Please login.",
+			"data": fiber.Map{
+				"user_id": userID,
+			},
+		})
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "User registered successfully",
 		"data": fiber.Map{
 			"user_id": userID,
+			"token":   token,
 		},
 	})
 }
@@ -80,9 +96,12 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 }
 
-// GetUserProfile gets user and profile by ID
+// GetUserProfile gets user and profile by ID from JWT token
 func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
 	user, profile, err := h.userSvc.GetUserByID(userID)
 	if err != nil {
@@ -103,16 +122,21 @@ func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateUser updates user information
+// UpdateUser updates user information from JWT token (only first_name and last_name)
 func (h *Handler) UpdateUser(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	var user model.User
 
 	if err := c.BodyParser(&user); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	if err := h.userSvc.UpdateUser(userID, &user); err != nil {
+	// Only allow updating first_name and last_name
+	if err := h.userSvc.UpdateUser(userID, user.FirstName, user.LastName); err != nil {
 		return h.handleError(c, err)
 	}
 
@@ -125,11 +149,22 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteUser deletes a user
+// DeleteUser deletes a user from JWT token with password confirmation
 func (h *Handler) DeleteUser(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
-	if err := h.userSvc.DeleteUser(userID); err != nil {
+	var req struct {
+		Password string `json:"password"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if err := h.userSvc.DeleteUser(userID, req.Password); err != nil {
 		return h.handleError(c, err)
 	}
 

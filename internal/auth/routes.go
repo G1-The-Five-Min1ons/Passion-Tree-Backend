@@ -5,6 +5,7 @@ import (
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/auth/service"
 	"passiontree/internal/database"
+	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -16,11 +17,14 @@ func RegisterRoutes(r fiber.Router, db database.Database) {
 
 	auth := r.Group("/auth")
 	{
+		// Public routes - no authentication required
 		auth.Post("/register", h.Register)
 		auth.Post("/login", h.Login)
-		auth.Get("/profile", h.GetUserProfile)
-		auth.Put("/profile", h.UpdateProfile)
-		auth.Put("/user", h.UpdateUser)
-		auth.Delete("/user", h.DeleteUser)
+
+		// Protected routes - require JWT authentication
+		auth.Get("/profile", middleware.JWTMiddleware(), h.GetUserProfile)
+		auth.Put("/profile", middleware.JWTMiddleware(), h.UpdateProfile)
+		auth.Put("/user", middleware.JWTMiddleware(), h.UpdateUser)
+		auth.Delete("/user", middleware.JWTMiddleware(), h.DeleteUser)
 	}
 }

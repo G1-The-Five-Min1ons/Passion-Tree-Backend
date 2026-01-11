@@ -52,7 +52,7 @@ func (r *userRepositoryImpl) CreateUser(user *model.User, profile *model.Profile
 func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile, error) {
 	query := `
 		SELECT 
-			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.first_name, u.last_name, u.role, u.heart_count,
+			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
 			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
 			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
@@ -66,7 +66,7 @@ func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile
 	var xp sql.NullInt64
 
 	err := r.db.QueryRow(query, id).Scan(
-		&u.UserID, &u.Username, &u.Email, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
+		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
 		&location, &bio, &level, &xp, &hourLearned,
 	)
@@ -130,20 +130,41 @@ func (r *userRepositoryImpl) GetUserByUsername(username string) (*model.User, er
 	return &user, nil
 }
 
-// UpdateUser updates user info by ID
-func (r *userRepositoryImpl) UpdateUser(id string, user *model.User) error {
-	query := `UPDATE users SET username=@p1, email=@p2, password=@p3, first_name=@p4, last_name=@p5, role=@p6, heart_count=@p7 
-	          WHERE user_id=@p8`
-	_, err := r.db.Exec(query, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount, id)
+// UpdateUser updates user info by ID (only first_name and last_name)
+func (r *userRepositoryImpl) UpdateUser(id string, firstName string, lastName string) error {
+	query := `UPDATE users SET first_name=@p1, last_name=@p2 WHERE user_id=@p3`
+	_, err := r.db.Exec(query, firstName, lastName, id)
 	if err != nil {
 		return fmt.Errorf("update user failed [id=%s]: %w", id, err)
 	}
 	return nil
 }
 
-// DeleteUser deletes a user by ID (cascade will delete profile)
+// UpdateProfile updates profile info by user ID
+func (r *userRepositoryImpl) UpdateProfile(userID string, profile *model.Profile) error {
+	query := `UPDATE profile 
+	          SET Avatar_URL=@p1, Rank_Name=@p2, Learning_streak=@p3, Learning_count=@p4, 
+	              Location=@p5, Bio=@p6, Level=@p7, XP=@p8, Hour_learned=@p9
+	          WHERE user_id=@p10`
+	_, err := r.db.Exec(query,
+		profile.AvatarURL, profile.RankName, profile.LearningStreak, profile.LearningCount,
+		profile.Location, profile.Bio, profile.Level, profile.XP, profile.HourLearned, userID)
+	if err != nil {
+		return fmt.Errorf("update profile failed [user_id=%s]: %w", userID, err)
+	}
+	return nil
+}
+
+// DeleteUser deletes a user by ID (must delete profile first due to FK constraint)
 func (r *userRepositoryImpl) DeleteUser(id string) error {
-	_, err := r.db.Exec("DELETE FROM users WHERE user_id = @p1", id)
+	// Delete profile first to avoid FK constraint violation
+	_, err := r.db.Exec("DELETE FROM profile WHERE user_id = @p1", id)
+	if err != nil {
+		return fmt.Errorf("delete profile failed [id=%s]: %w", id, err)
+	}
+
+	// Then delete user
+	_, err = r.db.Exec("DELETE FROM users WHERE user_id = @p1", id)
 	if err != nil {
 		return fmt.Errorf("delete user failed [id=%s]: %w", id, err)
 	}

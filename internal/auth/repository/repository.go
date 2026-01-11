@@ -11,7 +11,8 @@ type UserRepository interface {
 	GetUserByID(id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(email string) (*model.User, error)
 	GetUserByUsername(username string) (*model.User, error)
-	UpdateUser(id string, user *model.User) error
+	UpdateUser(id string, firstName string, lastName string) error
+	UpdateProfile(userID string, profile *model.Profile) error
 	DeleteUser(id string) error
 }
 

@@ -3,10 +3,10 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/jwt"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -30,6 +30,15 @@ func (s *userServiceImpl) CreateUser(user *model.User, profile *model.Profile) (
 	}
 	if existingUser != nil {
 		return "", apperror.NewConflict("email already registered")
+	}
+
+	// Check if username already exists
+	existingUsername, err := s.userRepo.GetUserByUsername(user.Username)
+	if err != nil && err != sql.ErrNoRows {
+		return "", apperror.NewInternal(err)
+	}
+	if existingUsername != nil {
+		return "", apperror.NewConflict("username already taken")
 	}
 
 	// Hash password
@@ -113,8 +122,8 @@ func (s *userServiceImpl) GetUserByEmail(email string) (*model.User, error) {
 	return user, nil
 }
 
-// UpdateUser updates user information
-func (s *userServiceImpl) UpdateUser(id string, user *model.User) error {
+// UpdateUser updates user information (only first_name and last_name)
+func (s *userServiceImpl) UpdateUser(id string, firstName string, lastName string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
@@ -128,16 +137,7 @@ func (s *userServiceImpl) UpdateUser(id string, user *model.User) error {
 		return apperror.NewNotFound("user with id '%s' not found", id)
 	}
 
-	// Hash password if provided
-	if user.Password != "" {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-		if err != nil {
-			return apperror.NewInternal(fmt.Errorf("failed to hash password: %w", err))
-		}
-		user.Password = string(hashedPassword)
-	}
-
-	if err := s.userRepo.UpdateUser(id, user); err != nil {
+	if err := s.userRepo.UpdateUser(id, firstName, lastName); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("email or username already exists")
 		}
@@ -147,10 +147,27 @@ func (s *userServiceImpl) UpdateUser(id string, user *model.User) error {
 	return nil
 }
 
-// DeleteUser deletes a user
-func (s *userServiceImpl) DeleteUser(id string) error {
+// DeleteUser deletes a user after password confirmation
+func (s *userServiceImpl) DeleteUser(id string, password string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
+	}
+	if password == "" {
+		return apperror.NewBadRequest("password is required for account deletion")
+	}
+
+	// Get user and verify password
+	user, _, err := s.userRepo.GetUserByID(id)
+	if err != nil {
+		return apperror.NewInternal(err)
+	}
+	if user == nil {
+		return apperror.NewNotFound("user not found")
+	}
+
+	// Verify password before deletion
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return apperror.NewUnauthorized("invalid password")
 	}
 
 	if err := s.userRepo.DeleteUser(id); err != nil {
@@ -201,8 +218,12 @@ func (s *userServiceImpl) Login(identifier string, password string) (string, err
 		return "", apperror.NewUnauthorized("invalid username/email or password")
 	}
 
-	// TODO: Generate JWT token
-	token := fmt.Sprintf("token_%s_%d", user.UserID, time.Now().Unix())
+	// Generate JWT token
+	jwtService := jwt.NewService()
+	token, err := jwtService.GenerateAccessToken(user)
+	if err != nil {
+		return "", apperror.NewInternal(fmt.Errorf("failed to generate token: %w", err))
+	}
 
 	return token, nil
 }
@@ -213,6 +234,21 @@ func (s *userServiceImpl) ValidateToken(token string) (*model.User, error) {
 		return nil, apperror.NewUnauthorized("token is required")
 	}
 
-	// TODO: Implement JWT token validation
-	return nil, apperror.NewUnauthorized("invalid token")
+	// Validate JWT token
+	jwtService := jwt.NewService()
+	claims, err := jwtService.ValidateToken(token)
+	if err != nil {
+		return nil, apperror.NewUnauthorized("invalid or expired token")
+	}
+
+	// Get user from database
+	user, _, err := s.userRepo.GetUserByID(claims.UserID)
+	if err != nil {
+		return nil, apperror.NewInternal(err)
+	}
+	if user == nil {
+		return nil, apperror.NewNotFound("user not found")
+	}
+
+	return user, nil
 }
