@@ -113,7 +113,6 @@ func (s *userServiceImpl) GetUserByEmail(email string) (*model.User, error) {
 	return user, nil
 }
 
-
 // UpdateUser updates user information
 func (s *userServiceImpl) UpdateUser(id string, user *model.User) error {
 	if id == "" {
@@ -162,25 +161,44 @@ func (s *userServiceImpl) DeleteUser(id string) error {
 }
 
 // Login authenticates user and returns token
-func (s *userServiceImpl) Login(email string, password string) (string, error) {
-	if email == "" {
-		return "", apperror.NewBadRequest("email is required")
+// identifier can be either username or email
+func (s *userServiceImpl) Login(identifier string, password string) (string, error) {
+	if identifier == "" {
+		return "", apperror.NewBadRequest("username or email is required")
 	}
 	if password == "" {
 		return "", apperror.NewBadRequest("password is required")
 	}
 
-	user, err := s.userRepo.GetUserByEmail(email)
+	// Try to find user by email first, then by username
+	var user *model.User
+	var err error
+
+	// Check if identifier is email (contains @)
+	if contains := false; len(identifier) > 0 {
+		for _, ch := range identifier {
+			if ch == '@' {
+				contains = true
+				break
+			}
+		}
+		if contains {
+			user, err = s.userRepo.GetUserByEmail(identifier)
+		} else {
+			user, err = s.userRepo.GetUserByUsername(identifier)
+		}
+	}
+
 	if err != nil {
 		return "", apperror.NewInternal(err)
 	}
 	if user == nil {
-		return "", apperror.NewUnauthorized("invalid email or password")
+		return "", apperror.NewUnauthorized("invalid username/email or password")
 	}
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return "", apperror.NewUnauthorized("invalid email or password")
+		return "", apperror.NewUnauthorized("invalid username/email or password")
 	}
 
 	// TODO: Generate JWT token

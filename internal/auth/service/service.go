@@ -12,7 +12,7 @@ type UserService interface {
 	UpdateUser(id string, user *model.User) error
 	UpdateProfile(userID string, profile *model.Profile) error
 	DeleteUser(id string) error
-	Login(email string, password string) (string, error)
+	Login(identifier string, password string) (string, error)
 	ValidateToken(token string) (*model.User, error)
 }
 

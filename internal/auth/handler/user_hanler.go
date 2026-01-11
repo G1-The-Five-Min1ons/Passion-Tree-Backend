@@ -58,15 +58,15 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 // Login authenticates a user
 func (h *Handler) Login(c *fiber.Ctx) error {
 	var req struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required"`
+		Identifier string `json:"identifier" binding:"required"` // Can be username or email
+		Password   string `json:"password" binding:"required"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	token, err := h.userSvc.Login(req.Email, req.Password)
+	token, err := h.userSvc.Login(req.Identifier, req.Password)
 	if err != nil {
 		return h.handleError(c, err)
 	}

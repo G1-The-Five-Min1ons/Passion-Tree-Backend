@@ -52,8 +52,8 @@ func (r *userRepositoryImpl) CreateUser(user *model.User, profile *model.Profile
 func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile, error) {
 	query := `
 		SELECT 
-			u.user_id, u.username, u.email, u.first_name, u.last_name, u.role, u.heart_count,
-			p.Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
+			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.first_name, u.last_name, u.role, u.heart_count,
+			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
 			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
 		LEFT JOIN profile p ON u.user_id = p.user_id
@@ -98,7 +98,7 @@ func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile
 
 // GetUserByEmail fetches a user by email
 func (r *userRepositoryImpl) GetUserByEmail(email string) (*model.User, error) {
-	query := `SELECT user_id, username, email, password, first_name, last_name, role, heart_count 
+	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count 
 	          FROM users WHERE email = @p1`
 	var user model.User
 	err := r.db.QueryRow(query, email).Scan(
@@ -109,6 +109,23 @@ func (r *userRepositoryImpl) GetUserByEmail(email string) (*model.User, error) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get user by email failed: %w", err)
+	}
+	return &user, nil
+}
+
+// GetUserByUsername fetches a user by username
+func (r *userRepositoryImpl) GetUserByUsername(username string) (*model.User, error) {
+	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count 
+	          FROM users WHERE username = @p1`
+	var user model.User
+	err := r.db.QueryRow(query, username).Scan(
+		&user.UserID, &user.Username, &user.Email, &user.Password,
+		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get user by username failed: %w", err)
 	}
 	return &user, nil
 }
