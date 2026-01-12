@@ -38,8 +38,9 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 
 func (h *Handler) GetUserHistory(c *fiber.Ctx) error {
 	userID := c.Query("user_id")
+	ctx := c.Context()
 
-	historyList, err := h.svc.GetUserHistory(userID)
+	historyList, err := h.svc.GetUserHistory(ctx, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}

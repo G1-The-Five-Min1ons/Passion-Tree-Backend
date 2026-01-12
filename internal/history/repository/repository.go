@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"passiontree/internal/database"
@@ -8,7 +9,7 @@ import (
 )
 
 type RepositoryHistory interface {
-	GetHistoryByUserID(userID string) ([]model.HistoryResponse, error)
+	GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error)
 }
 
 type repositoryImpl struct {
@@ -21,7 +22,7 @@ func NewRepository(ds database.Database) RepositoryHistory {
 	}
 }
 
-func (r *repositoryImpl) GetHistoryByUserID(userID string) ([]model.HistoryResponse, error) {
+func (r *repositoryImpl) GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error) {
 	query := `
 		SELECT 
     		target_path.path_id,
@@ -41,7 +42,7 @@ func (r *repositoryImpl) GetHistoryByUserID(userID string) ([]model.HistoryRespo
     		n.created_at ASC 
 		LIMIT 1;`
 
-	rows, err := r.db.Query(query, userID)
+	rows, err := r.db.QueryContext(ctx, query, userID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("historyRepo.GetHistoryByUserID query failed: %w", err)
 	}

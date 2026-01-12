@@ -9,7 +9,8 @@ import (
 
 func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	questions, err := h.quizSvc.GetQuestions(nodeID)
+	ctx := c.Context()
+	questions, err := h.quizSvc.GetQuestions(ctx, nodeID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -22,13 +23,14 @@ func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 
 func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
+	ctx := c.Context()
 	var req model.CreateQuestionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 	req.NodeID = nodeID
 
-	id, err := h.quizSvc.AddQuestion(req)
+	id, err := h.quizSvc.AddQuestion(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -44,7 +46,8 @@ func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
 	question_id := c.Params("question_id")
-	if err := h.quizSvc.RemoveQuestion(question_id); err != nil {
+	ctx := c.Context()
+	if err := h.quizSvc.RemoveQuestion(ctx, question_id); err != nil {
 		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -58,13 +61,14 @@ func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
 
 func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 	questionID := c.Params("question_id")
+	ctx := c.Context()
 	var req model.CreateChoiceRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 	req.QuestionID = questionID
 
-	id, err := h.quizSvc.AddChoice(req)
+	id, err := h.quizSvc.AddChoice(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -80,7 +84,8 @@ func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteChoice(c *fiber.Ctx) error {
 	choice_id := c.Params("choice_id")
-	if err := h.quizSvc.RemoveChoice(choice_id); err != nil {
+	ctx := c.Context()
+	if err := h.quizSvc.RemoveChoice(ctx, choice_id); err != nil {
 		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{

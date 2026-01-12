@@ -1,29 +1,30 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"passiontree/internal/database"
 	"passiontree/internal/learning-path/model"
 )
 
 type RepositoryLearningPath interface {
-	GetAllLearnningPath() ([]model.LearningPath, error)
-	GetLearnningPathByID(id string) (*model.LearningPath, error)
-	CreateLearnningPath(req model.CreatePathRequest) (string, error)
-	UpdateLearnningPath(id string, req model.UpdatePathRequest) error
-	DeleteLearnningPath(id string) error
-	EnrollLearnningPathUser(pathID string, userID string) error
-	GetLearnningPathEnrollmentStatus(pathID string, userID string) (*model.PathEnroll, error)
+	GetAllLearnningPath(ctx context.Context) ([]model.LearningPath, error)
+	GetLearnningPathByID(ctx context.Context, id string) (*model.LearningPath, error)
+	CreateLearnningPath(ctx context.Context, req model.CreatePathRequest) (string, error)
+	UpdateLearnningPath(ctx context.Context, id string, req model.UpdatePathRequest) error
+	DeleteLearnningPath(ctx context.Context, id string) error
+	EnrollLearnningPathUser(ctx context.Context, pathID string, userID string) error
+	GetLearnningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 }
 
 type RepositoryNode interface {
-	CreateNode(req model.CreateNodeRequest) (string, error)
-	GetNodesByPathID(pathID string) ([]model.Node, error)
-	UpdateNode(nodeID string, req model.UpdateNodeRequest) error
-	DeleteNode(nodeID string) error
-	CreateMaterial(req model.CreateMaterialRequest) (string, error)
-	GetMaterialsByNodeID(nodeID string) ([]model.NodeMaterial, error)
-	DeleteMaterial(materialID string) error
+	CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
+	UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
+	DeleteNode(ctx context.Context, nodeID string) error
+	CreateMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
+	GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
+	DeleteMaterial(ctx context.Context, materialID string) error
 }
 
 type RepositoryComment interface {
@@ -36,12 +37,12 @@ type RepositoryComment interface {
 }
 
 type RepositoryQuiz interface {
-	CreateQuestion(req model.CreateQuestionRequest) (string, error)
-	GetQuestionsByNodeID(nodeID string) ([]model.NodeQuestion, error)
-	DeleteQuestion(questionID string) error
-	CreateChoice(req model.CreateChoiceRequest) (string, error)
-	GetChoicesByQuestionID(questionID string) ([]model.QuestionChoice, error)
-	DeleteChoice(choiceID string) error
+	CreateQuestion(ctx context.Context, req model.CreateQuestionRequest) (string, error)
+	GetQuestionsByNodeID(ctx context.Context, nodeID string) ([]model.NodeQuestion, error)
+	DeleteQuestion(ctx context.Context, questionID string) error
+	CreateChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error)
+	GetChoicesByQuestionID(ctx context.Context, questionID string) ([]model.QuestionChoice, error)
+	DeleteChoice(ctx context.Context, choiceID string) error
 }
 
 type Repository interface {

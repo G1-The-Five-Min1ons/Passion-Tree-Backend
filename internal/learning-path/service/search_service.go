@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"passiontree/internal/learning-path/model"
@@ -11,7 +12,7 @@ import (
 
 // SearchLearningPaths performs semantic search on learning paths via AI service.
 // It uses the payload data from the AI service when available to avoid database queries.
-func (s *serviceImpl) SearchLearningPaths(req model.SearchPathRequest) (*model.SearchPathResponse, error) {
+func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchPathRequest) (*model.SearchPathResponse, error) {
 	// Validate request
 	if req.Query == "" {
 		return nil, apperror.NewBadRequest("search query cannot be empty")
@@ -94,7 +95,7 @@ func (s *serviceImpl) SearchLearningPaths(req model.SearchPathRequest) (*model.S
 
 		// If critical fields are missing from payload, query database
 		if result.Title == "" || result.Description == "" {
-			path, err := s.pathRepo.GetLearnningPathByID(pathID)
+			path, err := s.pathRepo.GetLearnningPathByID(ctx, pathID)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					// Skip if path not found in database
