@@ -1,14 +1,15 @@
 package handler
 
 import (
-	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) CreateNode(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	var req model.CreateNodeRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -31,7 +32,7 @@ func (h *Handler) CreateNode(c *fiber.Ctx) error {
 
 func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	var req model.UpdateNodeRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -52,7 +53,7 @@ func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	if err := h.nodeSvc.RemoveNode(ctx, nodeID); err != nil {
 		return h.handleError(c, err)
 	}
@@ -67,7 +68,7 @@ func (h *Handler) DeleteNode(c *fiber.Ctx) error {
 
 func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	var req model.CreateMaterialRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -90,7 +91,7 @@ func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 	material_id := c.Params("material_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	if err := h.nodeSvc.RemoveMaterial(ctx, material_id); err != nil {
 		return h.handleError(c, err)
 	}

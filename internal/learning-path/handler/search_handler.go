@@ -10,7 +10,7 @@ import (
 // Search handles search learning paths via AI service
 func (h *Handler) Search(c *fiber.Ctx) error {
 	var req model.SearchPathRequest
-	ctx := c.Context()
+	ctx := c.UserContext()
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}

@@ -30,11 +30,11 @@ type ServiceNode interface {
 }
 
 type ServiceComment interface {
-	AddComment(req model.CreateCommentRequest) (string, error)
-	GetNodeComments(nodeID string) ([]model.NodeComment, error)
-	RemoveComment(commentID string) error
-	AddReaction(req model.CreateReactionRequest) error
-	AddMention(req model.CreateMentionRequest) (string, error)
+	AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
+	GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error)
+	RemoveComment(ctx context.Context, commentID string) error
+	AddReaction(ctx context.Context, req model.CreateReactionRequest) error
+	AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 }
 
 type ServiceQuiz interface {

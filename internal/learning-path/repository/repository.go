@@ -28,12 +28,12 @@ type RepositoryNode interface {
 }
 
 type RepositoryComment interface {
-	CreateComment(req model.CreateCommentRequest) (string, error)
-	GetCommentsByNodeID(nodeID string) ([]model.NodeComment, error)
-	DeleteComment(commentID string) error
-	CreateReaction(req model.CreateReactionRequest) error
-	GetReactionsByCommentID(commentID string) ([]model.CommentReaction, error)
-	CreateMention(req model.CreateMentionRequest) (string, error)
+	CreateComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
+	GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error)
+	DeleteComment(ctx context.Context, commentID string) error
+	CreateReaction(ctx context.Context, req model.CreateReactionRequest) error
+	GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error)
+	CreateMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 }
 
 type RepositoryQuiz interface {

@@ -10,6 +10,7 @@ import (
 // UpdateProfile updates user profile information
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
+	ctx := c.UserContext()
 	var profile model.Profile
 
 	if err := c.BodyParser(&profile); err != nil {
@@ -17,9 +18,9 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	}
 
 	profile.UserID = userID
-	if err := h.userSvc.UpdateProfile(userID, &profile); err != nil {
-		return h.handleError(c, err)
-	}
+	if err := h.userSvc.UpdateProfile(ctx, userID, &profile); err != nil {
+        return h.handleError(c, err)
+    }
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -33,8 +34,9 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 // GetProfile gets profile by user ID
 func (h *Handler) GetProfile(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
+	ctx := c.UserContext()
 
-	_, profile, err := h.userSvc.GetUserByID(userID)
+	_, profile, err := h.userSvc.GetUserByID(ctx, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}

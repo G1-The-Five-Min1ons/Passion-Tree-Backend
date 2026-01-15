@@ -8,7 +8,7 @@ import (
 )
 
 func (h *Handler) GetAll(c *fiber.Ctx) error {
-	ctx := c.Context()
+	ctx := c.UserContext()
 	paths, err := h.pathSvc.GetPaths(ctx)
 	if err != nil {
 		return h.handleError(c, err)
@@ -22,7 +22,7 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 
 func (h *Handler) GetOne(c *fiber.Ctx) error {
 	id := c.Params("path_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	path, err := h.pathSvc.GetPathDetails(ctx, id)
 	if err != nil {
 		return h.handleError(c, err)
@@ -36,7 +36,7 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreatePathRequest
-	ctx := c.Context()
+	ctx := c.UserContext()
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
@@ -56,7 +56,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 
 func (h *Handler) Update(c *fiber.Ctx) error {
 	id := c.Params("path_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	var req model.UpdatePathRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -76,7 +76,7 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("path_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	if err := h.pathSvc.DeletePath(ctx, id); err != nil {
 		return h.handleError(c, err)
 	}
@@ -91,7 +91,7 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 
 func (h *Handler) Start(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 	var req model.StartPathRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -113,7 +113,7 @@ func (h *Handler) Start(c *fiber.Ctx) error {
 func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	userID := c.Query("user_id")
-	ctx := c.Context()
+	ctx := c.UserContext()
 
 	if userID == "" {
 		return h.handleError(c, apperror.NewBadRequest("user_id is required"))

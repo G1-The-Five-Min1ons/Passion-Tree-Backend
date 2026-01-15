@@ -9,12 +9,13 @@ import (
 
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreateReflectionRequest
+	ctx := c.UserContext()
 
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	res, err := h.reflectSvc.CreateReflection(c.Context(), req)
+	res, err := h.reflectSvc.CreateReflection(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -30,13 +31,14 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 
 func (h *Handler) Update(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
+	ctx := c.UserContext()
 
 	var req model.UpdateReflectionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	if err := h.reflectSvc.UpdateReflection(c.Context(), id, req); err != nil {
+	if err := h.reflectSvc.UpdateReflection(ctx, id, req); err != nil {
 		return h.handleError(c, err)
 	}
 
@@ -51,8 +53,9 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
+	ctx := c.UserContext()
 
-	if err := h.reflectSvc.DeleteReflection(c.Context(), id); err != nil {
+	if err := h.reflectSvc.DeleteReflection(ctx, id); err != nil {
 		return h.handleError(c, err)
 	}
 
@@ -67,8 +70,9 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 
 func (h *Handler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
+	ctx := c.UserContext()
 
-	res, err := h.reflectSvc.GetReflectionByID(c.Context(), id)
+	res, err := h.reflectSvc.GetReflectionByID(ctx, id)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -83,7 +87,9 @@ func (h *Handler) GetByID(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GetAll(c *fiber.Ctx) error {
-	res, err := h.reflectSvc.GetAllReflections(c.Context())
+	ctx := c.UserContext()
+
+	res, err := h.reflectSvc.GetAllReflections(ctx)
 	if err != nil {
 		return h.handleError(c, err)
 	}

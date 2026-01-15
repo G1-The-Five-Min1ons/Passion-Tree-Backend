@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -12,7 +13,7 @@ import (
 )
 
 // CreateUser creates a new user with hashed password
-func (s *userServiceImpl) CreateUser(user *model.User, profile *model.Profile) (string, error) {
+func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
 	if user.Email == "" {
 		return "", apperror.NewBadRequest("email is required")
 	}
@@ -24,7 +25,7 @@ func (s *userServiceImpl) CreateUser(user *model.User, profile *model.Profile) (
 	}
 
 	// Check if email already exists
-	existingUser, err := s.userRepo.GetUserByEmail(user.Email)
+	existingUser, err := s.userRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil && err != sql.ErrNoRows {
 		return "", apperror.NewInternal(err)
 	}
@@ -68,7 +69,7 @@ func (s *userServiceImpl) CreateUser(user *model.User, profile *model.Profile) (
 	}
 
 	// Create user and profile
-	userID, err := s.userRepo.CreateUser(user, profile)
+	userID, err := s.userRepo.CreateUser(ctx, user, profile)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("user with this email or username already exists")
@@ -80,12 +81,12 @@ func (s *userServiceImpl) CreateUser(user *model.User, profile *model.Profile) (
 }
 
 // GetUserByID retrieves user and profile by ID
-func (s *userServiceImpl) GetUserByID(id string) (*model.User, *model.Profile, error) {
+func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 	if id == "" {
 		return nil, nil, apperror.NewBadRequest("user_id is required")
 	}
 
-	user, profile, err := s.userRepo.GetUserByID(id)
+	user, profile, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, nil, apperror.NewInternal(err)
 	}
@@ -97,12 +98,12 @@ func (s *userServiceImpl) GetUserByID(id string) (*model.User, *model.Profile, e
 }
 
 // GetUserByEmail retrieves user by email
-func (s *userServiceImpl) GetUserByEmail(email string) (*model.User, error) {
+func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	if email == "" {
 		return nil, apperror.NewBadRequest("email is required")
 	}
 
-	user, err := s.userRepo.GetUserByEmail(email)
+	user, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
 		return nil, apperror.NewInternal(err)
 	}
@@ -113,15 +114,14 @@ func (s *userServiceImpl) GetUserByEmail(email string) (*model.User, error) {
 	return user, nil
 }
 
-
 // UpdateUser updates user information
-func (s *userServiceImpl) UpdateUser(id string, user *model.User) error {
+func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, user *model.User) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
 
 	// Check if user exists
-	existingUser, _, err := s.userRepo.GetUserByID(id)
+	existingUser, _, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
 		return apperror.NewInternal(err)
 	}
@@ -138,7 +138,7 @@ func (s *userServiceImpl) UpdateUser(id string, user *model.User) error {
 		user.Password = string(hashedPassword)
 	}
 
-	if err := s.userRepo.UpdateUser(id, user); err != nil {
+	if err := s.userRepo.UpdateUser(ctx, id, user); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("email or username already exists")
 		}
@@ -149,12 +149,12 @@ func (s *userServiceImpl) UpdateUser(id string, user *model.User) error {
 }
 
 // DeleteUser deletes a user
-func (s *userServiceImpl) DeleteUser(id string) error {
+func (s *userServiceImpl) DeleteUser(ctx context.Context, id string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
 
-	if err := s.userRepo.DeleteUser(id); err != nil {
+	if err := s.userRepo.DeleteUser(ctx, id); err != nil {
 		return apperror.NewInternal(err)
 	}
 
@@ -162,7 +162,7 @@ func (s *userServiceImpl) DeleteUser(id string) error {
 }
 
 // Login authenticates user and returns token
-func (s *userServiceImpl) Login(email string, password string) (string, error) {
+func (s *userServiceImpl) Login(ctx context.Context, email string, password string) (string, error) {
 	if email == "" {
 		return "", apperror.NewBadRequest("email is required")
 	}
@@ -170,7 +170,7 @@ func (s *userServiceImpl) Login(email string, password string) (string, error) {
 		return "", apperror.NewBadRequest("password is required")
 	}
 
-	user, err := s.userRepo.GetUserByEmail(email)
+	user, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
 		return "", apperror.NewInternal(err)
 	}
@@ -190,7 +190,7 @@ func (s *userServiceImpl) Login(email string, password string) (string, error) {
 }
 
 // ValidateToken validates JWT token and returns user
-func (s *userServiceImpl) ValidateToken(token string) (*model.User, error) {
+func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*model.User, error) {
 	if token == "" {
 		return nil, apperror.NewUnauthorized("token is required")
 	}
