@@ -90,3 +90,13 @@ func (s *serviceImpl) RemoveMaterial(materialID string) error {
 	}
 	return nil
 }
+
+func (s *serviceImpl) ReorderNodes(pathID string, req model.ReorderNodesRequest) error {
+	for index, nodeID := range req.NodeIDs {
+		err := s.nodeRepo.UpdateNodeSequence(nodeID, index)
+		if err != nil {
+			return apperror.NewInternal(err)
+		}
+	}
+	return nil
+}

@@ -24,6 +24,7 @@ type RepositoryNode interface {
 	CreateMaterial(req model.CreateMaterialRequest) (string, error)
 	GetMaterialsByNodeID(nodeID string) ([]model.NodeMaterial, error)
 	DeleteMaterial(materialID string) error
+	UpdateNodeSequence(nodeID string, sequence int) error
 }
 
 type RepositoryComment interface {

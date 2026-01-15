@@ -15,6 +15,7 @@ type Node struct {
 	NodeID      string         `json:"node_id"`
 	Title       string         `json:"title"`
 	Description string         `json:"description"`
+	Sequence    int            `json:"sequence"`
 	PathID      string         `json:"path_id"`
 	Materials   []NodeMaterial `json:"materials,omitempty"`
 }
@@ -30,4 +31,8 @@ type CreateMaterialRequest struct {
 	Type   string `json:"type" binding:"required"`
 	URL    string `json:"url" binding:"required"`
 	NodeID string `json:"node_id" binding:"required"`
+}
+
+type ReorderNodesRequest struct {
+	NodeIDs []string `json:"node_ids" binding:"required"`
 }

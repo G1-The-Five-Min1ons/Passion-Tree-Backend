@@ -122,3 +122,22 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 		"data":    status,
 	})
 }
+
+func (h *Handler) Generate(c *fiber.Ctx) error {
+	var req model.AIGeneratePathRequest
+	
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	result, err := h.pathSvc.GeneratePathWithAI(req.Topic)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Path generated successfully",
+		"data":    result,
+	})
+}

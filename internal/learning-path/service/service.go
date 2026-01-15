@@ -14,6 +14,7 @@ type ServiceLearningPath interface {
 	DeletePath(id string) error
 	StartPath(pathID string, userID string) error
 	GetEnrollmentStatus(pathID string, userID string) (*model.PathEnroll, error)
+	GeneratePathWithAI(topic string) (*model.GeneratedPathResponse, error)
 }
 
 type ServiceSearch interface {
@@ -26,6 +27,7 @@ type ServiceNode interface {
 	RemoveNode(nodeID string) error
 	AddMaterial(req model.CreateMaterialRequest) (string, error)
 	RemoveMaterial(materialID string) error
+	ReorderNodes(pathID string, req model.ReorderNodesRequest) error
 }
 
 type ServiceComment interface {

@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+	"regexp"
+	"strings"
+	"fmt"
 )
 
 func (s *serviceImpl) GetPaths() ([]model.LearningPath, error) {
@@ -119,4 +122,45 @@ func (s *serviceImpl) GetEnrollmentStatus(pathID string, userID string) (*model.
 		return nil, apperror.NewInternal(err)
 	}
 	return enroll, nil
+}
+
+
+func (s *serviceImpl) GeneratePathWithAI(topic string) (*model.GeneratedPathResponse, error) {
+	if topic == "" {
+		return nil, apperror.NewBadRequest("topic is required")
+	}
+
+	rawResponse, err := s.aiClient.GenerateLearningPath(topic)
+	if err != nil {
+		return nil, apperror.NewInternal(err)
+	}
+
+	nodes := parseAINodes(rawResponse.Result)
+
+	return &model.GeneratedPathResponse{
+		Topic: rawResponse.Topic,
+		Nodes: nodes,
+	}, nil
+}
+
+func parseAINodes(rawResult string) []model.GeneratedNode {
+	var nodes []model.GeneratedNode
+	
+	segments := strings.Split(rawResult, ",")
+	
+	re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)
+
+	for _, seg := range segments {
+		seg = strings.TrimSpace(seg)
+		matches := re.FindStringSubmatch(seg)
+		if len(matches) == 3 {
+			seq := 0
+			fmt.Sscanf(matches[1], "%d", &seq)
+			nodes = append(nodes, model.GeneratedNode{
+				Sequence: seq,
+				Title:    matches[2],
+			})
+		}
+	}
+	return nodes
 }

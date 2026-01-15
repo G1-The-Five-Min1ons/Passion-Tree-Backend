@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"passiontree/internal/learning-path/model"
 )
 
 // AIClient represents a client for AI service
@@ -69,4 +70,25 @@ func (c *AIClient) Ping() error {
 	}
 
 	return nil
+}
+
+func (c *AIClient) GenerateLearningPath(topic string) (*model.AIPathGenerationResponse, error) {
+	reqBody := model.AIGeneratePathRequest{Topic: topic}
+	agent := c.client.Post(c.baseURL + "/api/v1/generator/learning-path")
+	agent.JSON(reqBody)
+	statusCode, body, errs := agent.Bytes()
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("connection error: %v", errs[0])
+	}
+	if statusCode != fiber.StatusOK {
+		return nil, fmt.Errorf("AI service returned status: %d body: %s", statusCode, string(body))
+	}
+
+	var aiResponse model.AIPathGenerationResponse
+	if err := json.Unmarshal(body, &aiResponse); err != nil {
+		return nil, fmt.Errorf("decode error: %w", err)
+	}
+
+	return &aiResponse, nil
 }

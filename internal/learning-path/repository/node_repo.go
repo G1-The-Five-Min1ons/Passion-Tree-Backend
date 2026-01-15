@@ -19,7 +19,7 @@ func (r *repositoryImpl) CreateNode(req model.CreateNodeRequest) (string, error)
 }
 
 func (r *repositoryImpl) GetNodesByPathID(pathID string) ([]model.Node, error) {
-	query := `SELECT node_id, title, description, path_id FROM node WHERE path_id = ?`
+	query := `SELECT node_id, title, description, path_id FROM node WHERE path_id = ? ORDER BY sequence ASC`
 	rows, err := r.db.Query(query, pathID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetNodesByPathID query failed: %w", err)
@@ -112,6 +112,15 @@ func (r *repositoryImpl) DeleteMaterial(materialID string) error {
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
 		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *repositoryImpl) UpdateNodeSequence(nodeID string, sequence int) error {
+	query := `UPDATE node SET sequence = ? WHERE node_id = ?`
+	_, err := r.db.Exec(query, sequence, nodeID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdateNodeSequence failed [id=%s]: %w", nodeID, err)
 	}
 	return nil
 }
