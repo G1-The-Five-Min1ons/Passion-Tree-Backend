@@ -14,6 +14,7 @@ type UserRepository interface {
 	UpdateUser(id string, firstName string, lastName string) error
 	UpdateProfile(userID string, profile *model.Profile) error
 	DeleteUser(id string) error
+	UpdateEmailVerified(userID string, isVerified bool) error
 }
 
 type userRepositoryImpl struct {

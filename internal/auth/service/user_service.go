@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
@@ -56,6 +57,13 @@ func (s *userServiceImpl) CreateUser(user *model.User, profile *model.Profile) (
 		user.HeartCount = 5 // default hearts
 	}
 
+	// Generate email verification token
+	verificationToken, err := GenerateVerificationToken()
+	if err != nil {
+		return "", apperror.NewInternal(fmt.Errorf("failed to generate verification token: %w", err))
+	}
+	user.IsEmailVerified = false
+
 	// Set default profile values
 	if profile.Level == 0 {
 		profile.Level = 1
@@ -83,6 +91,28 @@ func (s *userServiceImpl) CreateUser(user *model.User, profile *model.Profile) (
 			return "", apperror.NewConflict("user with this email or username already exists")
 		}
 		return "", apperror.NewInternal(err)
+	}
+
+	// Save verification token to Token table
+	tokenExpiry := GetVerificationTokenExpiry()
+	tokenModel := &model.Token{
+		UserID:    userID,
+		Token:     verificationToken,
+		TokenType: model.TokenTypeEmailVerification,
+		IsRevoked: false,
+		ExpireAt:  tokenExpiry,
+	}
+	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
+		// Log error but don't fail registration
+		fmt.Printf("Warning: failed to save verification token: %v\n", err)
+	}
+
+	// Send verification email (don't fail registration if email sending fails)
+	if s.emailService != nil {
+		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
+			// Log error but don't fail registration
+			fmt.Printf("Warning: failed to send verification email to %s: %v\n", user.Email, err)
+		}
 	}
 
 	return userID, nil
@@ -251,4 +281,109 @@ func (s *userServiceImpl) ValidateToken(token string) (*model.User, error) {
 	}
 
 	return user, nil
+}
+
+// VerifyEmail verifies a user's email using verification token
+func (s *userServiceImpl) VerifyEmail(token string) error {
+	if token == "" {
+		return apperror.NewBadRequest("verification token is required")
+	}
+
+	// Get token from Token table
+	tokenModel, err := s.tokenRepo.GetTokenByValue(token, model.TokenTypeEmailVerification)
+	if err != nil {
+		return apperror.NewInternal(err)
+	}
+	if tokenModel == nil {
+		return apperror.NewBadRequest("invalid verification token")
+	}
+
+	// Check if token is expired
+	if tokenModel.ExpireAt.Before(time.Now()) {
+		return apperror.NewBadRequest("verification token has expired")
+	}
+
+	// Get user
+	user, _, err := s.userRepo.GetUserByID(tokenModel.UserID)
+	if err != nil {
+		return apperror.NewInternal(err)
+	}
+	if user == nil {
+		return apperror.NewNotFound("user not found")
+	}
+
+	// Check if already verified
+	if user.IsEmailVerified {
+		return apperror.NewBadRequest("email is already verified")
+	}
+
+	// Update user email verification status
+	if err := s.userRepo.UpdateEmailVerified(user.UserID, true); err != nil {
+		return apperror.NewInternal(err)
+	}
+
+	// Revoke the token
+	if err := s.tokenRepo.RevokeToken(tokenModel.TokenID); err != nil {
+		// Log error but don't fail verification
+		fmt.Printf("Warning: failed to revoke token: %v\n", err)
+	}
+
+	return nil
+}
+
+// ResendVerificationEmail resends verification email to user
+func (s *userServiceImpl) ResendVerificationEmail(email string) error {
+	if email == "" {
+		return apperror.NewBadRequest("email is required")
+	}
+
+	// Get user by email
+	user, err := s.userRepo.GetUserByEmail(email)
+	if err != nil {
+		return apperror.NewInternal(err)
+	}
+	if user == nil {
+		return apperror.NewNotFound("user with email '%s' not found", email)
+	}
+
+	// Check if already verified
+	if user.IsEmailVerified {
+		return apperror.NewBadRequest("email is already verified")
+	}
+
+	// Delete old verification tokens for this user
+	if err := s.tokenRepo.DeleteTokensByUserAndType(user.UserID, model.TokenTypeEmailVerification); err != nil {
+		// Log error but continue
+		fmt.Printf("Warning: failed to delete old tokens: %v\n", err)
+	}
+
+	// Generate new verification token
+	verificationToken, err := GenerateVerificationToken()
+	if err != nil {
+		return apperror.NewInternal(fmt.Errorf("failed to generate verification token: %w", err))
+	}
+
+	// Save new token to Token table
+	tokenExpiry := GetVerificationTokenExpiry()
+	tokenModel := &model.Token{
+		UserID:    user.UserID,
+		Token:     verificationToken,
+		TokenType: model.TokenTypeEmailVerification,
+		IsRevoked: false,
+		ExpireAt:  tokenExpiry,
+	}
+	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
+		return apperror.NewInternal(fmt.Errorf("failed to save verification token: %w", err))
+	}
+
+	// Send verification email
+	if s.emailService != nil {
+		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
+			return apperror.NewInternal(fmt.Errorf("failed to send verification email: %w", err))
+		}
+	} else {
+		return apperror.NewInternal(fmt.Errorf("email service is not configured"))
+	}
+
+	return nil
 }

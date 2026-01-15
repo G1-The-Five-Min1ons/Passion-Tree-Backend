@@ -176,3 +176,40 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// VerifyEmail verifies user's email with verification token
+func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
+	token := c.Query("token")
+	if token == "" {
+		return h.handleError(c, apperror.NewBadRequest("verification token is required"))
+	}
+
+	if err := h.userSvc.VerifyEmail(token); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Email verified successfully",
+	})
+}
+
+// ResendVerificationEmail resends verification email
+func (h *Handler) ResendVerificationEmail(c *fiber.Ctx) error {
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if err := h.userSvc.ResendVerificationEmail(req.Email); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Verification email sent successfully",
+	})
+}

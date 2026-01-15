@@ -14,14 +14,24 @@ type UserService interface {
 	DeleteUser(id string, password string) error
 	Login(identifier string, password string) (string, error)
 	ValidateToken(token string) (*model.User, error)
+	VerifyEmail(token string) error
+	ResendVerificationEmail(email string) error
 }
 
 type userServiceImpl struct {
-	userRepo repository.UserRepository
+	userRepo     repository.UserRepository
+	tokenRepo    repository.TokenRepository
+	emailService EmailService
 }
 
-func NewUserService(userRepo repository.UserRepository) UserService {
+func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository) UserService {
 	return &userServiceImpl{
-		userRepo: userRepo,
+		userRepo:  userRepo,
+		tokenRepo: tokenRepo,
 	}
+}
+
+// SetEmailService sets the email service (used for dependency injection)
+func (s *userServiceImpl) SetEmailService(emailService EmailService) {
+	s.emailService = emailService
 }

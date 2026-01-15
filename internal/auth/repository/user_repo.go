@@ -22,10 +22,11 @@ func (r *userRepositoryImpl) CreateUser(user *model.User, profile *model.Profile
 	userID := uuid.New().String()
 
 	// Insert into users table
-	userQuery := `INSERT INTO users (user_id, username, email, password, first_name, last_name, role, heart_count) 
-	              VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8)`
+	userQuery := `INSERT INTO users (user_id, username, email, password, first_name, last_name, role, heart_count, is_email_verified) 
+	              VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9)`
 	_, err = tx.ExecContext(ctx, userQuery,
-		userID, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount)
+		userID, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount,
+		user.IsEmailVerified)
 	if err != nil {
 		return "", fmt.Errorf("insert users failed: %w", err)
 	}
@@ -53,6 +54,7 @@ func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile
 	query := `
 		SELECT 
 			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
+			u.is_email_verified,
 			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
 			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
@@ -67,6 +69,7 @@ func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile
 
 	err := r.db.QueryRow(query, id).Scan(
 		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
+		&u.IsEmailVerified,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
 		&location, &bio, &level, &xp, &hourLearned,
 	)
@@ -98,12 +101,14 @@ func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile
 
 // GetUserByEmail fetches a user by email
 func (r *userRepositoryImpl) GetUserByEmail(email string) (*model.User, error) {
-	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count 
+	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count,
+	          is_email_verified
 	          FROM users WHERE email = @p1`
 	var user model.User
 	err := r.db.QueryRow(query, email).Scan(
 		&user.UserID, &user.Username, &user.Email, &user.Password,
-		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount)
+		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
+		&user.IsEmailVerified)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -115,12 +120,14 @@ func (r *userRepositoryImpl) GetUserByEmail(email string) (*model.User, error) {
 
 // GetUserByUsername fetches a user by username
 func (r *userRepositoryImpl) GetUserByUsername(username string) (*model.User, error) {
-	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count 
+	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count,
+	          is_email_verified
 	          FROM users WHERE username = @p1`
 	var user model.User
 	err := r.db.QueryRow(query, username).Scan(
 		&user.UserID, &user.Username, &user.Email, &user.Password,
-		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount)
+		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
+		&user.IsEmailVerified)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -167,6 +174,16 @@ func (r *userRepositoryImpl) DeleteUser(id string) error {
 	_, err = r.db.Exec("DELETE FROM users WHERE user_id = @p1", id)
 	if err != nil {
 		return fmt.Errorf("delete user failed [id=%s]: %w", id, err)
+	}
+	return nil
+}
+
+// UpdateEmailVerified updates the email verification status for a user
+func (r *userRepositoryImpl) UpdateEmailVerified(userID string, isVerified bool) error {
+	query := `UPDATE users SET is_email_verified=@p1 WHERE user_id=@p2`
+	_, err := r.db.Exec(query, isVerified, userID)
+	if err != nil {
+		return fmt.Errorf("update email verified failed [user_id=%s]: %w", userID, err)
 	}
 	return nil
 }

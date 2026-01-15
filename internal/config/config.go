@@ -26,6 +26,12 @@ const (
 	EnvAzureStorageConnString = "AZURE_STORAGE_CONNECTION_STRING"
 	EnvContainerLearningPath  = "CONTAINER_LEARNING_PATH"
 	EnvContainerProfile       = "CONTAINER_PROFILE"
+	EnvSMTPHost               = "SMTP_HOST"
+	EnvSMTPPort               = "SMTP_PORT"
+	EnvSMTPUsername           = "SMTP_USERNAME"
+	EnvSMTPPassword           = "SMTP_PASSWORD"
+	EnvSMTPFromEmail          = "SMTP_FROM_EMAIL"
+	EnvAppURL                 = "APP_URL"
 )
 
 type Config struct {
@@ -34,6 +40,12 @@ type Config struct {
 	AzureStorageConnString string
 	ContainerLearningPath  string
 	ContainerProfile       string
+	SMTPHost               string
+	SMTPPort               string
+	SMTPUsername           string
+	SMTPPassword           string
+	SMTPFromEmail          string
+	AppURL                 string
 }
 
 // LoadDBConfig loads configuration from environment variables
@@ -46,6 +58,12 @@ func LoadDBConfig() (*Config, error) {
 		AzureStorageConnString: os.Getenv(EnvAzureStorageConnString),
 		ContainerLearningPath:  getEnvOrDefault(EnvContainerLearningPath, DefaultContainerLearning),
 		ContainerProfile:       getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
+		SMTPHost:               os.Getenv(EnvSMTPHost),
+		SMTPPort:               getEnvOrDefault(EnvSMTPPort, "587"),
+		SMTPUsername:           os.Getenv(EnvSMTPUsername),
+		SMTPPassword:           os.Getenv(EnvSMTPPassword),
+		SMTPFromEmail:          os.Getenv(EnvSMTPFromEmail),
+		AppURL:                 getEnvOrDefault(EnvAppURL, "http://localhost:3000"),
 	}
 
 	// Build database connection string
