@@ -46,6 +46,7 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 	userPaths := r.Group("/user/learningpaths")
 	{
 		userPaths.Get("/:path_id/status", h.GetEnrollmentStatus)
+		userPaths.Get("/:path_id/progress", h.GetPathProgress)
 	}
 
 	r.Post("/learningpaths/comments/:comment_id/mentions", h.CreateMention)
