@@ -11,8 +11,7 @@ import (
 )
 
 // CreateUser creates a new user with transaction support
-func (r *userRepositoryImpl) CreateUser(user *model.User, profile *model.Profile) (string, error) {
-	ctx := context.Background()
+func (r *userRepositoryImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", fmt.Errorf("begin transaction failed: %w", err)
@@ -49,7 +48,7 @@ func (r *userRepositoryImpl) CreateUser(user *model.User, profile *model.Profile
 }
 
 // GetUserByID fetches a user and profile by ID
-func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile, error) {
+func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 	query := `
 		SELECT 
 			u.user_id, u.username, u.email, u.first_name, u.last_name, u.role, u.heart_count,
@@ -97,7 +96,7 @@ func (r *userRepositoryImpl) GetUserByID(id string) (*model.User, *model.Profile
 }
 
 // GetUserByEmail fetches a user by email
-func (r *userRepositoryImpl) GetUserByEmail(email string) (*model.User, error) {
+func (r *userRepositoryImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	query := `SELECT user_id, username, email, password, first_name, last_name, role, heart_count 
 	          FROM users WHERE email = @p1`
 	var user model.User
@@ -114,7 +113,7 @@ func (r *userRepositoryImpl) GetUserByEmail(email string) (*model.User, error) {
 }
 
 // UpdateUser updates user info by ID
-func (r *userRepositoryImpl) UpdateUser(id string, user *model.User) error {
+func (r *userRepositoryImpl) UpdateUser(ctx context.Context, id string, user *model.User) error {
 	query := `UPDATE users SET username=@p1, email=@p2, password=@p3, first_name=@p4, last_name=@p5, role=@p6, heart_count=@p7 
 	          WHERE user_id=@p8`
 	_, err := r.db.Exec(query, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount, id)
@@ -125,7 +124,7 @@ func (r *userRepositoryImpl) UpdateUser(id string, user *model.User) error {
 }
 
 // DeleteUser deletes a user by ID (cascade will delete profile)
-func (r *userRepositoryImpl) DeleteUser(id string) error {
+func (r *userRepositoryImpl) DeleteUser(ctx context.Context, id string) error {
 	_, err := r.db.Exec("DELETE FROM users WHERE user_id = @p1", id)
 	if err != nil {
 		return fmt.Errorf("delete user failed [id=%s]: %w", id, err)

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -8,19 +9,19 @@ import (
 	"passiontree/internal/learning-path/model"
 )
 
-func (r *repositoryImpl) CreateNode(req model.CreateNodeRequest) (string, error) {
+func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
 	id := uuid.New().String()
 	query := `INSERT INTO node (node_id, title, description, path_id) VALUES (?, ?, ?, ?)`
-	_, err := r.db.Exec(query, id, req.Title, req.Description, req.PathID)
+	_, err := r.db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateNode exec failed: %w", err)
 	}
 	return id, nil
 }
 
-func (r *repositoryImpl) GetNodesByPathID(pathID string) ([]model.Node, error) {
+func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
 	query := `SELECT node_id, title, description, path_id FROM node WHERE path_id = ? ORDER BY sequence ASC`
-	rows, err := r.db.Query(query, pathID)
+	rows, err := r.db.QueryContext(ctx, query, pathID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetNodesByPathID query failed: %w", err)
 	}
@@ -42,9 +43,9 @@ func (r *repositoryImpl) GetNodesByPathID(pathID string) ([]model.Node, error) {
 	return nodes, nil
 }
 
-func (r *repositoryImpl) UpdateNode(nodeID string, req model.UpdateNodeRequest) error {
+func (r *repositoryImpl) UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error {
 	query := `UPDATE node SET title=?, description=? WHERE node_id=?`
-	res, err := r.db.Exec(query, req.Title, req.Description, nodeID)
+	res, err := r.db.ExecContext(ctx, query, req.Title, req.Description, nodeID)
 	if err != nil {
 		return fmt.Errorf("repo.UpdateNode exec failed [id=%s]: %w", nodeID, err)
 	}
@@ -56,8 +57,8 @@ func (r *repositoryImpl) UpdateNode(nodeID string, req model.UpdateNodeRequest) 
 	return nil
 }
 
-func (r *repositoryImpl) DeleteNode(nodeID string) error {
-	res, err := r.db.Exec(`DELETE FROM node WHERE node_id = ?`, nodeID)
+func (r *repositoryImpl) DeleteNode(ctx context.Context, nodeID string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM node WHERE node_id = ?`, nodeID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteNode exec failed [id=%s]: %w", nodeID, err)
 	}
@@ -69,19 +70,19 @@ func (r *repositoryImpl) DeleteNode(nodeID string) error {
 	return nil
 }
 
-func (r *repositoryImpl) CreateMaterial(req model.CreateMaterialRequest) (string, error) {
+func (r *repositoryImpl) CreateMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error) {
 	id := uuid.New().String()
 	query := `INSERT INTO node_material (material_id, type, url, node_id) VALUES (?, ?, ?, ?)`
-	_, err := r.db.Exec(query, id, req.Type, req.URL, req.NodeID)
+	_, err := r.db.ExecContext(ctx, query, id, req.Type, req.URL, req.NodeID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateMaterial exec failed: %w", err)
 	}
 	return id, nil
 }
 
-func (r *repositoryImpl) GetMaterialsByNodeID(nodeID string) ([]model.NodeMaterial, error) {
+func (r *repositoryImpl) GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error) {
 	query := `SELECT material_id, type, url, node_id FROM node_material WHERE node_id = ?`
-	rows, err := r.db.Query(query, nodeID)
+	rows, err := r.db.QueryContext(ctx, query, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetMaterialsByNodeID query failed: %w", err)
 	}
@@ -103,8 +104,8 @@ func (r *repositoryImpl) GetMaterialsByNodeID(nodeID string) ([]model.NodeMateri
     return mats, nil
 }
 
-func (r *repositoryImpl) DeleteMaterial(materialID string) error {
-	res, err := r.db.Exec(`DELETE FROM node_material WHERE material_id = ?`, materialID)
+func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM node_material WHERE material_id = ?`, materialID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteMaterial exec failed [id=%s]: %w", materialID, err)
 	}

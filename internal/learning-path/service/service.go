@@ -1,24 +1,25 @@
 package service
 
 import (
+	"context"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/platform/aiclient"
 )
 
 type ServiceLearningPath interface {
-	GetPaths() ([]model.LearningPath, error)
-	GetPathDetails(id string) (*model.LearningPath, error)
-	CreatePath(req model.CreatePathRequest) (string, error)
-	UpdatePath(id string, req model.UpdatePathRequest) error
-	DeletePath(id string) error
-	StartPath(pathID string, userID string) error
-	GetEnrollmentStatus(pathID string, userID string) (*model.PathEnroll, error)
+	GetPaths(ctx context.Context) ([]model.LearningPath, error)
+	GetPathDetails(ctx context.Context, id string) (*model.LearningPath, error)
+	CreatePath(ctx context.Context, req model.CreatePathRequest) (string, error)
+	UpdatePath(ctx context.Context, id string, req model.UpdatePathRequest) error
+	DeletePath(ctx context.Context, id string) error
+	StartPath(ctx context.Context, pathID string, userID string) error
+	GetEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GeneratePathWithAI(topic string) (*model.GeneratedPathResponse, error)
 }
 
 type ServiceSearch interface {
-	SearchLearningPaths(req model.SearchPathRequest) (*model.SearchPathResponse, error)
+	SearchLearningPaths(ctx context.Context, req model.SearchPathRequest) (*model.SearchPathResponse, error)
 }
 
 type ServiceNode interface {
@@ -27,23 +28,22 @@ type ServiceNode interface {
 	RemoveNode(nodeID string) error
 	AddMaterial(req model.CreateMaterialRequest) (string, error)
 	RemoveMaterial(materialID string) error
-	ReorderNodes(pathID string, req model.ReorderNodesRequest) error
 }
 
 type ServiceComment interface {
-	AddComment(req model.CreateCommentRequest) (string, error)
-	GetNodeComments(nodeID string) ([]model.NodeComment, error)
-	RemoveComment(commentID string) error
-	AddReaction(req model.CreateReactionRequest) error
-	AddMention(req model.CreateMentionRequest) (string, error)
+	AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
+	GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error)
+	RemoveComment(ctx context.Context, commentID string) error
+	AddReaction(ctx context.Context, req model.CreateReactionRequest) error
+	AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 }
 
 type ServiceQuiz interface {
-	AddQuestion(req model.CreateQuestionRequest) (string, error)
-	GetQuestions(nodeID string) ([]model.NodeQuestion, error)
-	RemoveQuestion(questionID string) error
-	AddChoice(req model.CreateChoiceRequest) (string, error)
-	RemoveChoice(choiceID string) error
+	AddQuestion(ctx context.Context, req model.CreateQuestionRequest) (string, error)
+	GetQuestions(ctx context.Context, nodeID string) ([]model.NodeQuestion, error)
+	RemoveQuestion(ctx context.Context, questionID string) error
+	AddChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error)
+	RemoveChoice(ctx context.Context, choiceID string) error
 }
 
 type Service interface {

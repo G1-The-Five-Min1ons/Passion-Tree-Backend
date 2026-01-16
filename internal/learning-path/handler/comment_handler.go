@@ -7,7 +7,8 @@ import (
 )
 
 func (h *Handler) GetComments(c *fiber.Ctx) error {
-	comments, err := h.commentSvc.GetNodeComments(c.Params("node_id"))
+	ctx := c.UserContext()
+	comments, err := h.commentSvc.GetNodeComments(ctx, c.Params("node_id"))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -20,13 +21,14 @@ func (h *Handler) GetComments(c *fiber.Ctx) error {
 
 func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
+	ctx := c.UserContext()
 	var req model.CreateCommentRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 	req.NodeID = nodeID
 
-	id, err := h.commentSvc.AddComment(req)
+	id, err := h.commentSvc.AddComment(ctx, req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -41,7 +43,8 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteComment(c *fiber.Ctx) error {
 	commentID := c.Params("comment_id")
-	if err := h.commentSvc.RemoveComment(commentID); err != nil {
+	ctx := c.UserContext()
+	if err := h.commentSvc.RemoveComment(ctx, commentID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -55,13 +58,14 @@ func (h *Handler) DeleteComment(c *fiber.Ctx) error {
 
 func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	commentID := c.Params("comment_id")
+	ctx := c.UserContext()
 	var req model.CreateReactionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 	req.CommentID = commentID
 
-	if err := h.commentSvc.AddReaction(req); err != nil {
+	if err := h.commentSvc.AddReaction(ctx, req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -75,11 +79,12 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 
 func (h *Handler) CreateMention(c *fiber.Ctx) error {
 	commentID := c.Params("comment_id")
+	ctx := c.UserContext()
 	var req model.CreateMentionRequest
 	c.BodyParser(&req)
 	req.CommentID = commentID
 
-	id, err := h.commentSvc.AddMention(req)
+	id, err := h.commentSvc.AddMention(ctx, req)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

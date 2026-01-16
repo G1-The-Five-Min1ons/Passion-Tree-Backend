@@ -41,7 +41,8 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		AvatarURL: req.AvatarURL,
 	}
 
-	userID, err := h.userSvc.CreateUser(user, profile)
+	ctx := c.UserContext()
+	userID, err := h.userSvc.CreateUser(ctx, user, profile)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -66,7 +67,8 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	token, err := h.userSvc.Login(req.Email, req.Password)
+	ctx := c.UserContext()
+	token, err := h.userSvc.Login(ctx, req.Email, req.Password)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -83,8 +85,9 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 // GetUserProfile gets user and profile by ID
 func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
+	ctx := c.UserContext()
 
-	user, profile, err := h.userSvc.GetUserByID(userID)
+	user, profile, err := h.userSvc.GetUserByID(ctx, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -106,13 +109,14 @@ func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 // UpdateUser updates user information
 func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
+	ctx := c.UserContext()
 	var user model.User
 
 	if err := c.BodyParser(&user); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	if err := h.userSvc.UpdateUser(userID, &user); err != nil {
+	if err := h.userSvc.UpdateUser(ctx, userID, &user); err != nil {
 		return h.handleError(c, err)
 	}
 
@@ -128,8 +132,9 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 // DeleteUser deletes a user
 func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
+	ctx := c.UserContext()
 
-	if err := h.userSvc.DeleteUser(userID); err != nil {
+	if err := h.userSvc.DeleteUser(ctx, userID); err != nil {
 		return h.handleError(c, err)
 	}
 

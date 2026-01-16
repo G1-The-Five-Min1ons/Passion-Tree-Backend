@@ -1,17 +1,18 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 )
 
-func (s *serviceImpl) AddNode(req model.CreateNodeRequest) (string, error) {
+func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
 	if req.Title == "" {
 		return "", apperror.NewBadRequest("node title is required")
 	}
 
-	id, err := s.nodeRepo.CreateNode(req)
+	id, err := s.nodeRepo.CreateNode(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("node with this ID already exists")
@@ -24,7 +25,7 @@ func (s *serviceImpl) AddNode(req model.CreateNodeRequest) (string, error) {
 	return id, nil
 }
 
-func (s *serviceImpl) EditNode(nodeID string, req model.UpdateNodeRequest) error {
+func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error {
 	if nodeID == "" {
 		return apperror.NewBadRequest("node_id is required")
 	}
@@ -32,7 +33,7 @@ func (s *serviceImpl) EditNode(nodeID string, req model.UpdateNodeRequest) error
 		req.Description == "" {
 		return apperror.NewBadRequest("request is required")
 	}
-	if err := s.nodeRepo.UpdateNode(nodeID, req); err != nil {
+	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("cannot update: node id '%s' not found", nodeID)
 		}
@@ -44,11 +45,11 @@ func (s *serviceImpl) EditNode(nodeID string, req model.UpdateNodeRequest) error
 	return nil
 }
 
-func (s *serviceImpl) RemoveNode(nodeID string) error {
+func (s *serviceImpl) RemoveNode(ctx context.Context, nodeID string) error {
 	if nodeID == "" {
 		return apperror.NewBadRequest("node_id is required")
 	}
-	if err := s.nodeRepo.DeleteNode(nodeID); err != nil {
+	if err := s.nodeRepo.DeleteNode(ctx, nodeID); err != nil {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("cannot delete: node id '%s' not found", nodeID)
 		}
@@ -60,12 +61,12 @@ func (s *serviceImpl) RemoveNode(nodeID string) error {
 	return nil
 }
 
-func (s *serviceImpl) AddMaterial(req model.CreateMaterialRequest) (string, error) {
+func (s *serviceImpl) AddMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error) {
 	if req.Type == "" || req.URL == "" {
 		return "", apperror.NewBadRequest("material type and url are required")
 	}
 
-	id, err := s.nodeRepo.CreateMaterial(req)
+	id, err := s.nodeRepo.CreateMaterial(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("material with this ID already exists")
@@ -78,11 +79,11 @@ func (s *serviceImpl) AddMaterial(req model.CreateMaterialRequest) (string, erro
 	return id, nil
 }
 
-func (s *serviceImpl) RemoveMaterial(materialID string) error {
+func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) error {
 	if materialID == "" {
 		return apperror.NewBadRequest("material_id is required")
 	}
-	if err := s.nodeRepo.DeleteMaterial(materialID); err != nil {
+	if err := s.nodeRepo.DeleteMaterial(ctx, materialID); err != nil {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("cannot delete: material id '%s' not found", materialID)
 		}

@@ -1,17 +1,18 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"passiontree/internal/auth/model"
 	"passiontree/internal/database"
 )
 
 type UserRepository interface {
-	CreateUser(user *model.User, profile *model.Profile) (string, error)
-	GetUserByID(id string) (*model.User, *model.Profile, error)
-	GetUserByEmail(email string) (*model.User, error)
-	UpdateUser(id string, user *model.User) error
-	DeleteUser(id string) error
+	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
+	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	UpdateUser(ctx context.Context, id string, user *model.User) error
+	DeleteUser(ctx context.Context, id string) error
 }
 
 type userRepositoryImpl struct {
