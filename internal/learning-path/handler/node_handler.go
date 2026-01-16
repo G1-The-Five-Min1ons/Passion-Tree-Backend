@@ -7,6 +7,22 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func (h *Handler) GetOneNode(c *fiber.Ctx) error {
+	nodeID := c.Params("node_id")
+	ctx := c.UserContext()
+
+	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Node details retrieved successfully",
+		"data":    node,
+	})
+}
+
 func (h *Handler) CreateNode(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	ctx := c.UserContext()

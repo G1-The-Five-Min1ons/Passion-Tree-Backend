@@ -116,3 +116,24 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 	}
 	return nil
 }
+
+func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error) {
+	query := `SELECT * FROM node WHERE node_id = ?`
+	
+	var n model.Node
+	err := r.db.QueryRowContext(ctx, query, nodeID).Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("repo.GetNodeByID scan failed: %w", err)
+	}
+
+	materials, err := r.GetMaterialsByNodeID(ctx, nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetNodeByID fetch materials failed: %w", err)
+	}
+	n.Materials = materials
+
+	return &n, nil
+}
