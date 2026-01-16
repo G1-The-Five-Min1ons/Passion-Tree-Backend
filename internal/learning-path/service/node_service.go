@@ -92,9 +92,9 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 	return nil
 }
 
-func (s *serviceImpl) ReorderNodes(pathID string, req model.ReorderNodesRequest) error {
+func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error {
 	for index, nodeID := range req.NodeIDs {
-		err := s.nodeRepo.UpdateNodeSequence(nodeID, index)
+		err := s.nodeRepo.UpdateNodeSequence(ctx, nodeID, index)
 		if err != nil {
 			return apperror.NewInternal(err)
 		}

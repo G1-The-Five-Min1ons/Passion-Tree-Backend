@@ -117,9 +117,9 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 	return nil
 }
 
-func (r *repositoryImpl) UpdateNodeSequence(nodeID string, sequence int) error {
+func (r *repositoryImpl) UpdateNodeSequence(ctx context.Context, nodeID string, sequence int) error {
 	query := `UPDATE node SET sequence = ? WHERE node_id = ?`
-	_, err := r.db.Exec(query, sequence, nodeID)
+	_, err := r.db.ExecContext(ctx, query, sequence, nodeID)
 	if err != nil {
 		return fmt.Errorf("repo.UpdateNodeSequence failed [id=%s]: %w", nodeID, err)
 	}

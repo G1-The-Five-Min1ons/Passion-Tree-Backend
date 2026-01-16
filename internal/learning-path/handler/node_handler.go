@@ -106,13 +106,14 @@ func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 
 func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
+	ctx := c.UserContext()
 	var req model.ReorderNodesRequest
 
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	if err := h.nodeSvc.ReorderNodes(pathID, req); err != nil {
+	if err := h.nodeSvc.ReorderNodes(ctx, pathID, req); err != nil {
 		return h.handleError(c, err)
 	}
 

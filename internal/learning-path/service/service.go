@@ -23,11 +23,12 @@ type ServiceSearch interface {
 }
 
 type ServiceNode interface {
-	AddNode(req model.CreateNodeRequest) (string, error)
-	EditNode(nodeID string, req model.UpdateNodeRequest) error
-	RemoveNode(nodeID string) error
-	AddMaterial(req model.CreateMaterialRequest) (string, error)
-	RemoveMaterial(materialID string) error
+	AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	EditNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
+	RemoveNode(ctx context.Context, nodeID string) error
+	AddMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
+	RemoveMaterial(ctx context.Context, materialID string) error
+	ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error
 }
 
 type ServiceComment interface {
