@@ -13,7 +13,7 @@ import (
 
 func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.LearningPath, error) {
 	query := `
-		SELECT path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, IFNULL(creator_ID, '')
+		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, ISNULL(CONVERT(VARCHAR(36), creator_ID), '') as creator_id
 		FROM learning_path`
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -40,7 +40,7 @@ func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.Learn
 
 func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, id string) (*model.LearningPath, error) {
 	pathQuery := `
-		SELECT path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, IFNULL(creator_ID, '')
+		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, ISNULL(CONVERT(VARCHAR(36), creator_ID), '') as creator_id
 		FROM learning_path 
 		WHERE path_id = ?`
 
