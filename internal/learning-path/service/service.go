@@ -15,6 +15,7 @@ type ServiceLearningPath interface {
 	DeletePath(ctx context.Context, id string) error
 	StartPath(ctx context.Context, pathID string, userID string) error
 	GetEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
+	GetPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 }
 
 type ServiceSearch interface {
