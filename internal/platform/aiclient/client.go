@@ -92,3 +92,24 @@ func (c *AIClient) GenerateLearningPath(topic string) (*model.AIPathGenerationRe
 
 	return &aiResponse, nil
 }
+
+// AnalyzeSentiment calls AI service to analyze learning reflection
+func (c *AIClient) AnalyzeSentiment(req SentimentRequest) (*SentimentResponse, error) {
+	agent := c.client.Post(c.baseURL + "/api/v1/sentiment/analyze")
+	agent.JSON(req)
+	statusCode, body, errs := agent.Bytes()
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("connection error: %v", errs[0])
+	}
+	if statusCode != fiber.StatusOK {
+		return nil, fmt.Errorf("AI service returned status: %d body: %s", statusCode, string(body))
+	}
+
+	var sentimentResp SentimentResponse
+	if err := json.Unmarshal(body, &sentimentResp); err != nil {
+		return nil, fmt.Errorf("decode error: %w", err)
+	}
+
+	return &sentimentResp, nil
+}
