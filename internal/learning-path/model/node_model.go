@@ -4,6 +4,7 @@ type CreateNodeRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description"`
 	PathID      string `json:"path_id" binding:"required"`
+	Sequence 	string `json:"sequence" binding:"required"`
 }
 
 type UpdateNodeRequest struct {
