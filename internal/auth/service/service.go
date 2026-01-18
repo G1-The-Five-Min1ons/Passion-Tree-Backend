@@ -1,8 +1,10 @@
 package service
 
 import (
+	"log"
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
+	"passiontree/internal/config"
 )
 
 type UserService interface {
@@ -16,6 +18,9 @@ type UserService interface {
 	ValidateToken(token string) (*model.User, error)
 	VerifyEmail(token string) error
 	ResendVerificationEmail(email string) error
+	ForgotPassword(email string) error
+	ResetPassword(code string, newPassword string) error
+	ChangePassword(userID string, oldPassword string, newPassword string) error
 }
 
 type userServiceImpl struct {
@@ -29,6 +34,27 @@ func NewUserService(userRepo repository.UserRepository, tokenRepo repository.Tok
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
 	}
+}
+
+// NewUserServiceWithEmail creates a new UserService with email service configured
+func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config) UserService {
+	svc := &userServiceImpl{
+		userRepo:  userRepo,
+		tokenRepo: tokenRepo,
+	}
+
+	// Initialize email service if SMTP or MailerSend is configured
+	if cfg.SMTPHost != "" {
+		svc.emailService = NewEmailService(cfg)
+		log.Println("Email service initialized (SMTP)")
+	} else if cfg.MailerSendAPIKey != "" {
+		svc.emailService = NewEmailService(cfg)
+		log.Println("Email service initialized (MailerSend API)")
+	} else {
+		log.Println("Warning: Email service NOT initialized - no email configuration found")
+	}
+
+	return svc
 }
 
 // SetEmailService sets the email service (used for dependency injection)

@@ -31,6 +31,7 @@ const (
 	EnvSMTPUsername           = "SMTP_USERNAME"
 	EnvSMTPPassword           = "SMTP_PASSWORD"
 	EnvSMTPFromEmail          = "SMTP_FROM_EMAIL"
+	EnvMailerSendAPIKey       = "MAILERSEND_API_KEY"
 	EnvAppURL                 = "APP_URL"
 )
 
@@ -45,6 +46,7 @@ type Config struct {
 	SMTPUsername           string
 	SMTPPassword           string
 	SMTPFromEmail          string
+	MailerSendAPIKey       string
 	AppURL                 string
 }
 
@@ -63,7 +65,8 @@ func LoadDBConfig() (*Config, error) {
 		SMTPUsername:           os.Getenv(EnvSMTPUsername),
 		SMTPPassword:           os.Getenv(EnvSMTPPassword),
 		SMTPFromEmail:          os.Getenv(EnvSMTPFromEmail),
-		AppURL:                 getEnvOrDefault(EnvAppURL, "http://localhost:3000"),
+		MailerSendAPIKey:       os.Getenv(EnvMailerSendAPIKey),
+		AppURL:                 getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
 	}
 
 	// Build database connection string

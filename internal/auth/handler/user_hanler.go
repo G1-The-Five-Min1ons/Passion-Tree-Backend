@@ -177,14 +177,21 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 	})
 }
 
-// VerifyEmail verifies user's email with verification token
+// VerifyEmail verifies user's email with verification code
 func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
-	token := c.Query("token")
-	if token == "" {
-		return h.handleError(c, apperror.NewBadRequest("verification token is required"))
+	var req struct {
+		Code string `json:"code"`
 	}
 
-	if err := h.userSvc.VerifyEmail(token); err != nil {
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if req.Code == "" {
+		return h.handleError(c, apperror.NewBadRequest("verification code is required"))
+	}
+
+	if err := h.userSvc.VerifyEmail(req.Code); err != nil {
 		return h.handleError(c, err)
 	}
 
@@ -211,5 +218,72 @@ func (h *Handler) ResendVerificationEmail(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Verification email sent successfully",
+	})
+}
+
+// ForgotPassword sends password reset code
+func (h *Handler) ForgotPassword(c *fiber.Ctx) error {
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if err := h.userSvc.ForgotPassword(req.Email); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "If the email exists, a password reset code has been sent",
+	})
+}
+
+// ResetPassword resets password using code
+func (h *Handler) ResetPassword(c *fiber.Ctx) error {
+	var req struct {
+		Code        string `json:"code"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if err := h.userSvc.ResetPassword(req.Code, req.NewPassword); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Password reset successfully",
+	})
+}
+
+// ChangePassword changes password for authenticated user
+func (h *Handler) ChangePassword(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	var req struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if err := h.userSvc.ChangePassword(userID, req.OldPassword, req.NewPassword); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Password changed successfully",
 	})
 }

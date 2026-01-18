@@ -15,6 +15,7 @@ type UserRepository interface {
 	UpdateProfile(userID string, profile *model.Profile) error
 	DeleteUser(id string) error
 	UpdateEmailVerified(userID string, isVerified bool) error
+	GetDB() *sql.DB
 }
 
 type userRepositoryImpl struct {
@@ -25,4 +26,9 @@ func NewUserRepository(ds database.Database) UserRepository {
 	return &userRepositoryImpl{
 		db: ds.GetDB(),
 	}
+}
+
+// GetDB returns the database connection for direct queries when needed
+func (r *userRepositoryImpl) GetDB() *sql.DB {
+	return r.db
 }

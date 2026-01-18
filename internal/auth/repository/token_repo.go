@@ -36,6 +36,7 @@ func (r *tokenRepositoryImpl) CreateToken(token *model.Token) error {
 		token.TokenID = uuid.New().String()
 	}
 
+	// ไม่ส่ง create_at เพราะ DB จะใส่ default GETDATE() ให้อัตโนมัติ
 	query := `INSERT INTO Token (token_id, user_id, token, token_type, is_revoke, expire_at) 
 	          VALUES (@p1, @p2, @p3, @p4, @p5, @p6)`
 
@@ -67,7 +68,6 @@ func (r *tokenRepositoryImpl) GetTokenByValue(tokenValue string, tokenType strin
 		}
 		return nil, fmt.Errorf("get token by value failed: %w", err)
 	}
-
 	return &token, nil
 }
 

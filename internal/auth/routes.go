@@ -22,17 +22,8 @@ func RegisterRoutes(r fiber.Router, db database.Database) {
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db.GetDB())
 
-	// Initialize services
-	userSvc := service.NewUserService(userRepo, tokenRepo)
-
-	// Initialize email service if SMTP is configured
-	if cfg.SMTPHost != "" {
-		emailSvc := service.NewEmailService(cfg)
-		// Set email service to user service
-		if svc, ok := userSvc.(interface{ SetEmailService(service.EmailService) }); ok {
-			svc.SetEmailService(emailSvc)
-		}
-	}
+	// Initialize services with email configuration
+	userSvc := service.NewUserServiceWithEmail(userRepo, tokenRepo, cfg)
 
 	h := handler.NewHandler(userSvc)
 
@@ -41,13 +32,16 @@ func RegisterRoutes(r fiber.Router, db database.Database) {
 		// Public routes - no authentication required
 		auth.Post("/register", h.Register)
 		auth.Post("/login", h.Login)
-		auth.Get("/verify-email", h.VerifyEmail)
+		auth.Post("/verify-email", h.VerifyEmail)
 		auth.Post("/resend-verification", h.ResendVerificationEmail)
+		auth.Post("/forgot-password", h.ForgotPassword)
+		auth.Post("/reset-password", h.ResetPassword)
 
 		// Protected routes - require JWT authentication
 		auth.Get("/profile", middleware.JWTMiddleware(), h.GetUserProfile)
 		auth.Put("/profile", middleware.JWTMiddleware(), h.UpdateProfile)
 		auth.Put("/user", middleware.JWTMiddleware(), h.UpdateUser)
+		auth.Put("/change-password", middleware.JWTMiddleware(), h.ChangePassword)
 		auth.Delete("/user", middleware.JWTMiddleware(), h.DeleteUser)
 	}
 }
