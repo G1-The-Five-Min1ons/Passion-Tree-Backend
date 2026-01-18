@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"database/sql"
+	"log"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
 	"strings"
 )
@@ -27,8 +29,33 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	if strings.TrimSpace(req.TreeNodeID) == "" {
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
+
+	// Call AI sentiment analysis
+	if s.aiClient != nil {
+		sentimentReq := &aiclient.SentimentRequest{
+			WhatLearned:           req.Learned,
+			FeelingsAfterLearning: req.Reflect,
+		}
+
+		sentimentResp, err := s.aiClient.AnalyzeSentiment(*sentimentReq)
+		if err != nil {
+			log.Printf("AI sentiment analysis failed: %v", err)
+			// Continue without AI enhancement if service fails
+		} else {
+			// Enrich request with AI results
+			req.Mood = sentimentResp.Sentiment
+			if req.Tag == "" {
+				req.Tag = sentimentResp.Advanced.PrimaryEmotion
+			}
+			log.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s", 
+				sentimentResp.Sentiment, sentimentResp.ReflectionScore, sentimentResp.Summary)
+		}
+	}
+
 	id, err := s.refRepo.CreateReflection(ctx, req)
 	if err != nil {
+		// Log the actual error for debugging
+		log.Printf("CreateReflection database error: %v", err)
 		if apperror.IsDuplicateKeyError(err) {
 			return nil, apperror.NewConflict("reflection with this ID already exists")
 		}
@@ -40,7 +67,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	return &model.ReflectionResponse{
 		ID:        id,
 		Score:     req.FeelScore,
-		Mood:      "",
+		Mood:      req.Mood,
 		Summary:   req.Learned,
 		CreatedAt: "",
 	}, nil

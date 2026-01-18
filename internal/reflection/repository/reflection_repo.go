@@ -13,15 +13,15 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 
 	query := `INSERT INTO Reflect
 		(reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, tree_node_id) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)`
+		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, GETDATE(), @p9)`
 
 	_, err := r.db.ExecContext(ctx, query,
 		id,
 		req.FeelScore,
 		req.Learned,
 		req.Reflect,
-		"",
-		"",
+		req.Mood,
+		req.Tag,
 		req.ProgressScore,
 		req.ChallengeScore,
 		req.TreeNodeID,
@@ -37,7 +37,7 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 func (r *repositoryImpl) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
 	query := `SELECT reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, tree_node_id 
 		FROM Reflect
-		WHERE reflect_id = ?`
+		WHERE reflect_id = @p1`
 
 	var ref model.Reflection
 	err := r.db.QueryRowContext(ctx, query, reflectID).Scan(
@@ -103,14 +103,14 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context) ([]model.Reflect
 func (r *repositoryImpl) UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
 	query := `UPDATE Reflect
 		SET
-			reflect_score = ?,
-			reflect_description = ?,
-			reflect = ?,
-			mood = ?,
-			tag = ?,
-			progress_score = ?,
-			challenge_score = ?
-		WHERE reflect_id = ?`
+			reflect_score = @p1,
+			reflect_description = @p2,
+			reflect = @p3,
+			mood = @p4,
+			tag = @p5,
+			progress_score = @p6,
+			challenge_score = @p7
+		WHERE reflect_id = @p8`
 
 	res, err := r.db.ExecContext(ctx, query,
 		req.FeelScore,
@@ -136,7 +136,7 @@ func (r *repositoryImpl) UpdateReflection(ctx context.Context, reflectID string,
 }
 
 func (r *repositoryImpl) DeleteReflection(ctx context.Context, reflectID string) error {
-	query := `DELETE FROM Reflect WHERE reflect_id = ?`
+	query := `DELETE FROM Reflect WHERE reflect_id = @p1`
 
 	res, err := r.db.ExecContext(ctx, query, reflectID)
 	if err != nil {
