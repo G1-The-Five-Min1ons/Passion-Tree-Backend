@@ -38,7 +38,7 @@ func (h *Handler) GetResume(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "GetResume successfully",
+		"message": "Resume node retrieved successfully",
 		"data":    resp,
 	})
 }

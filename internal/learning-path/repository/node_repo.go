@@ -118,7 +118,7 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 }
 
 func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error) {
-	query := `SELECT * FROM node WHERE node_id = ?`
+	query := `SELECT node_id, title, description, path_id FROM node WHERE node_id = ?`
 	
 	var n model.Node
 	err := r.db.QueryRowContext(ctx, query, nodeID).Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID)
