@@ -138,12 +138,12 @@ func (s *serviceImpl) GetPathProgress(ctx context.Context, pathID string, userID
 	return progress, nil
 }
 
-func (s *serviceImpl) GeneratePathWithAI(topic string) (*model.GeneratedPathResponse, error) {
+func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*model.GeneratedPathResponse, error) {
 	if topic == "" {
 		return nil, apperror.NewBadRequest("topic is required")
 	}
 
-	rawResponse, err := s.aiClient.GenerateLearningPath(topic)
+	rawResponse, err := s.aiClient.GenerateLearningPath(ctx, topic)
 	if err != nil {
 		return nil, apperror.NewInternal(err)
 	}

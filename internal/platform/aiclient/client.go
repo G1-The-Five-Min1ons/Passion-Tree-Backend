@@ -3,7 +3,8 @@ package aiclient
 import (
 	"encoding/json"
 	"fmt"
-
+	"time"
+	"context"
 	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/learning-path/model"
 )
@@ -72,9 +73,16 @@ func (c *AIClient) Ping() error {
 	return nil
 }
 
-func (c *AIClient) GenerateLearningPath(topic string) (*model.AIPathGenerationResponse, error) {
+func (c *AIClient) GenerateLearningPath(ctx context.Context, topic string) (*model.AIPathGenerationResponse, error) {
 	reqBody := model.AIGeneratePathRequest{Topic: topic}
 	agent := c.client.Post(c.baseURL + "/api/v1/generator/learning-path")
+
+	if deadline, ok := ctx.Deadline(); ok {
+        agent.Timeout(time.Until(deadline))
+    } else {
+        agent.Timeout(30 * time.Second) 
+    }
+	
 	agent.JSON(reqBody)
 	statusCode, body, errs := agent.Bytes()
 

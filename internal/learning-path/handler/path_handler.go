@@ -3,7 +3,8 @@ package handler
 import (
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
-
+	"context"
+	"time"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -132,13 +133,14 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 
 func (h *Handler) GetPathProgress(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	userID := c.Query("user_id") 
+	userID := c.Query("user_id")
+	ctx := c.UserContext()
 
 	if userID == "" {
 		return h.handleError(c, apperror.NewBadRequest("user_id is required"))
 	}
 
-	progress, err := h.pathSvc.GetPathProgress(c.UserContext(), pathID, userID)
+	progress, err := h.pathSvc.GetPathProgress(ctx, pathID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -152,11 +154,14 @@ func (h *Handler) GetPathProgress(c *fiber.Ctx) error {
 func (h *Handler) Generate(c *fiber.Ctx) error {
 	var req model.AIGeneratePathRequest
 	
-	if err := c.BodyParser(&req); err != nil {
-		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
-	}
+	ctx, cancel := context.WithTimeout(c.UserContext(), 60*time.Second)
+    defer cancel()
+    
+    if err := c.BodyParser(&req); err != nil {
+        return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+    }
 
-	result, err := h.pathSvc.GeneratePathWithAI(req.Topic)
+	result, err := h.pathSvc.GeneratePathWithAI(ctx, req.Topic)
 	if err != nil {
 		return h.handleError(c, err)
 	}
