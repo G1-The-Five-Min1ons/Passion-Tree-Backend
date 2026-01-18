@@ -8,6 +8,7 @@ import (
 	learningpath "passiontree/internal/learning-path"
 	reflection "passiontree/internal/reflection"
 	history "passiontree/internal/history"
+	resume "passiontree/internal/resume"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -25,6 +26,7 @@ func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, st
 	learningpath.RegisterRoutes(api, db, aiClient)
 	reflection.RegisterRoutes(api, db, aiClient)
 	history.RegisterRoutes(api, db)
+	resume.RegisterRoutes(api, db)
 }
 
 // healthCheck returns the service health status
