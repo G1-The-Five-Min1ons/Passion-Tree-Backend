@@ -130,6 +130,25 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 	})
 }
 
+func (h *Handler) GetPathProgress(c *fiber.Ctx) error {
+	pathID := c.Params("path_id")
+	userID := c.Query("user_id") 
+
+	if userID == "" {
+		return h.handleError(c, apperror.NewBadRequest("user_id is required"))
+	}
+
+	progress, err := h.pathSvc.GetPathProgress(c.UserContext(), pathID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Learning path progress calculated successfully",
+		"data":    progress,
+	})
+}
 func (h *Handler) Generate(c *fiber.Ctx) error {
 	var req model.AIGeneratePathRequest
 	

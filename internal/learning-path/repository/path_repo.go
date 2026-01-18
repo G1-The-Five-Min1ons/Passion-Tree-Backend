@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"passiontree/internal/learning-path/model"
+
+	"github.com/google/uuid"
 )
 
 func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.LearningPath, error) {
 	query := `
-		SELECT path_id, title, cover_img_url, objective, description, avg_rating, status, create_at, update_at, IFNULL(creator_ID, '')
+		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, ISNULL(CONVERT(VARCHAR(36), creator_ID), '') as creator_id
 		FROM learning_path`
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -39,7 +40,7 @@ func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.Learn
 
 func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, id string) (*model.LearningPath, error) {
 	pathQuery := `
-		SELECT path_id, title, cover_img_url, objective, description, avg_rating, status, create_at, update_at, IFNULL(creator_ID, '')
+		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, ISNULL(CONVERT(VARCHAR(36), creator_ID), '') as creator_id
 		FROM learning_path 
 		WHERE path_id = ?`
 
@@ -74,7 +75,7 @@ func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, id string) (*
 func (r *repositoryImpl) CreateLearnningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
 	newID := uuid.New().String()
 	now := time.Now()
-	query := `INSERT INTO learning_path (path_id, title, objective, description, cover_img_url, avg_rating, status, creator_ID, create_at, update_at) VALUES (?, ?, ?, ?, ?, 0.0, ?, ?, ?, ?)`
+	query := `INSERT INTO learning_path (path_id, title, objective, description, cover_img_url, avg_rating, publish_status, creator_ID, create_at, update_at) VALUES (?, ?, ?, ?, ?, 0.0, ?, ?, ?, ?)`
 
 	_, err := r.db.ExecContext(ctx, query, newID, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Status, req.CreatorID, now, now)
 	if err != nil {
@@ -84,7 +85,7 @@ func (r *repositoryImpl) CreateLearnningPath(ctx context.Context, req model.Crea
 }
 
 func (r *repositoryImpl) UpdateLearnningPath(ctx context.Context, id string, req model.UpdatePathRequest) error {
-	query := `UPDATE learning_path SET title=?, objective=?, description=?, cover_img_url=?, status=?, update_at=? WHERE path_id=?`
+	query := `UPDATE learning_path SET title=?, objective=?, description=?, cover_img_url=?, publish_status=?, update_at=? WHERE path_id=?`
 	_, err := r.db.ExecContext(ctx, query, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Status, time.Now(), id)
 	if err != nil {
 		return fmt.Errorf("repo.UpdateLearnningPath failed [id=%s]: %w", id, err)
@@ -103,7 +104,7 @@ func (r *repositoryImpl) DeleteLearnningPath(ctx context.Context, id string) err
 func (r *repositoryImpl) EnrollLearnningPathUser(ctx context.Context, pathID string, userID string) error {
 	enrollID := uuid.New().String()
 	now := time.Now()
-	query := `INSERT INTO path_enroll (enroll_id, user_id, path_id, status, enroll_at) VALUES (?, ?, ?, 'active', ?)`
+	query := `INSERT INTO path_enroll (enroll_id, user_id, path_id, enrollment_status, enroll_at) VALUES (?, ?, ?, 'active', ?)`
 	_, err := r.db.ExecContext(ctx, query, enrollID, userID, pathID, now)
 	if err != nil {
 		return fmt.Errorf("repo.EnrollLearnningPathUser failed: %w", err)
@@ -112,7 +113,7 @@ func (r *repositoryImpl) EnrollLearnningPathUser(ctx context.Context, pathID str
 }
 
 func (r *repositoryImpl) GetLearnningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error) {
-	query := `SELECT enroll_id, status, enroll_at, complete_at FROM path_enroll WHERE user_id = ? AND path_id = ?`
+	query := `SELECT enroll_id, enrollment_status, enroll_at, complete_at FROM path_enroll WHERE user_id = ? AND path_id = ?`
 	var pe model.PathEnroll
 	err := r.db.QueryRowContext(ctx, query, userID, pathID).Scan(&pe.EnrollID, &pe.Status, &pe.EnrollAt, &pe.CompleteAt)
 	if err != nil {

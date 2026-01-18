@@ -1,0 +1,39 @@
+package repository
+
+import (
+	"context"
+	"fmt"
+	"passiontree/internal/learning-path/model"
+)
+
+func (r *repositoryImpl) GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error) {
+	query := `
+		SELECT 
+			COUNT(n.node_id) as total_nodes,
+			COUNT(CASE WHEN np.status = 'completed' THEN 1 END) as completed_nodes
+		FROM node n
+		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = ?
+		WHERE n.path_id = ?`
+
+	var totalNodes, completedNodes int
+
+	err := r.db.QueryRowContext(ctx, query, userID, pathID).Scan(&totalNodes, &completedNodes)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetUserPathProgress count failed: %w", err)
+	}
+
+	var percentage float64
+	if totalNodes > 0 {
+		percentage = (float64(completedNodes) / float64(totalNodes)) * 100
+	} else {
+		percentage = 0
+	}
+
+	return &model.PathProgressResponse{
+		PathID:         pathID,
+		UserID:         userID,
+		TotalNodes:     totalNodes,
+		CompletedNodes: completedNodes,
+		Progress:       percentage,
+	}, nil
+}

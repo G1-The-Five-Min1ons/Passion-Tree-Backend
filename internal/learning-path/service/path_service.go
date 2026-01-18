@@ -125,6 +125,18 @@ func (s *serviceImpl) GetEnrollmentStatus(ctx context.Context, pathID string, us
 	return enroll, nil
 }
 
+func (s *serviceImpl) GetPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error) {
+	if pathID == "" || userID == "" {
+		return nil, apperror.NewBadRequest("path_id and user_id are required")
+	}
+
+	progress, err := s.pathRepo.GetUserPathProgress(ctx, pathID, userID)
+	if err != nil {
+		return nil, apperror.NewInternal(err)
+	}
+
+	return progress, nil
+}
 
 func (s *serviceImpl) GeneratePathWithAI(topic string) (*model.GeneratedPathResponse, error) {
 	if topic == "" {
