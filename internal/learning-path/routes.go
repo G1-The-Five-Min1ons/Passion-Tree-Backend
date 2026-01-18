@@ -29,6 +29,7 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 
 	nodes := r.Group("/learningpaths/nodes")
 	{
+		nodes.Get("/:node_id", h.GetOneNode)
 		nodes.Put("/:node_id", h.UpdateNode)
 		nodes.Delete("/:node_id", h.DeleteNode)
 		nodes.Post("/:node_id/materials", h.CreateMaterial)

@@ -23,6 +23,7 @@ type ServiceSearch interface {
 }
 
 type ServiceNode interface {
+	GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error)
 	AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error)
 	EditNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
 	RemoveNode(ctx context.Context, nodeID string) error

@@ -91,3 +91,20 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 	}
 	return nil
 }
+
+
+func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error) {
+	if nodeID == "" {
+		return nil, apperror.NewBadRequest("node_id is required")
+	}
+	
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("node with id '%s' not found", nodeID)
+		}
+		return nil, apperror.NewInternal(err)
+	}
+
+	return node, nil
+}
