@@ -18,14 +18,14 @@ func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error
 	return paths, nil
 }
 
-func (s *serviceImpl) GetPathDetails(ctx context.Context, id string) (*model.LearningPath, error) {
-	if id == "" {
+func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*model.LearningPath, error) {
+	if path_id == "" {
 		return nil, apperror.NewBadRequest("user_id is required")
 	}
-	path, err := s.pathRepo.GetLearnningPathByID(ctx, id)
+	path, err := s.pathRepo.GetLearnningPathByID(ctx, path_id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, apperror.NewNotFound("learning path with id '%s' not found", id)
+			return nil, apperror.NewNotFound("learning path with id '%s' not found", path_id)
 		}
 		return nil, apperror.NewInternal(err)
 	}

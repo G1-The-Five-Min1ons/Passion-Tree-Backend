@@ -38,14 +38,14 @@ func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.Learn
 	return paths, nil
 }
 
-func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, id string) (*model.LearningPath, error) {
+func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error) {
 	pathQuery := `
 		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, ISNULL(CONVERT(VARCHAR(36), creator_ID), '') as creator_id
 		FROM learning_path 
 		WHERE path_id = ?`
 
 	var p model.LearningPath
-	err := r.db.QueryRowContext(ctx, pathQuery, id).Scan(
+	err := r.db.QueryRowContext(ctx, pathQuery, path_id).Scan(
 		&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID,
 	)
 	if err != nil {
@@ -55,7 +55,7 @@ func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, id string) (*
 		return nil, fmt.Errorf("repo.GetLearnningPathByID scan failed: %w", err)
 	}
 
-	nodes, err := r.GetNodesByPathID(ctx, id)
+	nodes, err := r.GetNodesByPathID(ctx, path_id)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetLearnningPathByID fetch nodes failed: %w", err)
 	}

@@ -20,7 +20,7 @@ func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeReq
 }
 
 func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
-	query := `SELECT node_id, title, description, sequence, path_id FROM node WHERE path_id = ? ORDER BY sequence ASC`
+	query := `SELECT node_id, title, description, path_id, sequence FROM node WHERE path_id = ? ORDER BY sequence ASC`
 	rows, err := r.db.QueryContext(ctx, query, pathID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetNodesByPathID query failed: %w", err)
