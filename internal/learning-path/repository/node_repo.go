@@ -11,8 +11,25 @@ import (
 
 func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (?, ?, ?, ?, ?)`
-	_, err := r.db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID, req.Sequence)
+	
+	var query string
+	var args []interface{}
+	
+	if req.AlbumID != "" {
+		// Root node with album_id (no parent node)
+		query = `INSERT INTO node (node_id, title, description, path_id, sequence, album_id, parent_node_id) VALUES (?, ?, ?, ?, ?, ?, NULL)`
+		args = []interface{}{id, req.Title, req.Description, req.PathID, req.Sequence, req.AlbumID}
+	} else if req.ParentNodeID != "" {
+		// Child node with parent_node_id
+		query = `INSERT INTO node (node_id, title, description, path_id, sequence, album_id, parent_node_id) VALUES (?, ?, ?, ?, ?, NULL, ?)`
+		args = []interface{}{id, req.Title, req.Description, req.PathID, req.Sequence, req.ParentNodeID}
+	} else {
+		// Fallback: no album_id, no parent_node_id (backward compatibility)
+		query = `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (?, ?, ?, ?, ?)`
+		args = []interface{}{id, req.Title, req.Description, req.PathID, req.Sequence}
+	}
+	
+	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateNode exec failed: %w", err)
 	}
@@ -41,6 +58,32 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([
 	}
 
 	return nodes, nil
+}
+
+// HasRootNode checks if a path already has a root node (node with album_id)
+func (r *repositoryImpl) HasRootNode(ctx context.Context, pathID string) (bool, error) {
+	query := `SELECT COUNT(*) FROM node WHERE path_id = ? AND album_id IS NOT NULL AND album_id != ''`
+	
+	var count int
+	err := r.db.QueryRowContext(ctx, query, pathID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("repo.HasRootNode query failed: %w", err)
+	}
+	
+	return count > 0, nil
+}
+
+// NodeExists checks if a node exists
+func (r *repositoryImpl) NodeExists(ctx context.Context, nodeID string) (bool, error) {
+	query := `SELECT COUNT(*) FROM node WHERE node_id = ?`
+	
+	var count int
+	err := r.db.QueryRowContext(ctx, query, nodeID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("repo.NodeExists query failed: %w", err)
+	}
+	
+	return count > 0, nil
 }
 
 func (r *repositoryImpl) UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error {

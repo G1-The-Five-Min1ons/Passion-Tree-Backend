@@ -12,13 +12,39 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 		return "", apperror.NewBadRequest("node title is required")
 	}
 
+	// Validate root node vs child node
+	if req.AlbumID != "" && req.ParentNodeID != "" {
+		return "", apperror.NewBadRequest("node cannot have both album_id (root node) and parent_node_id (child node)")
+	}
+
+	// Validate root node (node with album_id)
+	if req.AlbumID != "" {
+		// This is a root node - check if path already has one
+		hasRoot, err := s.nodeRepo.HasRootNode(ctx, req.PathID)
+		if err != nil {
+			return "", apperror.NewInternal(err)
+		}
+		if hasRoot {
+			return "", apperror.NewConflict("this learning path already has a root node. Each path can only have one root node (node without parent).")
+		}
+	} else if req.ParentNodeID != "" {
+		// This is a child node - validate parent exists
+		exists, err := s.nodeRepo.NodeExists(ctx, req.ParentNodeID)
+		if err != nil {
+			return "", apperror.NewInternal(err)
+		}
+		if !exists {
+			return "", apperror.NewBadRequest("parent_node_id '%s' does not exist", req.ParentNodeID)
+		}
+	}
+
 	id, err := s.nodeRepo.CreateNode(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("node with this ID already exists")
 		}
 		if apperror.IsForeignKeyError(err) {
-			return "", apperror.NewBadRequest("invalid path_id: learning path does not exist")
+			return "", apperror.NewBadRequest("invalid path_id, album_id, or parent_node_id: referenced entity does not exist")
 		}
 		return "", apperror.NewInternal(err)
 	}

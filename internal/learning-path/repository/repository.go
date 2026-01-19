@@ -28,6 +28,8 @@ type RepositoryNode interface {
 	GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
 	DeleteMaterial(ctx context.Context, materialID string) error
 	UpdateNodeSequence(ctx context.Context, nodeID string, sequence int) error
+	HasRootNode(ctx context.Context, pathID string) (bool, error)
+	NodeExists(ctx context.Context, nodeID string) (bool, error)
 }
 
 type RepositoryComment interface {
