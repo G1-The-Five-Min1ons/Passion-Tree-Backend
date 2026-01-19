@@ -9,6 +9,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// BeginTx starts a new database transaction
+func (r *repositoryImpl) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("repo.BeginTx failed: %w", err)
+	}
+	return tx, nil
+}
+
 func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (string, error) {
 	id := uuid.New().String()
 
@@ -30,6 +39,33 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateReflection exec failed: %w", err)
+	}
+
+	return id, nil
+}
+
+// CreateReflectionWithTx creates a reflection within an existing transaction
+func (r *repositoryImpl) CreateReflectionWithTx(ctx context.Context, tx *sql.Tx, req model.CreateReflectionRequest) (string, error) {
+	id := uuid.New().String()
+
+	query := `INSERT INTO Reflect
+		(reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, tree_node_id) 
+		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, GETDATE(), @p9)`
+
+	_, err := tx.ExecContext(ctx, query,
+		id,
+		req.FeelScore,
+		req.Learned,
+		req.Reflect,
+		req.Mood,
+		req.Tag,
+		req.ProgressScore,
+		req.ChallengeScore,
+		req.TreeNodeID,
+	)
+
+	if err != nil {
+		return "", fmt.Errorf("repo.CreateReflectionWithTx exec failed: %w", err)
 	}
 
 	return id, nil

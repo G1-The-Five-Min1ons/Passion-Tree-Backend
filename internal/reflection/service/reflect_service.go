@@ -11,6 +11,7 @@ import (
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
+	// Validate request
 	if strings.TrimSpace(req.Learned) == "" {
 		return nil, apperror.NewBadRequest("what have learned is required")
 	}
@@ -52,9 +53,23 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		}
 	}
 
-	id, err := s.refRepo.CreateReflection(ctx, req)
+	// Begin transaction
+	tx, err := s.refRepo.BeginTx(ctx)
 	if err != nil {
-		// Log the actual error for debugging
+		log.Printf("Failed to begin transaction: %v", err)
+		return nil, apperror.NewInternal(err)
+	}
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("Failed to rollback transaction: %v", rbErr)
+			}
+		}
+	}()
+
+	// Create reflection within transaction
+	id, err := s.refRepo.CreateReflectionWithTx(ctx, tx, req)
+	if err != nil {
 		log.Printf("CreateReflection database error: %v", err)
 		if apperror.IsDuplicateKeyError(err) {
 			return nil, apperror.NewConflict("reflection with this ID already exists")
@@ -64,6 +79,13 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		}
 		return nil, apperror.NewInternal(err)
 	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		log.Printf("Failed to commit transaction: %v", err)
+		return nil, apperror.NewInternal(err)
+	}
+
 	return &model.ReflectionResponse{
 		ID:        id,
 		Score:     req.FeelScore,
