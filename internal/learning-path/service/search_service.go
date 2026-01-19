@@ -10,20 +10,16 @@ import (
 	"strconv"
 )
 
-// SearchLearningPaths performs semantic search on learning paths via AI service.
-// It uses the payload data from the AI service when available to avoid database queries.
 func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchPathRequest) (*model.SearchPathResponse, error) {
-	// Validate request
 	if req.Query == "" {
 		return nil, apperror.NewBadRequest("search query cannot be empty")
 	}
 
-	// Set default TopK if not provided
+	// Set default TopK
 	if req.TopK == 0 {
 		req.TopK = 7
 	}
 
-	// Create AI search request
 	aiReq := aiclient.SearchRequest{
 		Query:        req.Query,
 		TopK:         req.TopK,
@@ -32,7 +28,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 	}
 
 	// Call AI service to get results with payload
-	aiResp, err := s.aiClient.Search(aiReq)
+	aiResp, err := s.aiClient.Search(ctx, aiReq)
 	if err != nil {
 		return nil, apperror.NewInternal(fmt.Errorf("failed to search via AI service: %w", err))
 	}

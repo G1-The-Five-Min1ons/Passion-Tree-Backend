@@ -102,7 +102,6 @@ func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model
 	return nil
 }
 
-
 func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error) {
 	if nodeID == "" {
 		return nil, apperror.NewBadRequest("node_id is required")

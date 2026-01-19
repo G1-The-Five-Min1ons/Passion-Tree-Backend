@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"context"
+	"time"
+
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 
@@ -9,7 +12,8 @@ import (
 
 func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	questions, err := h.quizSvc.GetQuestions(ctx, nodeID)
 	if err != nil {
 		return h.handleError(c, err)
@@ -23,7 +27,8 @@ func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 
 func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	var req model.CreateQuestionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -46,7 +51,8 @@ func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
 	question_id := c.Params("question_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	if err := h.quizSvc.RemoveQuestion(ctx, question_id); err != nil {
 		return h.handleError(c, err)
 	}
@@ -61,7 +67,8 @@ func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
 
 func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 	questionID := c.Params("question_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	var req model.CreateChoiceRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -84,7 +91,8 @@ func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteChoice(c *fiber.Ctx) error {
 	choice_id := c.Params("choice_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	if err := h.quizSvc.RemoveChoice(ctx, choice_id); err != nil {
 		return h.handleError(c, err)
 	}

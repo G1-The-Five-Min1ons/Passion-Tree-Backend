@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"context"
+	"time"
+
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 
@@ -10,7 +13,9 @@ import (
 // Search handles search learning paths via AI service
 func (h *Handler) Search(c *fiber.Ctx) error {
 	var req model.SearchPathRequest
-	ctx := c.UserContext()
+	// AI search ใช้เวลานาน ตั้ง timeout 30 วินาที
+	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
+	defer cancel()
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}

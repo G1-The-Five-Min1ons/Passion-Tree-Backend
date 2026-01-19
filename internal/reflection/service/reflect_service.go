@@ -37,7 +37,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 			FeelingsAfterLearning: req.Reflect,
 		}
 
-		sentimentResp, err := s.aiClient.AnalyzeSentiment(*sentimentReq)
+		sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 		if err != nil {
 			log.Printf("AI sentiment analysis failed: %v", err)
 			// Continue without AI enhancement if service fails
@@ -47,7 +47,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 			if req.Tag == "" {
 				req.Tag = sentimentResp.Advanced.PrimaryEmotion
 			}
-			log.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s", 
+			log.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s",
 				sentimentResp.Sentiment, sentimentResp.ReflectionScore, sentimentResp.Summary)
 		}
 	}
