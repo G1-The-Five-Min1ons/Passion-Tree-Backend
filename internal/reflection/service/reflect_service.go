@@ -11,7 +11,6 @@ import (
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
-	// Validate request
 	if strings.TrimSpace(req.Learned) == "" {
 		return nil, apperror.NewBadRequest("what have learned is required")
 	}
@@ -31,7 +30,6 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
 
-	// Call AI sentiment analysis
 	if s.aiClient != nil {
 		sentimentReq := &aiclient.SentimentRequest{
 			WhatLearned:           req.Learned,
@@ -41,9 +39,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 		if err != nil {
 			fmt.Printf("AI sentiment analysis failed: %v\n", err)
-			// Continue without AI enhancement if service fails
 		} else {
-			// Enrich request with AI results
 			req.Mood = sentimentResp.Sentiment
 			if req.Tag == "" {
 				req.Tag = sentimentResp.Advanced.PrimaryEmotion

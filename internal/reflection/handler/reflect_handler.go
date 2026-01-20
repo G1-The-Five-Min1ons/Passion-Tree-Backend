@@ -12,7 +12,6 @@ import (
 
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreateReflectionRequest
-	// AI sentiment analysis ตั้ง timeout 30 วินาที
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
 
