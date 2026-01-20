@@ -53,22 +53,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		}
 	}
 
-	// Begin transaction
-	tx, err := s.refRepo.BeginTx(ctx)
-	if err != nil {
-		log.Printf("Failed to begin transaction: %v", err)
-		return nil, apperror.NewInternal(err)
-	}
-	defer func() {
-		if err != nil {
-			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("Failed to rollback transaction: %v", rbErr)
-			}
-		}
-	}()
-
-	// Create reflection within transaction
-	id, err := s.refRepo.CreateReflectionWithTx(ctx, tx, req)
+	id, err := s.refRepo.CreateReflection(ctx, req)
 	if err != nil {
 		log.Printf("CreateReflection database error: %v", err)
 		if apperror.IsDuplicateKeyError(err) {
@@ -77,12 +62,6 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		if apperror.IsForeignKeyError(err) {
 			return nil, apperror.NewBadRequest("invalid tree_node_id or user_id: node or user does not exist")
 		}
-		return nil, apperror.NewInternal(err)
-	}
-
-	// Commit transaction
-	if err = tx.Commit(); err != nil {
-		log.Printf("Failed to commit transaction: %v", err)
 		return nil, apperror.NewInternal(err)
 	}
 
