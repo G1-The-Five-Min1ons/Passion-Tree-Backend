@@ -138,11 +138,30 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model
 	return &n, nil
 }
 
-func (r *repositoryImpl) UpdateNodeSequence(ctx context.Context, nodeID string, sequence int) error {
-	query := `UPDATE node SET sequence = ? WHERE node_id = ?`
-	_, err := r.db.ExecContext(ctx, query, sequence, nodeID)
+func (r *repositoryImpl) UpdateNodeSequence(ctx context.Context, nodeIDs []string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("repo.UpdateNodeSequence failed [id=%s]: %w", nodeID, err)
+		return fmt.Errorf("repo.ReorderNodesTx begin failed: %w", err)
 	}
+	defer tx.Rollback()
+	
+	query := `UPDATE node SET sequence = ? WHERE node_id = ?`
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("repo.ReorderNodesTx prepare failed: %w", err)
+	}
+	defer stmt.Close()
+
+	for i, nodeID := range nodeIDs {
+		_, err := stmt.ExecContext(ctx, i, nodeID)
+		if err != nil {
+			return fmt.Errorf("repo.ReorderNodesTx exec failed [id=%s, seq=%d]: %w", nodeID, i, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("repo.ReorderNodesTx commit failed: %w", err)
+	}
+
 	return nil
 }

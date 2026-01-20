@@ -93,11 +93,12 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 }
 
 func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error {
-	for index, nodeID := range req.NodeIDs {
-		err := s.nodeRepo.UpdateNodeSequence(ctx, nodeID, index)
-		if err != nil {
-			return apperror.NewInternal(err)
-		}
+	if len(req.NodeIDs) == 0 {
+		return apperror.NewBadRequest("node_ids list cannot be empty")
+	}
+	err := s.nodeRepo.UpdateNodeSequence(ctx, req.NodeIDs)
+	if err != nil {
+		return apperror.NewInternal(err)
 	}
 	return nil
 }

@@ -27,7 +27,7 @@ type RepositoryNode interface {
 	CreateMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
 	GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
 	DeleteMaterial(ctx context.Context, materialID string) error
-	UpdateNodeSequence(ctx context.Context, nodeID string, sequence int) error
+	UpdateNodeSequence(ctx context.Context, nodeIDs []string) error
 }
 
 type RepositoryComment interface {
