@@ -4,6 +4,7 @@ import (
 	"context"
 	"passiontree/internal/reflection/model"
 	"passiontree/internal/reflection/repository"
+	"passiontree/internal/platform/aiclient"
 )
 
 type ReflectionService interface {
@@ -15,11 +16,13 @@ type ReflectionService interface {
 }
 
 type serviceImpl struct {
-	refRepo repository.RepositoryReflection
+	refRepo  repository.RepositoryReflection
+	aiClient *aiclient.AIClient
 }
 
-func NewService(repo repository.RepositoryReflection) ReflectionService {
+func NewService(repo repository.RepositoryReflection, aiClient *aiclient.AIClient) ReflectionService {
 	return &serviceImpl{
-		refRepo: repo,
+		refRepo:  repo,
+		aiClient: aiClient,
 	}
 }
