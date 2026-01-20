@@ -2,7 +2,6 @@ package model
 
 import (
 	"time"
-	"github.com/google/uuid"
 )
 
 type Reflection struct {
@@ -24,6 +23,8 @@ type CreateReflectionRequest struct {
     Reflect        string `json:"reflect"`
     ProgressScore  string `json:"progress_score"`
     ChallengeScore string `json:"challenge_score"`
+    Mood           string `json:"mood"`
+    Tag            string `json:"tag"`
     TreeNodeID     string `json:"tree_node_id"`
 }
 
