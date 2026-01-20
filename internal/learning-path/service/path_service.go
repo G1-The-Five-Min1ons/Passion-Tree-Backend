@@ -20,7 +20,7 @@ func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error
 
 func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*model.LearningPath, error) {
 	if path_id == "" {
-		return nil, apperror.NewBadRequest("user_id is required")
+		return nil, apperror.NewBadRequest("path_id is required")
 	}
 	path, err := s.pathRepo.GetLearnningPathByID(ctx, path_id)
 	if err != nil {
