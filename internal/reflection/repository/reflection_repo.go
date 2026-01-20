@@ -9,15 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// BeginTx starts a new database transaction
-func (r *repositoryImpl) BeginTx(ctx context.Context) (*sql.Tx, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("repo.BeginTx failed: %w", err)
-	}
-	return tx, nil
-}
-
 func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (string, error) {
 	id := uuid.New().String()
 
