@@ -92,6 +92,16 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 	return nil
 }
 
+func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error {
+	if len(req.NodeIDs) == 0 {
+		return apperror.NewBadRequest("node_ids list cannot be empty")
+	}
+	err := s.nodeRepo.UpdateNodeSequence(ctx, req.NodeIDs)
+	if err != nil {
+		return apperror.NewInternal(err)
+	}
+	return nil
+}
 
 func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error) {
 	if nodeID == "" {

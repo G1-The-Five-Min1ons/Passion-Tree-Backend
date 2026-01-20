@@ -24,7 +24,7 @@ func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, st
 
 	auth.RegisterRoutes(api, db)
 	learningpath.RegisterRoutes(api, db, aiClient)
-	reflection.RegisterRoutes(api, db)
+	reflection.RegisterRoutes(api, db, aiClient)
 	history.RegisterRoutes(api, db)
 	resume.RegisterRoutes(api, db)
 }

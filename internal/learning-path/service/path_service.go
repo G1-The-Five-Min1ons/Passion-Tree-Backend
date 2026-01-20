@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+	"regexp"
+	"strings"
+	"fmt"
 )
 
 func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
@@ -15,14 +18,14 @@ func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error
 	return paths, nil
 }
 
-func (s *serviceImpl) GetPathDetails(ctx context.Context, id string) (*model.LearningPath, error) {
-	if id == "" {
-		return nil, apperror.NewBadRequest("user_id is required")
+func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*model.LearningPath, error) {
+	if path_id == "" {
+		return nil, apperror.NewBadRequest("path_id is required")
 	}
-	path, err := s.pathRepo.GetLearnningPathByID(ctx, id)
+	path, err := s.pathRepo.GetLearnningPathByID(ctx, path_id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, apperror.NewNotFound("learning path with id '%s' not found", id)
+			return nil, apperror.NewNotFound("learning path with id '%s' not found", path_id)
 		}
 		return nil, apperror.NewInternal(err)
 	}
@@ -133,4 +136,44 @@ func (s *serviceImpl) GetPathProgress(ctx context.Context, pathID string, userID
 	}
 
 	return progress, nil
+}
+
+func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*model.GeneratedPathResponse, error) {
+	if topic == "" {
+		return nil, apperror.NewBadRequest("topic is required")
+	}
+
+	rawResponse, err := s.aiClient.GenerateLearningPath(ctx, topic)
+	if err != nil {
+		return nil, apperror.NewInternal(err)
+	}
+
+	nodes := parseAINodes(rawResponse.Result)
+
+	return &model.GeneratedPathResponse{
+		Topic: rawResponse.Topic,
+		Nodes: nodes,
+	}, nil
+}
+
+func parseAINodes(rawResult string) []model.GeneratedNode {
+	var nodes []model.GeneratedNode
+	
+	segments := strings.Split(rawResult, ",")
+	
+	re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)
+
+	for _, seg := range segments {
+		seg = strings.TrimSpace(seg)
+		matches := re.FindStringSubmatch(seg)
+		if len(matches) == 3 {
+			seq := 0
+			fmt.Sscanf(matches[1], "%d", &seq)
+			nodes = append(nodes, model.GeneratedNode{
+				Sequence: seq,
+				Title:    matches[2],
+			})
+		}
+	}
+	return nodes
 }

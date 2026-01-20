@@ -6,11 +6,12 @@ import (
 	"passiontree/internal/reflection/repository"
 	"passiontree/internal/reflection/service"
 	"passiontree/internal/database"
+	"passiontree/internal/platform/aiclient"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database) {
+func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient) {
 	repo := repository.NewRepository(db)
-	svc := service.NewService(repo)
+	svc := service.NewService(repo, aiClient)
 	h := handler.NewHandler(svc)
 
 	reflections := r.Group("/reflections")

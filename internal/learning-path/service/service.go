@@ -16,6 +16,7 @@ type ServiceLearningPath interface {
 	StartPath(ctx context.Context, pathID string, userID string) error
 	GetEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
+	GeneratePathWithAI(ctx context.Context, topic string) (*model.GeneratedPathResponse, error)
 }
 
 type ServiceSearch interface {
@@ -29,6 +30,7 @@ type ServiceNode interface {
 	RemoveNode(ctx context.Context, nodeID string) error
 	AddMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
 	RemoveMaterial(ctx context.Context, materialID string) error
+	ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error
 }
 
 type ServiceComment interface {

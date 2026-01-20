@@ -25,6 +25,7 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		paths.Delete("/:path_id", h.Delete)
 		paths.Post("/:path_id/start", h.Start)
 		paths.Post("/:path_id/nodes", h.CreateNode)
+		paths.Post("/:path_id/generate", h.Generate)
 	}
 
 	nodes := r.Group("/learningpaths/nodes")
@@ -37,6 +38,7 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		nodes.Post("/:node_id/comments", h.CreateComment)
 		nodes.Get("/:node_id/questions", h.GetQuestions)
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
+		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 	}
 
 	questions := r.Group("/learningpaths/questions")

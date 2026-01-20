@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"context"
+	"time"
+
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 
@@ -9,7 +12,8 @@ import (
 
 func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 
 	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID)
 	if err != nil {
@@ -25,7 +29,8 @@ func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 
 func (h *Handler) CreateNode(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	var req model.CreateNodeRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -48,7 +53,8 @@ func (h *Handler) CreateNode(c *fiber.Ctx) error {
 
 func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	var req model.UpdateNodeRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -69,7 +75,8 @@ func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	if err := h.nodeSvc.RemoveNode(ctx, nodeID); err != nil {
 		return h.handleError(c, err)
 	}
@@ -84,7 +91,8 @@ func (h *Handler) DeleteNode(c *fiber.Ctx) error {
 
 func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	var req model.CreateMaterialRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -107,7 +115,8 @@ func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 
 func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 	material_id := c.Params("material_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 	if err := h.nodeSvc.RemoveMaterial(ctx, material_id); err != nil {
 		return h.handleError(c, err)
 	}
@@ -117,5 +126,25 @@ func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"material_id": material_id,
 		},
+	})
+}
+
+func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
+	pathID := c.Params("path_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+	var req model.ReorderNodesRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if err := h.nodeSvc.ReorderNodes(ctx, pathID, req); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Nodes reordered successfully",
 	})
 }

@@ -11,8 +11,8 @@ import (
 
 func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO node (node_id, title, description, path_id) VALUES (?, ?, ?, ?)`
-	_, err := r.db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID)
+	query := `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (?, ?, ?, ?, ?)`
+	_, err := r.db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID, req.Sequence)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateNode exec failed: %w", err)
 	}
@@ -20,7 +20,7 @@ func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeReq
 }
 
 func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
-	query := `SELECT node_id, title, description, path_id FROM node WHERE path_id = ?`
+	query := `SELECT node_id, title, description, path_id, sequence FROM node WHERE path_id = ? ORDER BY sequence ASC`
 	rows, err := r.db.QueryContext(ctx, query, pathID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetNodesByPathID query failed: %w", err)
@@ -30,7 +30,7 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([
 	var nodes []model.Node
 	for rows.Next() {
 		var n model.Node
-		if err := rows.Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID); err != nil {
+		if err := rows.Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID, &n.Sequence); err != nil {
 			return nil, fmt.Errorf("repo.GetNodesByPathID scan failed: %w", err)
 		}
 		nodes = append(nodes, n)
@@ -136,4 +136,32 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model
 	n.Materials = materials
 
 	return &n, nil
+}
+
+func (r *repositoryImpl) UpdateNodeSequence(ctx context.Context, nodeIDs []string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("repo.ReorderNodesTx begin failed: %w", err)
+	}
+	defer tx.Rollback()
+	
+	query := `UPDATE node SET sequence = ? WHERE node_id = ?`
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("repo.ReorderNodesTx prepare failed: %w", err)
+	}
+	defer stmt.Close()
+
+	for i, nodeID := range nodeIDs {
+		_, err := stmt.ExecContext(ctx, i, nodeID)
+		if err != nil {
+			return fmt.Errorf("repo.ReorderNodesTx exec failed [id=%s, seq=%d]: %w", nodeID, i, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("repo.ReorderNodesTx commit failed: %w", err)
+	}
+
+	return nil
 }

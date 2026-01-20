@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"context"
+	"time"
+
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
 
@@ -9,7 +12,8 @@ import (
 
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreateReflectionRequest
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
+	defer cancel()
 
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
@@ -31,7 +35,8 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 
 func (h *Handler) Update(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 
 	var req model.UpdateReflectionRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -53,7 +58,8 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 
 	if err := h.reflectSvc.DeleteReflection(ctx, id); err != nil {
 		return h.handleError(c, err)
@@ -70,7 +76,8 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 
 func (h *Handler) GetByID(c *fiber.Ctx) error {
 	id := c.Params("reflect_id")
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 
 	res, err := h.reflectSvc.GetReflectionByID(ctx, id)
 	if err != nil {
@@ -87,7 +94,8 @@ func (h *Handler) GetByID(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GetAll(c *fiber.Ctx) error {
-	ctx := c.UserContext()
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 
 	res, err := h.reflectSvc.GetAllReflections(ctx)
 	if err != nil {
