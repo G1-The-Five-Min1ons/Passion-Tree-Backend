@@ -3,11 +3,12 @@ package service
 import (
 	"context"
 	"database/sql"
-	"log"
+	"fmt"
+	"strings"
+	"time"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
-	"strings"
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
@@ -40,7 +41,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 
 		sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 		if err != nil {
-			log.Printf("AI sentiment analysis failed: %v", err)
+			fmt.Printf("AI sentiment analysis failed: %v\n", err)
 			// Continue without AI enhancement if service fails
 		} else {
 			// Enrich request with AI results
@@ -48,14 +49,14 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 			if req.Tag == "" {
 				req.Tag = sentimentResp.Advanced.PrimaryEmotion
 			}
-			log.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s",
+			fmt.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s\n",
 				sentimentResp.Sentiment, sentimentResp.ReflectionScore, sentimentResp.Summary)
 		}
 	}
 
 	id, err := s.refRepo.CreateReflection(ctx, req)
 	if err != nil {
-		log.Printf("CreateReflection database error: %v", err)
+		fmt.Printf("CreateReflection database error: %v\n", err)
 		if apperror.IsDuplicateKeyError(err) {
 			return nil, apperror.NewConflict("reflection with this ID already exists")
 		}
