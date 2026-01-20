@@ -7,18 +7,17 @@ import (
     "passiontree/internal/pkg/apperror"
 )
 
-type Handler struct {
+type ReflectionHandler struct {
     reflectSvc service.ReflectionService
 }
 
-func NewHandler(svc service.svc) *Handler {
+func NewHandler(svc service.ReflectionService) *ReflectionHandler {
     return &ReflectionHandler{
-        func (h *ReflectionHandler) handleError
         reflectSvc: svc,
     }
 }
 
-func (h *Handler) handleError(c *fiber.Ctx, err error) error {
+func (h *ReflectionHandler) handleError(c *fiber.Ctx, err error) error {
     if appErr, ok := err.(*apperror.AppError); ok {
         if appErr.Log != nil {
             log.Printf("[APP ERROR] Code: %d, Msg: %s, Cause: %v", appErr.Code, appErr.Message, appErr.Log)
