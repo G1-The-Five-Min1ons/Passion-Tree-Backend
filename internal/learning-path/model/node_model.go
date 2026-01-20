@@ -1,12 +1,10 @@
 package model
 
 type CreateNodeRequest struct {
-	Title        string `json:"title" binding:"required"`
-	Description  string `json:"description"`
-	PathID       string `json:"path_id" binding:"required"`
-	Sequence     string `json:"sequence" binding:"required"`
-	AlbumID      string `json:"album_id,omitempty"`      // Required for root node (node without parent)
-	ParentNodeID string `json:"parent_node_id,omitempty"` // Required for child nodes
+	Title       string `json:"title" binding:"required"`
+	Description string `json:"description"`
+	PathID      string `json:"path_id" binding:"required"`
+	Sequence 	string `json:"sequence" binding:"required"`
 }
 
 type UpdateNodeRequest struct {
@@ -15,14 +13,12 @@ type UpdateNodeRequest struct {
 }
 
 type Node struct {
-	NodeID       string         `json:"node_id"`
-	Title        string         `json:"title"`
-	Description  string         `json:"description"`
-	Sequence     int            `json:"sequence"`
-	PathID       string         `json:"path_id"`
-	AlbumID      *string        `json:"album_id,omitempty"`
-	ParentNodeID *string        `json:"parent_node_id,omitempty"`
-	Materials    []NodeMaterial `json:"materials,omitempty"`
+	NodeID      string         `json:"node_id"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Sequence    int            `json:"sequence"`
+	PathID      string         `json:"path_id"`
+	Materials   []NodeMaterial `json:"materials,omitempty"`
 }
 
 type NodeMaterial struct {
