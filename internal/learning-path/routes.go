@@ -26,6 +26,7 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		paths.Post("/:path_id/start", h.Start)
 		paths.Post("/:path_id/nodes", h.CreateNode)
 		paths.Post("/:path_id/generate", h.Generate)
+		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 	}
 
 	nodes := r.Group("/learningpaths/nodes")
@@ -38,13 +39,14 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		nodes.Post("/:node_id/comments", h.CreateComment)
 		nodes.Get("/:node_id/questions", h.GetQuestions)
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
-		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
+		nodes.Delete("/materials/:material_id", h.DeleteMaterial)
 	}
-
+	
 	questions := r.Group("/learningpaths/questions")
 	{
 		questions.Delete("/:question_id", h.DeleteQuestion)
 		questions.Post("/:question_id/choices", h.CreateChoice)
+		questions.Delete("/choices/:choice_id", h.DeleteChoice)
 	}
 
 	userPaths := r.Group("/user/learningpaths")
@@ -53,9 +55,10 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		userPaths.Get("/:path_id/progress", h.GetPathProgress)
 	}
 
-	r.Post("/learningpaths/comments/:comment_id/mentions", h.CreateMention)
-	r.Post("/learningpaths/comments/:comment_id/reactions", h.CreateReaction)
-	r.Delete("/learningpaths/comments/:comment_id", h.DeleteComment)
-	r.Delete("/learningpaths/choices/:choice_id", h.DeleteChoice)
-	r.Delete("/learningpaths/materials/:material_id", h.DeleteMaterial)
+	comments := r.Group("/learningpaths/comments")
+	{
+		comments.Post("/:comment_id/mentions", h.CreateMention)
+		comments.Post("/:comment_id/reactions", h.CreateReaction)
+		comments.Delete("/:comment_id", h.DeleteComment)
+	}
 }

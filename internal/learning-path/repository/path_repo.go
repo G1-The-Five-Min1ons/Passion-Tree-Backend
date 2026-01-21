@@ -13,7 +13,7 @@ import (
 
 func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.LearningPath, error) {
 	query := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, ISNULL(CONVERT(VARCHAR(36), creator_ID), '') as creator_id
+		SELECT path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, creator_id
 		FROM learning_path`
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -25,7 +25,7 @@ func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.Learn
 	var paths []model.LearningPath
 	for rows.Next() {
 		var p model.LearningPath
-		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID); err != nil {
+		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Publish_status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID); err != nil {
 			return nil, fmt.Errorf("repo.GetAllLearnningPath scan failed: %w", err)
 		}
 		paths = append(paths, p)
@@ -40,13 +40,13 @@ func (r *repositoryImpl) GetAllLearnningPath(ctx context.Context) ([]model.Learn
 
 func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error) {
 	pathQuery := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, ISNULL(CONVERT(VARCHAR(36), creator_ID), '') as creator_id
+		SELECT path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, creator_id
 		FROM learning_path 
-		WHERE path_id = ?`
+		WHERE path_id = @p1`
 
 	var p model.LearningPath
 	err := r.db.QueryRowContext(ctx, pathQuery, path_id).Scan(
-		&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID,
+		&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Publish_status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -55,48 +55,34 @@ func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, path_id strin
 		return nil, fmt.Errorf("repo.GetLearnningPathByID scan failed: %w", err)
 	}
 
-	nodes, err := r.GetNodesByPathID(ctx, path_id)
-	if err != nil {
-		return nil, fmt.Errorf("repo.GetLearnningPathByID fetch nodes failed: %w", err)
-	}
-
-	for i := range nodes {
-		materials, err := r.GetMaterialsByNodeID(ctx, nodes[i].NodeID)
-		if err != nil {
-			return nil, fmt.Errorf("repo.GetLearnningPathByID fetch materials failed (node=%s): %w", nodes[i].NodeID, err)
-		}
-		nodes[i].Materials = materials
-	}
-
-	p.Nodes = nodes
 	return &p, nil
 }
 
 func (r *repositoryImpl) CreateLearnningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
 	newID := uuid.New().String()
 	now := time.Now()
-	query := `INSERT INTO learning_path (path_id, title, objective, description, cover_img_url, avg_rating, publish_status, creator_ID, create_at, update_at) VALUES (?, ?, ?, ?, ?, 0.0, ?, ?, ?, ?)`
+	query := `INSERT INTO learning_path (path_id, title, objective, description, cover_img_url, avg_rating, publish_status, creator_ID, create_at, update_at) VALUES (@p1, @p2, @p3, @p4, @p5, 0.0, @p6, @p7, @p8, @p9)`
 
-	_, err := r.db.ExecContext(ctx, query, newID, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Status, req.CreatorID, now, now)
+	_, err := r.db.ExecContext(ctx, query, newID, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Publish_status, req.CreatorID, now, now)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateLearnningPath exec failed: %w", err)
 	}
 	return newID, nil
 }
 
-func (r *repositoryImpl) UpdateLearnningPath(ctx context.Context, id string, req model.UpdatePathRequest) error {
-	query := `UPDATE learning_path SET title=?, objective=?, description=?, cover_img_url=?, publish_status=?, update_at=? WHERE path_id=?`
-	_, err := r.db.ExecContext(ctx, query, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Status, time.Now(), id)
+func (r *repositoryImpl) UpdateLearnningPath(ctx context.Context, path_id string, req model.UpdatePathRequest) error {
+	query := `UPDATE learning_path SET title=@p1, objective=@p2, description=@p3, cover_img_url=@p4, publish_status=@p5, update_at=@p6 WHERE path_id=@p7`
+	_, err := r.db.ExecContext(ctx, query, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Publish_status, time.Now(), path_id)
 	if err != nil {
-		return fmt.Errorf("repo.UpdateLearnningPath failed [id=%s]: %w", id, err)
+		return fmt.Errorf("repo.UpdateLearnningPath failed [id=%s]: %w", path_id, err)
 	}
 	return nil
 }
 
-func (r *repositoryImpl) DeleteLearnningPath(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM learning_path WHERE path_id = ?", id)
+func (r *repositoryImpl) DeleteLearnningPath(ctx context.Context, path_id string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM learning_path WHERE path_id = @p1", path_id)
 	if err != nil {
-		return fmt.Errorf("repo.DeleteLearnningPath failed [id=%s]: %w", id, err)
+		return fmt.Errorf("repo.DeleteLearnningPath failed [id=%s]: %w", path_id, err)
 	}
 	return nil
 }
@@ -104,7 +90,7 @@ func (r *repositoryImpl) DeleteLearnningPath(ctx context.Context, id string) err
 func (r *repositoryImpl) EnrollLearnningPathUser(ctx context.Context, pathID string, userID string) error {
 	enrollID := uuid.New().String()
 	now := time.Now()
-	query := `INSERT INTO path_enroll (enroll_id, user_id, path_id, enrollment_status, enroll_at) VALUES (?, ?, ?, 'active', ?)`
+	query := `INSERT INTO path_enroll (enroll_id, user_id, path_id, enrollment_status, enroll_at) VALUES (@p1, @p2, @p3, 'active', @p4)`
 	_, err := r.db.ExecContext(ctx, query, enrollID, userID, pathID, now)
 	if err != nil {
 		return fmt.Errorf("repo.EnrollLearnningPathUser failed: %w", err)
@@ -113,9 +99,9 @@ func (r *repositoryImpl) EnrollLearnningPathUser(ctx context.Context, pathID str
 }
 
 func (r *repositoryImpl) GetLearnningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error) {
-	query := `SELECT enroll_id, enrollment_status, enroll_at, complete_at FROM path_enroll WHERE user_id = ? AND path_id = ?`
+	query := `SELECT enroll_id, enrollment_status, enroll_at, complete_at FROM path_enroll WHERE user_id = @p1 AND path_id = @p2`
 	var pe model.PathEnroll
-	err := r.db.QueryRowContext(ctx, query, userID, pathID).Scan(&pe.EnrollID, &pe.Status, &pe.EnrollAt, &pe.CompleteAt)
+	err := r.db.QueryRowContext(ctx, query, userID, pathID).Scan(&pe.EnrollID, &pe.Enrollment_status, &pe.EnrollAt, &pe.CompleteAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err

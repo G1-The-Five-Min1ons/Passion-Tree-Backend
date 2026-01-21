@@ -9,17 +9,17 @@ import (
 )
 
 func (r *repositoryImpl) CreateQuestion(ctx context.Context, req model.CreateQuestionRequest) (string, error) {
-	id := uuid.New().String()
-	query := `INSERT INTO node_question (question_id, question_text, type, node_id) VALUES (?, ?, ?, ?)`
-	_, err := r.db.ExecContext(ctx, query, id, req.QuestionText, req.Type, req.NodeID)
+	question_id := uuid.New().String()
+	query := `INSERT INTO node_question (question_id, question_text, type, node_id) VALUES (@p1, @p2, @p3, @p4)`
+	_, err := r.db.ExecContext(ctx, query, question_id, req.QuestionText, req.Type, req.NodeID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateQuestion exec failed: %w", err)
 	}
-	return id, nil
+	return question_id, nil
 }
 
 func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string) ([]model.NodeQuestion, error) {
-	query := `SELECT question_id, question_text, type, node_id FROM node_question WHERE node_id = ?`
+	query := `SELECT question_id, question_text, type, node_id FROM node_question WHERE node_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetQuestionsByNodeID query failed: %w", err)
@@ -50,7 +50,7 @@ func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string
 }
 
 func (r *repositoryImpl) DeleteQuestion(ctx context.Context, questionID string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM node_question WHERE question_id = ?`, questionID)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM node_question WHERE question_id = @p1`, questionID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteQuestion exec failed [id=%s]: %w", questionID, err)
 	}
@@ -64,7 +64,7 @@ func (r *repositoryImpl) DeleteQuestion(ctx context.Context, questionID string) 
 
 func (r *repositoryImpl) CreateChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO question_choice (choice_id, choice_text, is_correct, reasoning, node_id) VALUES (?, ?, ?, ?, ?)`
+	query := `INSERT INTO question_choice (choice_id, choice_text, is_correct, reasoning, question_id) VALUES (@p1, @p2, @p3, @p4, @p5)`
 	_, err := r.db.ExecContext(ctx, query, id, req.ChoiceText, req.IsCorrect, req.Reasoning, req.QuestionID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateChoice exec failed: %w", err)
@@ -73,7 +73,7 @@ func (r *repositoryImpl) CreateChoice(ctx context.Context, req model.CreateChoic
 }
 
 func (r *repositoryImpl) GetChoicesByQuestionID(ctx context.Context, questionID string) ([]model.QuestionChoice, error) {
-	query := `SELECT choice_id, choice_text, is_correct, reasoning, node_id FROM question_choice WHERE node_id = ?`
+	query := `SELECT choice_id, choice_text, is_correct, reasoning, question_id FROM question_choice WHERE question_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, questionID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetChoicesByQuestionID query failed: %w", err)
@@ -97,7 +97,7 @@ func (r *repositoryImpl) GetChoicesByQuestionID(ctx context.Context, questionID 
 }
 
 func (r *repositoryImpl) DeleteChoice(ctx context.Context, choiceID string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM question_choice WHERE choice_id = ?`, choiceID)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM question_choice WHERE choice_id = @p1`, choiceID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteChoice exec failed [id=%s]: %w", choiceID, err)
 	}

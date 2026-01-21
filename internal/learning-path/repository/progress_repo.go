@@ -12,8 +12,8 @@ func (r *repositoryImpl) GetUserPathProgress(ctx context.Context, pathID string,
 			COUNT(n.node_id) as total_nodes,
 			COUNT(CASE WHEN np.status = 'completed' THEN 1 END) as completed_nodes
 		FROM node n
-		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = ?
-		WHERE n.path_id = ?`
+		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p1
+		WHERE n.path_id = @p2`
 
 	var totalNodes, completedNodes int
 
