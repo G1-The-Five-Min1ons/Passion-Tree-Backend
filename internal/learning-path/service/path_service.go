@@ -57,7 +57,7 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, id string, req model.Updat
 		req.Objective == "" &&
 		req.Description == "" &&
 		req.CoverImgURL == "" &&
-		req.Status == "" {
+		req.Publish_status == "" {
 		return apperror.NewBadRequest("request body cannot be empty")
 	}
 	if _, err := s.pathRepo.GetLearnningPathByID(ctx, id); err != nil {

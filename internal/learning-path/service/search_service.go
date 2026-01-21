@@ -81,8 +81,8 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 			if rating, ok := aiResult.Payload["avg_rating"].(float64); ok {
 				result.AvgRating = rating
 			}
-			if status, ok := aiResult.Payload["status"].(string); ok {
-				result.Status = status
+			if Publish_status, ok := aiResult.Payload["publish_status"].(string); ok {
+				result.Publish_status = Publish_status
 			}
 			if creator, ok := aiResult.Payload["creator_id"].(string); ok {
 				result.CreatorID = creator
@@ -106,7 +106,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 			result.CoverImgURL = path.CoverImgURL
 			result.Objective = path.Objective
 			result.AvgRating = path.AvgRating
-			result.Status = path.Status
+			result.Publish_status = path.Publish_status
 			result.CreatorID = path.CreatorID
 			result.CreatedAt = path.CreatedAt
 			result.UpdatedAt = path.UpdatedAt
