@@ -121,3 +121,76 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		Results: results,
 	}, nil
 }
+
+// GetCollectionInfo retrieves debug information about a collection from AI service
+func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.CollectionInfoResponse, error) {
+	if collectionName == "" {
+		return nil, apperror.NewBadRequest("collection name cannot be empty")
+	}
+
+	// Call AI service to get collection info
+	info, err := s.aiClient.GetCollectionInfo(collectionName)
+	if err != nil {
+		return nil, apperror.NewInternal(fmt.Errorf("failed to get collection info from AI service: %w", err))
+	}
+
+	return info, nil
+}
+
+// SyncLearningPath syncs a single learning path from Azure DB to Qdrant vector database
+func (s *serviceImpl) SyncLearningPath(pathID string) (*model.SyncPathResponse, error) {
+	// Validate pathID
+	if pathID == "" {
+		return nil, apperror.NewBadRequest("path ID cannot be empty")
+	}
+
+	// Get learning path from database
+	path, err := s.pathRepo.GetLearnningPathByID(pathID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("learning path not found")
+		}
+		return nil, apperror.NewInternal(fmt.Errorf("failed to fetch learning path from database: %w", err))
+	}
+
+	// Convert pathID to int
+	pathIDInt, err := strconv.Atoi(pathID)
+	if err != nil {
+		return nil, apperror.NewBadRequest("invalid path ID format")
+	}
+
+	// Prepare metadata for filtering
+	metadata := map[string]interface{}{
+		"title":         path.Title,
+		"description":   path.Description,
+		"cover_img_url": path.CoverImgURL,
+		"objective":     path.Objective,
+		"avg_rating":    path.AvgRating,
+		"status":        path.Status,
+		"creator_id":    path.CreatorID,
+		"created_at":    path.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"updated_at":    path.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+
+	// Create sync request for AI service
+	syncReq := aiclient.SyncLearningPathRequest{
+		PathID:         pathIDInt,
+		Title:          path.Title,
+		Description:    path.Description,
+		Metadata:       metadata,
+		CollectionName: "learning_paths",
+	}
+
+	// Call AI service to sync to Qdrant
+	syncResp, err := s.aiClient.SyncLearningPath(syncReq)
+	if err != nil {
+		return nil, apperror.NewInternal(fmt.Errorf("failed to sync learning path to Qdrant: %w", err))
+	}
+
+	// Return response
+	return &model.SyncPathResponse{
+		Success: syncResp.Success,
+		Message: syncResp.Message,
+		PathID:  syncResp.PathID,
+	}, nil
+}
