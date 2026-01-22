@@ -12,13 +12,13 @@ import (
 func (r *repositoryImpl) CreateComment(ctx context.Context, req model.CreateCommentRequest) (string, error) {
 	id := uuid.New().String()
 	now := time.Now()
-	query := `INSERT INTO node_comment (comment_id, parent_id, content, create_at, node_id) VALUES (?, ?, ?, ?, ?)`
+	query := `INSERT INTO node_comment (comment_id, parent_id, content, create_at, node_id) VALUES (@p1, @p2, @p3, @p4, @p5)`
 	_, err := r.db.ExecContext(ctx, query, id, req.ParentID, req.Content, now, req.NodeID)
 	return id, err
 }
 
 func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error) {
-	query := `SELECT comment_id, parent_id, content, create_at, edit_at FROM node_comment WHERE node_id = ?`
+	query := `SELECT comment_id, parent_id, content, create_at, edit_at FROM node_comment WHERE node_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, nodeID)
 	if err != nil {
 		return nil, err
@@ -45,19 +45,19 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 }
 
 func (r *repositoryImpl) DeleteComment(ctx context.Context, commentID string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM node_comment WHERE comment_id = ?`, commentID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM node_comment WHERE comment_id = @p1`, commentID)
 	return err
 }
 
 func (r *repositoryImpl) CreateReaction(ctx context.Context, req model.CreateReactionRequest) error {
 	id := uuid.New().String()
-	query := `INSERT INTO comment_reaction (reaction_id, reaction_type, comment_id) VALUES (?, ?, ?)`
+	query := `INSERT INTO comment_reaction (reaction_id, reaction_type, comment_id) VALUES (@p1, @p2, @p3)`
 	_, err := r.db.ExecContext(ctx, query, id, req.ReactionType, req.CommentID)
 	return err
 }
 
 func (r *repositoryImpl) GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error) {
-	query := `SELECT reaction_id, reaction_type, comment_id FROM comment_reaction WHERE comment_id = ?`
+	query := `SELECT reaction_id, reaction_type, comment_id FROM comment_reaction WHERE comment_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, commentID)
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func (r *repositoryImpl) GetReactionsByCommentID(ctx context.Context, commentID 
 
 func (r *repositoryImpl) CreateMention(ctx context.Context, req model.CreateMentionRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO comment_mention (reaction_id, create_at, comment_id) VALUES (?, ?, ?)`
+	query := `INSERT INTO comment_mention (reaction_id, create_at, comment_id) VALUES (@p1, @p2, @p3)`
 	_, err := r.db.ExecContext(ctx, query, id, time.Now(), req.CommentID)
 	return id, err
 }
