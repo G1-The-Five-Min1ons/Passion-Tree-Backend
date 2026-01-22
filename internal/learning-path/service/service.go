@@ -18,6 +18,8 @@ type ServiceLearningPath interface {
 
 type ServiceSearch interface {
 	SearchLearningPaths(req model.SearchPathRequest) (*model.SearchPathResponse, error)
+	GetCollectionInfo(collectionName string) (*aiclient.CollectionInfoResponse, error)
+	SyncLearningPath(pathID string) (*model.SyncPathResponse, error)
 }
 
 type ServiceNode interface {

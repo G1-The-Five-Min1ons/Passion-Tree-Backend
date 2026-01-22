@@ -70,3 +70,60 @@ func (c *AIClient) Ping() error {
 
 	return nil
 }
+
+// GetCollectionInfo retrieves debug information about a collection from AI service
+func (c *AIClient) GetCollectionInfo(collectionName string) (*CollectionInfoResponse, error) {
+	// Create request
+	url := fmt.Sprintf("%s/api/v1/search/debug/collection/%s", c.baseURL, collectionName)
+	agent := c.client.Get(url)
+
+	// Send request
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to send request: %v", errs[0])
+	}
+
+	// Check status code
+	if statusCode != fiber.StatusOK {
+		return nil, fmt.Errorf("AI service returned status %d: %s", statusCode, string(body))
+	}
+
+	// Unmarshal response
+	var info CollectionInfoResponse
+	if err := json.Unmarshal(body, &info); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &info, nil
+}
+
+// SyncLearningPath syncs a learning path to Qdrant vector database via AI service
+func (c *AIClient) SyncLearningPath(req SyncLearningPathRequest) (*SyncLearningPathResponse, error) {
+	// Set default collection name if not provided
+	if req.CollectionName == "" {
+		req.CollectionName = "learning_paths"
+	}
+
+	// Create request
+	agent := c.client.Post(c.baseURL + "/api/v1/search/sync")
+	agent.JSON(req)
+
+	// Send request
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to send request: %v", errs[0])
+	}
+
+	// Check status code
+	if statusCode != fiber.StatusOK {
+		return nil, fmt.Errorf("AI service returned status %d: %s", statusCode, string(body))
+	}
+
+	// Unmarshal response
+	var syncResp SyncLearningPathResponse
+	if err := json.Unmarshal(body, &syncResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return &syncResp, nil
+}
