@@ -5,6 +5,7 @@ import (
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/platform/aiclient"
+	"log"
 )
 
 type ServiceLearningPath interface {
@@ -68,6 +69,11 @@ type serviceImpl struct {
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient) Service {
+    if aiClient == nil {
+        log.Println("[DEBUG] Warning: aiClient passed to NewService is NIL!")
+    } else {
+        log.Printf("[DEBUG] aiClient successfully passed to NewService: %p", aiClient)
+    }
 	return &serviceImpl{
 		pathRepo:    repo,
 		nodeRepo:    repo,

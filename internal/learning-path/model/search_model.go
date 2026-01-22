@@ -44,5 +44,5 @@ type SyncPathRequest struct {
 type SyncPathResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
-	PathID  int    `json:"path_id,omitempty"`
+	PathID  string `json:"path_id,omitempty"`
 }
