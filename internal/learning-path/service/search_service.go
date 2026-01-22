@@ -138,14 +138,14 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 }
 
 // SyncLearningPath syncs a single learning path from Azure DB to Qdrant vector database
-func (s *serviceImpl) SyncLearningPath(pathID string) (*model.SyncPathResponse, error) {
+func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*model.SyncPathResponse, error) {
 	// Validate pathID
 	if pathID == "" {
 		return nil, apperror.NewBadRequest("path ID cannot be empty")
 	}
 
 	// Get learning path from database
-	path, err := s.pathRepo.GetLearnningPathByID(pathID)
+	path, err := s.pathRepo.GetLearnningPathByID(ctx, pathID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, apperror.NewNotFound("learning path not found")

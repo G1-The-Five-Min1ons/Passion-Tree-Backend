@@ -65,8 +65,12 @@ func (h *Handler) SyncLearningPath(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("path_id is required"))
 	}
 
+	// Create context with timeout for sync operation
+	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
+	defer cancel()
+
 	// Call search service to sync the learning path
-	response, err := h.searchSvc.SyncLearningPath(pathID)
+	response, err := h.searchSvc.SyncLearningPath(ctx, pathID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
