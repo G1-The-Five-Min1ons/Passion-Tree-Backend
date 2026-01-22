@@ -90,7 +90,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		}
 
 		// If critical fields are missing from payload, query database
-		if result.Title == "" || result.Description == "" {
+		if result.Title == "" {
 			path, err := s.pathRepo.GetLearnningPathByID(ctx, pathID)
 			if err != nil {
 				if err == sql.ErrNoRows {

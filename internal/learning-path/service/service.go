@@ -11,7 +11,7 @@ type ServiceLearningPath interface {
 	GetPaths(ctx context.Context) ([]model.LearningPath, error)
 	GetPathDetails(ctx context.Context, id string) (*model.LearningPath, error)
 	CreatePath(ctx context.Context, req model.CreatePathRequest) (string, error)
-	UpdatePath(ctx context.Context, id string, req model.UpdatePathRequest) error
+	UpdatePath(ctx context.Context, path_id string, req model.UpdatePathRequest) error
 	DeletePath(ctx context.Context, id string) error
 	StartPath(ctx context.Context, pathID string, userID string) error
 	GetEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)

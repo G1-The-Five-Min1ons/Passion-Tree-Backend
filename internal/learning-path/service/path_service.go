@@ -49,9 +49,9 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 	return id, nil
 }
 
-func (s *serviceImpl) UpdatePath(ctx context.Context, id string, req model.UpdatePathRequest) error {
-	if id == "" {
-		return apperror.NewBadRequest("user_id is required")
+func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.UpdatePathRequest) error {
+	if path_id == "" {
+		return apperror.NewBadRequest("path_id is required")
 	}
 	if req.Title == "" &&
 		req.Objective == "" &&
@@ -60,14 +60,14 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, id string, req model.Updat
 		req.Publish_status == "" {
 		return apperror.NewBadRequest("request body cannot be empty")
 	}
-	if _, err := s.pathRepo.GetLearnningPathByID(ctx, id); err != nil {
+	if _, err := s.pathRepo.GetLearnningPathByID(ctx, path_id); err != nil {
 		if err == sql.ErrNoRows {
-			return apperror.NewNotFound("cannot update: path id '%s' not found", id)
+			return apperror.NewNotFound("cannot update: path_id '%s' not found", path_id)
 		}
 		return apperror.NewInternal(err)
 	}
 
-	if err := s.pathRepo.UpdateLearnningPath(ctx, id, req); err != nil {
+	if err := s.pathRepo.UpdateLearnningPath(ctx, path_id, req); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("learning path with this title already exists")
 		}

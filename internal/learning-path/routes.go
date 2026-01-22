@@ -25,7 +25,7 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		paths.Delete("/:path_id", h.Delete)
 		paths.Post("/:path_id/start", h.Start)
 		paths.Post("/:path_id/nodes", h.CreateNode)
-		paths.Post("/:path_id/generate", h.Generate)
+		paths.Post("/generate", h.Generate)
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 	}
 
