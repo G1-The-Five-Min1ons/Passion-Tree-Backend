@@ -3,6 +3,7 @@ module passiontree
 go 1.23.4
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.1
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -10,6 +11,8 @@ require (
 )
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.1 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect

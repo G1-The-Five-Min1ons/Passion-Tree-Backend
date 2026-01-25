@@ -3,12 +3,11 @@ package service
 import (
 	"context"
 	"database/sql"
-	"log"
+	"fmt"
 	"strings"
-	"time"
-	"passiontree/internal/reflection/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
+	"passiontree/internal/reflection/model"
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
@@ -31,7 +30,6 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
 
-	// Call AI sentiment analysis
 	if s.aiClient != nil {
 		sentimentReq := &aiclient.SentimentRequest{
 			WhatLearned:           req.Learned,
@@ -40,23 +38,29 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 
 		sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 		if err != nil {
-			log.Printf("AI sentiment analysis failed: %v", err)
-			// Continue without AI enhancement if service fails
+			fmt.Printf("AI sentiment analysis failed: %v\n", err)
 		} else {
-			// Enrich request with AI results
 			req.Mood = sentimentResp.Sentiment
 			if req.Tag == "" {
 				req.Tag = sentimentResp.Advanced.PrimaryEmotion
 			}
-			log.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s",
+			fmt.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s\n",
 				sentimentResp.Sentiment, sentimentResp.ReflectionScore, sentimentResp.Summary)
 		}
 	}
 
 	id, err := s.refRepo.CreateReflection(ctx, req)
 	if err != nil {
+		fmt.Printf("CreateReflection database error: %v\n", err)
+		if apperror.IsDuplicateKeyError(err) {
+			return nil, apperror.NewConflict("reflection with this ID already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return nil, apperror.NewBadRequest("invalid tree_node_id or user_id: node or user does not exist")
+		}
 		return nil, apperror.NewInternal(err)
 	}
+
 	return &model.ReflectionResponse{
 		ID:        id,
 		Score:     req.FeelScore,
@@ -111,6 +115,12 @@ func (s *serviceImpl) UpdateReflection(ctx context.Context, reflectID string, re
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("cannot update: reflection id '%s' not found", reflectID)
 		}
+		if apperror.IsDuplicateKeyError(err) {
+			return apperror.NewConflict("reflection with this information already exists")
+		}
+		if apperror.IsForeignKeyError(err) {
+			return apperror.NewBadRequest("invalid tree_node_id: node does not exist")
+		}
 		return apperror.NewInternal(err)
 	}
 	return nil
@@ -123,6 +133,9 @@ func (s *serviceImpl) DeleteReflection(ctx context.Context, reflectID string) er
 	if err := s.refRepo.DeleteReflection(ctx, reflectID); err != nil {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("reflection with id '%s' not found", reflectID)
+		}
+		if apperror.IsForeignKeyError(err) {
+			return apperror.NewConflict("cannot delete reflection: there are existing dependencies associated with this reflection")
 		}
 		return apperror.NewInternal(err)
 	}

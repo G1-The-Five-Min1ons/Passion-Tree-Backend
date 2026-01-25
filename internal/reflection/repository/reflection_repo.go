@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/google/uuid"
 	"passiontree/internal/reflection/model"
+	"github.com/google/uuid"
 )
 
 func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (string, error) {
@@ -35,7 +35,7 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 }
 
 func (r *repositoryImpl) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
-	query := `SELECT reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, tree_node_id 
+	query := `SELECT CONVERT(VARCHAR(36), reflect_id) as reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, CONVERT(VARCHAR(36), tree_node_id) as tree_node_id 
 		FROM Reflect
 		WHERE reflect_id = @p1`
 
@@ -64,7 +64,7 @@ func (r *repositoryImpl) GetReflectionByID(ctx context.Context, reflectID string
 }
 
 func (r *repositoryImpl) GetAllReflections(ctx context.Context) ([]model.Reflection, error) {
-	query := `SELECT reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, tree_node_id 
+	query := `SELECT CONVERT(VARCHAR(36), reflect_id) as reflect_id, reflect_score, reflect_description, reflect, mood, tag, progress_score, challenge_score, create_at, CONVERT(VARCHAR(36), tree_node_id) as tree_node_id 
 		FROM Reflect`
 
 	rows, err := r.db.QueryContext(ctx, query)

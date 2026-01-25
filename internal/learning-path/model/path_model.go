@@ -24,22 +24,22 @@ type StartPathRequest struct {
 }
 
 type LearningPath struct {
-	PathID      string    `json:"path_id"`
-	Title       string    `json:"title"`
-	CoverImgURL string    `json:"cover_img_url"`
-	Objective   string    `json:"objective"`
-	Description string    `json:"description"`
-	AvgRating   float64   `json:"avg_rating"`
-	Status      string    `json:"status"`
-	CreatorID   string    `json:"creator_id"`
-	CreatedAt   time.Time `json:"create_at"`
-	UpdatedAt   time.Time `json:"update_at"`
-	Nodes       []Node    `json:"nodes,omitempty"`
+	PathID      string     `json:"path_id"`
+	Title       string     `json:"title"`
+	CoverImgURL string     `json:"cover_img_url"`
+	Objective   string     `json:"objective"`
+	Description string     `json:"description"`
+	AvgRating   float64    `json:"avg_rating"`
+	Status      string     `json:"status"`
+	CreatorID   string     `json:"creator_id"`
+	CreatedAt   *time.Time `json:"create_at"`
+	UpdatedAt   *time.Time `json:"update_at"`
+	Nodes       []Node     `json:"nodes,omitempty"`
 }
 
 type PathEnroll struct {
 	EnrollID   string     `json:"enroll_id"`
 	Status     string     `json:"status"`
-	EnrollAt   time.Time  `json:"enroll_at"`
+	EnrollAt   *time.Time `json:"enroll_at"`
 	CompleteAt *time.Time `json:"complete_at"`
 }

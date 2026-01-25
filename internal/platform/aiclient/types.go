@@ -51,3 +51,34 @@ type SentimentResponse struct {
 	DevelopmentPlan DevelopmentPlan `json:"development_plan"`
 	RerankedResults []string        `json:"reranked_results"`
 }
+
+// SamplePoint represents a sample point in the collection
+type SamplePoint struct {
+	ID      interface{}            `json:"id"`
+	Payload map[string]interface{} `json:"payload"`
+}
+
+// CollectionInfoResponse represents collection debug information from AI service
+type CollectionInfoResponse struct {
+	CollectionName string        `json:"collection_name"`
+	PointsCount    interface{}   `json:"points_count"`
+	VectorsConfig  string        `json:"vectors_config"`
+	SamplePoints   []SamplePoint `json:"sample_points"`
+	TotalScrolled  int           `json:"total_scrolled"`
+}
+
+// SyncLearningPathRequest represents the request to sync a learning path to Qdrant
+type SyncLearningPathRequest struct {
+	PathID         int                    `json:"path_id"`
+	Title          string                 `json:"title"`
+	Description    string                 `json:"description"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	CollectionName string                 `json:"collection_name,omitempty"`
+}
+
+// SyncLearningPathResponse represents the response from AI service for sync operations
+type SyncLearningPathResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	PathID  int    `json:"path_id,omitempty"`
+}
