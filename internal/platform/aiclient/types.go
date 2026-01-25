@@ -44,12 +44,12 @@ type DevelopmentPlan struct {
 
 // SentimentResponse represents the sentiment analysis response
 type SentimentResponse struct {
-	Sentiment       string          `json:"sentiment"`
-	ReflectionScore float64         `json:"reflection_score"`
-	Summary         string          `json:"summary"`
-	Advanced        Advanced        `json:"advanced"`
-	DevelopmentPlan DevelopmentPlan `json:"development_plan"`
-	RerankedResults []string        `json:"reranked_results"`
+	Sentiment       string           `json:"sentiment"`
+	ReflectionScore float64          `json:"reflection_score"`
+	Summary         string           `json:"summary"`
+	Advanced        *Advanced        `json:"advanced,omitempty"`
+	DevelopmentPlan *DevelopmentPlan `json:"development_plan,omitempty"`
+	RerankedResults []string         `json:"reranked_results"`
 }
 
 // SamplePoint represents a sample point in the collection

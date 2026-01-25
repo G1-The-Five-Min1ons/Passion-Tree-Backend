@@ -41,7 +41,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 			fmt.Printf("AI sentiment analysis failed: %v\n", err)
 		} else {
 			req.Mood = sentimentResp.Sentiment
-			if req.Tag == "" {
+			if req.Tag == "" && sentimentResp.Advanced != nil {
 				req.Tag = sentimentResp.Advanced.PrimaryEmotion
 			}
 			fmt.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s\n",
