@@ -46,7 +46,10 @@ func (r *repositoryImpl) GetAlbumByID(ctx context.Context, albumID string) (*mod
 	)
 	
 	if err != nil {
-		return nil, fmt.Errorf("failed to get album: %w", err)
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("repo.GetAlbumByID scan failed: %w", err)
 	}
 	
 	return &album, nil

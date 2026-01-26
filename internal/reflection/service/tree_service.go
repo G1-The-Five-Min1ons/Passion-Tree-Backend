@@ -4,16 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
 )
 
 func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeRequest) (*model.TreeResponse, error) {
-	if strings.TrimSpace(req.Title) == "" {
+	if req.Title == "" {
 		return nil, apperror.NewBadRequest("title is required")
 	}
-	if strings.TrimSpace(req.AlbumID) == "" {
+	if req.AlbumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
 	}
 	
@@ -42,7 +41,7 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 }
 
 func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error) {
-	if strings.TrimSpace(treeID) == "" {
+	if treeID == "" {
 		return nil, apperror.NewBadRequest("tree_id is required")
 	}
 	
@@ -58,7 +57,7 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 }
 
 func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error) {
-	if strings.TrimSpace(albumID) == "" {
+	if albumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
 	}
 	
@@ -67,14 +66,18 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string) ([]
 		return nil, apperror.NewInternal(err)
 	}
 	
+	if len(trees) == 0 {
+		return nil, sql.ErrNoRows
+	}
+	
 	return trees, nil
 }
 
 func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
-	if strings.TrimSpace(treeID) == "" {
+	if treeID == "" {
 		return apperror.NewBadRequest("tree_id is required")
 	}
-	if strings.TrimSpace(req.Title) == "" {
+	if req.Title == "" {
 		return apperror.NewBadRequest("title is required")
 	}
 	
@@ -90,7 +93,7 @@ func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.U
 }
 
 func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
-	if strings.TrimSpace(treeID) == "" {
+	if treeID == "" {
 		return apperror.NewBadRequest("tree_id is required")
 	}
 	

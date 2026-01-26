@@ -4,16 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
 )
 
 func (s *serviceImpl) CreateAlbum(ctx context.Context, req model.CreateAlbumRequest) (*model.AlbumResponse, error) {
-	if strings.TrimSpace(req.UserID) == "" {
+	if req.UserID == "" {
 		return nil, apperror.NewBadRequest("user_id is required")
 	}
-	if strings.TrimSpace(req.AlbumName) == "" {
+	if req.AlbumName == "" {
 		return nil, apperror.NewBadRequest("album_name is required")
 	}
 	
@@ -41,7 +40,7 @@ func (s *serviceImpl) CreateAlbum(ctx context.Context, req model.CreateAlbumRequ
 }
 
 func (s *serviceImpl) GetAlbumByID(ctx context.Context, albumID string) (*model.Album, error) {
-	if strings.TrimSpace(albumID) == "" {
+	if albumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
 	}
 	
@@ -57,7 +56,7 @@ func (s *serviceImpl) GetAlbumByID(ctx context.Context, albumID string) (*model.
 }
 
 func (s *serviceImpl) GetAlbumsByUserID(ctx context.Context, userID string) ([]model.Album, error) {
-	if strings.TrimSpace(userID) == "" {
+	if userID == "" {
 		return nil, apperror.NewBadRequest("user_id is required")
 	}
 	
@@ -66,14 +65,18 @@ func (s *serviceImpl) GetAlbumsByUserID(ctx context.Context, userID string) ([]m
 		return nil, apperror.NewInternal(err)
 	}
 	
+	if len(albums) == 0 {
+		return nil, sql.ErrNoRows
+	}
+	
 	return albums, nil
 }
 
 func (s *serviceImpl) UpdateAlbum(ctx context.Context, albumID string, req model.UpdateAlbumRequest) error {
-	if strings.TrimSpace(albumID) == "" {
+	if albumID == "" {
 		return apperror.NewBadRequest("album_id is required")
 	}
-	if strings.TrimSpace(req.AlbumName) == "" {
+	if req.AlbumName == "" {
 		return apperror.NewBadRequest("album_name is required")
 	}
 	
@@ -89,7 +92,7 @@ func (s *serviceImpl) UpdateAlbum(ctx context.Context, albumID string, req model
 }
 
 func (s *serviceImpl) DeleteAlbum(ctx context.Context, albumID string) error {
-	if strings.TrimSpace(albumID) == "" {
+	if albumID == "" {
 		return apperror.NewBadRequest("album_id is required")
 	}
 	

@@ -57,7 +57,10 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 	)
 	
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tree: %w", err)
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("repo.GetTreeByID scan failed: %w", err)
 	}
 	
 	return &tree, nil
@@ -131,7 +134,10 @@ func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
 	getQuery := `SELECT album_id FROM tree WHERE tree_id = @p1`
 	err := r.db.QueryRowContext(ctx, getQuery, treeID).Scan(&albumID)
 	if err != nil {
-		return fmt.Errorf("failed to get tree album_id: %w", err)
+		if err == sql.ErrNoRows {
+			return err
+		}
+		return fmt.Errorf("repo.DeleteTree scan failed: %w", err)
 	}
 	
 	// Delete the tree
