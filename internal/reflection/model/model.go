@@ -30,11 +30,25 @@ type CreateReflectionRequest struct {
 
 
 type ReflectionResponse struct {
-    ID        string `json:"id"`
-    Score     string `json:"score"`
-    Mood      string `json:"mood"`
-    Summary   string `json:"summary"`
-    CreatedAt string `json:"created_at"`
+    ReflectID       string                 `json:"reflect_id"`
+    Sentiment       string                 `json:"sentiment"`
+    ReflectionScore float64                `json:"reflection_score"`
+    Summary         string                 `json:"summary"`
+    Advanced        *AdvancedMetrics       `json:"advanced,omitempty"`
+    DevelopmentPlan *DevelopmentPlan       `json:"development_plan,omitempty"`
+    RerankedResults []string               `json:"reranked_results,omitempty"`
+}
+
+type AdvancedMetrics struct {
+    PrimaryEmotion      string  `json:"primary_emotion"`
+    ConfidenceScore     float64 `json:"confidence_score"`
+    StrugglePoint       string  `json:"struggle_point"`
+    LearningDisposition string  `json:"learning_disposition"`
+    ConsistencyCheck    string  `json:"consistency_check"`
+}
+
+type DevelopmentPlan struct {
+    NextSteps []string `json:"next_steps"`
 }
 
 type UpdateReflectionRequest struct {

@@ -30,18 +30,21 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
 
+	var sentimentResp *aiclient.SentimentResponse
+
 	if s.aiClient != nil {
 		sentimentReq := &aiclient.SentimentRequest{
 			WhatLearned:           req.Learned,
 			FeelingsAfterLearning: req.Reflect,
 		}
 
-		sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
+		var err error
+		sentimentResp, err = s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 		if err != nil {
 			fmt.Printf("AI sentiment analysis failed: %v\n", err)
 		} else {
 			req.Mood = sentimentResp.Sentiment
-			if req.Tag == "" && sentimentResp.Advanced != nil {
+			if req.Tag == "" && sentimentResp.Advanced.PrimaryEmotion != "" {
 				req.Tag = sentimentResp.Advanced.PrimaryEmotion
 			}
 			fmt.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s\n",
@@ -61,13 +64,33 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewInternal(err)
 	}
 
-	return &model.ReflectionResponse{
-		ID:        id,
-		Score:     req.FeelScore,
-		Mood:      req.Mood,
-		Summary:   req.Learned,
-		CreatedAt: time.Now().Format(time.RFC3339),
-	}, nil
+	// Build response with AI sentiment data
+	resp := &model.ReflectionResponse{
+		ReflectID:       id,
+		Sentiment:       req.Mood,
+		ReflectionScore: 0,
+		Summary:         req.Learned,
+	}
+
+	// Add AI analysis data if available
+	if sentimentResp != nil {
+		resp.Sentiment = sentimentResp.Sentiment
+		resp.ReflectionScore = sentimentResp.ReflectionScore
+		resp.Summary = sentimentResp.Summary
+		resp.Advanced = &model.AdvancedMetrics{
+			PrimaryEmotion:      sentimentResp.Advanced.PrimaryEmotion,
+			ConfidenceScore:     sentimentResp.Advanced.ConfidenceScore,
+			StrugglePoint:       sentimentResp.Advanced.StrugglePoint,
+			LearningDisposition: sentimentResp.Advanced.LearningDisposition,
+			ConsistencyCheck:    sentimentResp.Advanced.ConsistencyCheck,
+		}
+		resp.DevelopmentPlan = &model.DevelopmentPlan{
+			NextSteps: sentimentResp.DevelopmentPlan.NextSteps,
+		}
+		resp.RerankedResults = sentimentResp.RerankedResults
+	}
+
+	return resp, nil
 }
 
 func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
