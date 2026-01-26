@@ -62,11 +62,14 @@ func (s *serviceImpl) GetAlbumsByUserID(ctx context.Context, userID string) ([]m
 	
 	albums, err := s.refRepo.GetAlbumsByUserID(ctx, userID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("albums for user with id '%s' not found", userID)
+		}
 		return nil, apperror.NewInternal(err)
 	}
 	
 	if len(albums) == 0 {
-		return nil, sql.ErrNoRows
+		return nil, apperror.NewNotFound("albums for user with id '%s' not found", userID)
 	}
 	
 	return albums, nil

@@ -63,11 +63,14 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string) ([]
 	
 	trees, err := s.refRepo.GetTreesByAlbumID(ctx, albumID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+		}
 		return nil, apperror.NewInternal(err)
 	}
 	
 	if len(trees) == 0 {
-		return nil, sql.ErrNoRows
+		return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
 	}
 	
 	return trees, nil
