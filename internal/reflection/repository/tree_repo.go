@@ -108,7 +108,11 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 		}
 		trees = append(trees, tree)
 	}
-	
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetTreesByAlbumID row iteration failed: %w", err)
+	}
+
 	return trees, nil
 }
 
@@ -139,10 +143,16 @@ func (r *repositoryImpl) UpdateTree(ctx context.Context, treeID string, req mode
 
 // DeleteTree deletes a tree by its ID
 func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
 	// First, get the album_id to decrement tree_count
 	var albumID string
 	getQuery := `SELECT album_id FROM tree WHERE tree_id = @p1`
-	err := r.db.QueryRowContext(ctx, getQuery, treeID).Scan(&albumID)
+	err = tx.QueryRowContext(ctx, getQuery, treeID).Scan(&albumID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return err
@@ -152,7 +162,7 @@ func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
 	
 	// Delete the tree
 	deleteQuery := `DELETE FROM tree WHERE tree_id = @p1`
-	result, err := r.db.ExecContext(ctx, deleteQuery, treeID)
+	result, err := tx.ExecContext(ctx, deleteQuery, treeID)
 	if err != nil {
 		return fmt.Errorf("failed to delete tree: %w", err)
 	}
@@ -172,9 +182,13 @@ func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
 		SET tree_count = tree_count - 1, last_edit = GETDATE()
 		WHERE album_id = @p1
 	`
-	_, err = r.db.ExecContext(ctx, updateQuery, albumID)
+	_, err = tx.ExecContext(ctx, updateQuery, albumID)
 	if err != nil {
 		return fmt.Errorf("failed to update album tree count: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction failed: %w", err)
 	}
 	
 	return nil
