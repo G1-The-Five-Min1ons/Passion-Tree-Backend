@@ -139,6 +139,11 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 
 // SyncLearningPath syncs a single learning path from Azure DB to Qdrant vector database
 func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*model.SyncPathResponse, error) {
+	// Debug log for aiClient pointer
+	fmt.Printf("[DEBUG] SyncLearningPath called, aiClient pointer: %p\n", s.aiClient)
+	if s.aiClient != nil {
+		s.aiClient.DebugClientPointer()
+	}
 	// Validate pathID
 	if pathID == "" {
 		return nil, apperror.NewBadRequest("path ID cannot be empty")
@@ -153,12 +158,6 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 		return nil, apperror.NewInternal(fmt.Errorf("failed to fetch learning path from database: %w", err))
 	}
 
-	// Convert pathID to int
-	pathIDInt, err := strconv.Atoi(pathID)
-	if err != nil {
-		return nil, apperror.NewBadRequest("invalid path ID format")
-	}
-
 	// Prepare metadata for filtering
 	metadata := map[string]interface{}{
 		"title":         path.Title,
@@ -168,13 +167,19 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 		"avg_rating":    path.AvgRating,
 		"status":        path.Status,
 		"creator_id":    path.CreatorID,
-		"created_at":    path.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		"updated_at":    path.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+
+	// Handle nullable time fields
+	if path.CreatedAt != nil {
+		metadata["created_at"] = path.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+	}
+	if path.UpdatedAt != nil {
+		metadata["updated_at"] = path.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")
 	}
 
 	// Create sync request for AI service
 	syncReq := aiclient.SyncLearningPathRequest{
-		PathID:         pathIDInt,
+		PathID:         pathID,
 		Title:          path.Title,
 		Description:    path.Description,
 		Metadata:       metadata,
@@ -182,7 +187,11 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 	}
 
 	// Call AI service to sync to Qdrant
-	syncResp, err := s.aiClient.SyncLearningPath(syncReq)
+	if s.aiClient == nil {
+		return nil, apperror.NewInternal(fmt.Errorf("ai client is not initialized"))
+	}
+
+	syncResp, err := s.aiClient.SyncLearningPath(ctx, syncReq)
 	if err != nil {
 		return nil, apperror.NewInternal(fmt.Errorf("failed to sync learning path to Qdrant: %w", err))
 	}
