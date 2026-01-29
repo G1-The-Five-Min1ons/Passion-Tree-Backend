@@ -45,6 +45,15 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
+	
+	file, err := c.FormFile("cover_image")
+	if err == nil {
+		imgURL, uploadErr := h.storage.UploadFile(ctx, file, "learning-path")
+		if uploadErr != nil {
+			return h.handleError(c, apperror.NewInternal(uploadErr))
+		}
+		req.CoverImgURL = imgURL
+	}
 
 	id, err := h.pathSvc.CreatePath(ctx, req)
 	if err != nil {
