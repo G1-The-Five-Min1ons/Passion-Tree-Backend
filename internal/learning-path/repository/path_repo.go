@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"passiontree/internal/learning-path/model"
-
 	"github.com/google/uuid"
 )
 

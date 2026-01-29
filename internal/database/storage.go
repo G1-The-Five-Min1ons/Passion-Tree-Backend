@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"mime/multipart"
 	"passiontree/internal/config"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
@@ -121,4 +122,22 @@ func extractAccountName(connString string) string {
 	}
 
 	return connString[start:end]
+}
+
+func (s *StorageClient) UploadFile(ctx context.Context, file *multipart.FileHeader, containerType string) (string, error) {
+	src, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+	defer src.Close()
+
+	containerName := s.getContainerName(containerType)
+	blobName := s.generateBlobName(file.Filename)
+
+	_, err = s.client.UploadStream(ctx, containerName, blobName, src, &azblob.UploadStreamOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to upload blob: %w", err)
+	}
+
+	return s.GetBlobURL(blobName, containerType), nil
 }
