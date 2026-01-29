@@ -55,9 +55,9 @@ func (r *repositoryImpl) GetReflectionByID(ctx context.Context, reflectID string
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("repo.GetReflectionByID: no rows for id '%s': %w", reflectID, err)
+			return nil, err
 		}
-		return nil, fmt.Errorf("repo.GetReflectionByID query failed: %w", err)
+		return nil, fmt.Errorf("repo.GetReflectionByID scan failed: %w", err)
 	}
 
 	return &ref, nil

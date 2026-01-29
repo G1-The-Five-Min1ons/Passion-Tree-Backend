@@ -24,17 +24,17 @@ type SearchResponse struct {
 
 // SentimentRequest represents the sentiment analysis request
 type SentimentRequest struct {
-	WhatLearned            string `json:"what_learned"`
-	FeelingsAfterLearning  string `json:"feelings_after_learning"`
+	WhatLearned           string `json:"what_learned"`
+	FeelingsAfterLearning string `json:"feelings_after_learning"`
 }
 
 // Advanced represents advanced sentiment metrics
 type Advanced struct {
-	PrimaryEmotion     string  `json:"primary_emotion"`
-	ConfidenceScore    float64 `json:"confidence_score"`
-	StrugglePoint      string  `json:"struggle_point"`
-	LearningDisposition string `json:"learning_disposition"`
-	ConsistencyCheck   string  `json:"consistency_check"`
+	PrimaryEmotion      string  `json:"primary_emotion"`
+	ConfidenceScore     float64 `json:"confidence_score"`
+	StrugglePoint       string  `json:"struggle_point"`
+	LearningDisposition string  `json:"learning_disposition"`
+	ConsistencyCheck    string  `json:"consistency_check"`
 }
 
 // DevelopmentPlan represents learning development plan
@@ -69,7 +69,7 @@ type CollectionInfoResponse struct {
 
 // SyncLearningPathRequest represents the request to sync a learning path to Qdrant
 type SyncLearningPathRequest struct {
-	PathID         int                    `json:"path_id"`
+	PathID         string                 `json:"path_id"`
 	Title          string                 `json:"title"`
 	Description    string                 `json:"description"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
@@ -80,5 +80,5 @@ type SyncLearningPathRequest struct {
 type SyncLearningPathResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
-	PathID  int    `json:"path_id,omitempty"`
+	PathID  string `json:"path_id,omitempty"`
 }
