@@ -63,6 +63,9 @@ func initializeDatabase(connString string) (database.Database, error) {
 
 // initializeAIClient creates and configures the AI service client
 func initializeAIClient(serviceURL string) *aiclient.AIClient {
+	if serviceURL == "" {
+		log.Fatalf("AI_SERVICE_URL is not set or empty. Please check your environment variables or configuration.")
+	}
 	client := aiclient.NewAIClient(serviceURL)
 	log.Printf("AI Service configured: %s", serviceURL)
 	return client

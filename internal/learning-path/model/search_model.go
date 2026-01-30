@@ -30,3 +30,19 @@ type SearchPathResponse struct {
 	Total   int                `json:"total"`
 	Results []SearchPathResult `json:"results"`
 }
+
+// SyncPathRequest represents the request for syncing a learning path to Qdrant
+type SyncPathRequest struct {
+	PathID         int                    `json:"path_id" binding:"required"`
+	Title          string                 `json:"title" binding:"required"`
+	Description    string                 `json:"description" binding:"required"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	CollectionName string                 `json:"collection_name,omitempty"`
+}
+
+// SyncPathResponse represents the response for sync operations
+type SyncPathResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	PathID  string `json:"path_id,omitempty"`
+}
