@@ -10,9 +10,13 @@ import (
 )
 
 func (r *repositoryImpl) CreateQuestion(ctx context.Context, req model.CreateQuestionRequest) (string, error) {
+	return r.createQuestionInternal(ctx, r.db, req)
+}
+
+func (r *repositoryImpl) createQuestionInternal(ctx context.Context, db DBTX, req model.CreateQuestionRequest) (string, error) {
 	question_id := uuid.New().String()
 	query := `INSERT INTO node_question (question_id, question_text, type, node_id) VALUES (@p1, @p2, @p3, @p4)`
-	_, err := r.db.ExecContext(ctx, query, question_id, req.QuestionText, req.Type, req.NodeID)
+	_, err := db.ExecContext(ctx, query, question_id, req.QuestionText, req.Type, req.NodeID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateQuestion exec failed: %w", err)
 	}
@@ -64,9 +68,13 @@ func (r *repositoryImpl) DeleteQuestion(ctx context.Context, questionID string) 
 }
 
 func (r *repositoryImpl) CreateChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error) {
+	return r.createChoiceInternal(ctx, r.db, req)
+}
+
+func (r *repositoryImpl) createChoiceInternal(ctx context.Context, db DBTX, req model.CreateChoiceRequest) (string, error) {
 	id := uuid.New().String()
 	query := `INSERT INTO question_choice (choice_id, choice_text, is_correct, reasoning, question_id) VALUES (@p1, @p2, @p3, @p4, @p5)`
-	_, err := r.db.ExecContext(ctx, query, id, req.ChoiceText, req.IsCorrect, req.Reasoning, req.QuestionID)
+	_, err := db.ExecContext(ctx, query, id, req.ChoiceText, req.IsCorrect, req.Reasoning, req.QuestionID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateChoice exec failed: %w", err)
 	}
