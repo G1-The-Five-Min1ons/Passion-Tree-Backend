@@ -15,6 +15,8 @@ func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
+	h.logger.InfoContext(ctx, "fetching node details", "node_id", nodeID)
+
 	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID)
 	if err != nil {
 		return h.handleError(c, err)
@@ -37,10 +39,14 @@ func (h *Handler) CreateNode(c *fiber.Ctx) error {
 	}
 	req.PathID = pathID
 
+	h.logger.InfoContext(ctx, "adding node to path", "path_id", pathID, "node_title", req.Title)
+
 	id, err := h.nodeSvc.AddNode(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "node added successfully", "path_id", pathID, "node_id", id)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -60,9 +66,13 @@ func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
+	h.logger.InfoContext(ctx, "updating node", "node_id", nodeID)
+
 	if err := h.nodeSvc.EditNode(ctx, nodeID, req); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "node updated successfully", "node_id", nodeID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -77,9 +87,15 @@ func (h *Handler) DeleteNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "requesting node deletion", "node_id", nodeID)
+
 	if err := h.nodeSvc.RemoveNode(ctx, nodeID); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "node deleted successfully", "node_id", nodeID)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Node has been deleted successfully",
@@ -99,10 +115,14 @@ func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 	}
 	req.NodeID = nodeID
 
+	h.logger.InfoContext(ctx, "adding material to node", "node_id", nodeID, "material_type", req.Type)
+
 	id, err := h.nodeSvc.AddMaterial(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "material added successfully", "node_id", nodeID, "material_id", id)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -117,9 +137,15 @@ func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 	material_id := c.Params("material_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "deleting material", "material_id", material_id)
+
 	if err := h.nodeSvc.RemoveMaterial(ctx, material_id); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "material deleted successfully", "material_id", material_id)
+	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Material has been deleted successfully",
@@ -139,9 +165,13 @@ func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
+	h.logger.InfoContext(ctx, "reordering nodes in path", "path_id", pathID, "nodes_count", len(req.NodeIDs))
+
 	if err := h.nodeSvc.ReorderNodes(ctx, pathID, req); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "nodes reordered successfully", "path_id", pathID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

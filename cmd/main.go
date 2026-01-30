@@ -7,10 +7,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
+	flogger "github.com/gofiber/fiber/v2/middleware/logger"
 
 	"passiontree/internal/config"
 	"passiontree/internal/database"
+	"passiontree/internal/pkg/logger"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/routes"
 )
@@ -39,11 +40,14 @@ func main() {
 	// Initialize AI client
 	aiClient := initializeAIClient(cfg.AIServiceURL)
 
-	// Initialize Azure Storage client (optional)
+	// Initialize Azure Storage client
 	storageClient := initializeStorageClient(cfg)
 
+	isDev := os.Getenv("APP_ENV") != "production" 
+	myLogger := logger.SetupLogger(isDev)
+
 	app := createFiberApp()
-	routes.Setup(app, db, aiClient, storageClient)
+	routes.Setup(app, db, aiClient, storageClient, myLogger)
 
 	// Start server
 	port := getPort()
@@ -95,7 +99,7 @@ func createFiberApp() *fiber.App {
 	})
 
 	// Apply middleware
-	app.Use(logger.New())
+	app.Use(flogger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",

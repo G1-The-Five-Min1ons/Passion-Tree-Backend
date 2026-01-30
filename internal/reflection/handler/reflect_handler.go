@@ -24,6 +24,8 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "reflection created successfully", "reflect_id", res)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "reflection created successfully",
@@ -47,6 +49,8 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "reflection updated successfully", "reflect_id", id)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "reflection updated successfully",
@@ -64,6 +68,8 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 	if err := h.reflectSvc.DeleteReflection(ctx, id); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "reflection deleted successfully", "reflect_id", id)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -84,12 +90,12 @@ func (h *Handler) GetByID(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "reflection retrieved successfully", "reflect_id", id)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "reflection retrieved successfully",
-		"data": fiber.Map{
-			"reflect_id": res,
-		},
+		"data": res,
 	})
 }
 
@@ -101,6 +107,8 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "all reflections retrieved", "count", len(res))
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

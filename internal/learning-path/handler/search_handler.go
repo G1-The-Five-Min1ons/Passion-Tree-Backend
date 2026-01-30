@@ -16,6 +16,9 @@ func (h *Handler) Search(c *fiber.Ctx) error {
 	// AI search ใช้เวลานาน ตั้ง timeout 30 วินาที
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "received learning path search request", "query", req.Query)
+
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
@@ -31,6 +34,8 @@ func (h *Handler) Search(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "search completed successfully", "results_count", response.Total)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Search completed successfully",
@@ -44,6 +49,8 @@ func (h *Handler) DebugCollection(c *fiber.Ctx) error {
 	if collectionName == "" {
 		collectionName = "learning_paths"
 	}
+
+	h.logger.InfoContext(c.UserContext(), "retrieving collection debug info", "collection", collectionName)
 
 	// Call search service to get collection info
 	info, err := h.searchSvc.GetCollectionInfo(collectionName)
@@ -69,11 +76,15 @@ func (h *Handler) SyncLearningPath(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
 
+	h.logger.InfoContext(ctx, "initiating learning path sync to vector db", "path_id", pathID)
+
 	// Call search service to sync the learning path
 	response, err := h.searchSvc.SyncLearningPath(ctx, pathID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "sync operation finished", "path_id", pathID, "sync_status", response.Success)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": response.Success,
