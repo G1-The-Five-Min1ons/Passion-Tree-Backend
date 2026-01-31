@@ -81,8 +81,8 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 			if rating, ok := aiResult.Payload["avg_rating"].(float64); ok {
 				result.AvgRating = rating
 			}
-			if status, ok := aiResult.Payload["status"].(string); ok {
-				result.Status = status
+			if Publish_status, ok := aiResult.Payload["publish_status"].(string); ok {
+				result.Publish_status = Publish_status
 			}
 			if creator, ok := aiResult.Payload["creator_id"].(string); ok {
 				result.CreatorID = creator
@@ -90,7 +90,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		}
 
 		// If critical fields are missing from payload, query database
-		if result.Title == "" || result.Description == "" {
+		if result.Title == "" {
 			path, err := s.pathRepo.GetLearnningPathByID(ctx, pathID)
 			if err != nil {
 				if err == sql.ErrNoRows {
@@ -106,7 +106,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 			result.CoverImgURL = path.CoverImgURL
 			result.Objective = path.Objective
 			result.AvgRating = path.AvgRating
-			result.Status = path.Status
+			result.Publish_status = path.Publish_status
 			result.CreatorID = path.CreatorID
 			result.CreatedAt = path.CreatedAt
 			result.UpdatedAt = path.UpdatedAt
@@ -160,13 +160,13 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 
 	// Prepare metadata for filtering
 	metadata := map[string]interface{}{
-		"title":         path.Title,
-		"description":   path.Description,
-		"cover_img_url": path.CoverImgURL,
-		"objective":     path.Objective,
-		"avg_rating":    path.AvgRating,
-		"status":        path.Status,
-		"creator_id":    path.CreatorID,
+		"title":           path.Title,
+		"description":     path.Description,
+		"cover_img_url":   path.CoverImgURL,
+		"objective":       path.Objective,
+		"avg_rating":      path.AvgRating,
+		"Publish_status ": path.Publish_status,
+		"creator_id":      path.CreatorID,
 	}
 
 	// Handle nullable time fields

@@ -12,7 +12,7 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 		return "", apperror.NewBadRequest("node title is required")
 	}
 
-	id, err := s.nodeRepo.CreateNode(ctx, req)
+	id, err := s.nodeRepo.CreateNodeWithContent(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("node with this ID already exists")

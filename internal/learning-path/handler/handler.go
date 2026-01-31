@@ -5,6 +5,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/learning-path/service"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/database"
 )
 type Handler struct {
 	pathSvc    service.ServiceLearningPath
@@ -12,15 +13,17 @@ type Handler struct {
 	nodeSvc    service.ServiceNode
 	commentSvc service.ServiceComment
 	quizSvc    service.ServiceQuiz
+	storage    *database.StorageClient
 }
 
-func NewHandler(svc service.Service) *Handler {
+func NewHandler(svc service.Service, storage *database.StorageClient) *Handler {
 	return &Handler{
 		pathSvc:    svc,
 		searchSvc:  svc,
 		nodeSvc:    svc,
 		commentSvc: svc,
 		quizSvc:    svc,
+		storage:    storage,
 	}
 }
 

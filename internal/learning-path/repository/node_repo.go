@@ -11,9 +11,13 @@ import (
 )
 
 func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
+	return r.createNodeInternal(ctx, r.db, req)
+}
+
+func (r *repositoryImpl) createNodeInternal(ctx context.Context, db DBTX, req model.CreateNodeRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (@p1, @p2, @p3, @p4, @p5)`
-	_, err := r.db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID, req.Sequence)
+	query := `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (@p1, @p2, @p3, @p5, @p6)`
+	_, err := db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID, req.Sequence)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateNode exec failed: %w", err)
 	}
@@ -72,9 +76,13 @@ func (r *repositoryImpl) DeleteNode(ctx context.Context, nodeID string) error {
 }
 
 func (r *repositoryImpl) CreateMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error) {
+	return r.createMaterialInternal(ctx, r.db, req)
+}
+
+func (r *repositoryImpl) createMaterialInternal(ctx context.Context, db DBTX, req model.CreateMaterialRequest) (string, error) {
 	id := uuid.New().String()
 	query := `INSERT INTO node_material (material_id, type, url, node_id) VALUES (@p1, @p2, @p3, @p4)`
-	_, err := r.db.ExecContext(ctx, query, id, req.Type, req.URL, req.NodeID)
+	_, err := db.ExecContext(ctx, query, id, req.Type, req.URL, req.NodeID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateMaterial exec failed: %w", err)
 	}
@@ -165,4 +173,49 @@ func (r *repositoryImpl) UpdateNodeSequence(ctx context.Context, nodeIDs []strin
 	}
 
 	return nil
+}
+
+func (r *repositoryImpl) CreateNodeWithContent(ctx context.Context, req model.CreateNodeRequest) (string, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin tx failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	nodeID, err := r.createNodeInternal(ctx, tx, req)
+	if err != nil {
+		return "", err
+	}
+
+	for _, mat := range req.Materials {
+		mat.NodeID = nodeID
+		_, err := r.createMaterialInternal(ctx, tx, mat)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	for _, qWrapper := range req.Questions {
+		qReq := qWrapper.CreateQuestionRequest
+		qReq.NodeID = nodeID
+
+		qID, err := r.createQuestionInternal(ctx, tx, qReq)
+		if err != nil {
+			return "", err
+		}
+
+		for _, c := range qWrapper.Choices {
+			c.QuestionID = qID
+			_, err := r.createChoiceInternal(ctx, tx, c)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit failed: %w", err)
+	}
+
+	return nodeID, nil
 }

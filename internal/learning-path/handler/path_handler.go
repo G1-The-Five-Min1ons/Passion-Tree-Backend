@@ -46,6 +46,15 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
+	file, err := c.FormFile("cover_image")
+	if err == nil {
+		imgURL, uploadErr := h.storage.UploadFile(ctx, file, "learning-path")
+		if uploadErr != nil {
+			return h.handleError(c, apperror.NewInternal(uploadErr))
+		}
+		req.CoverImgURL = imgURL
+	}
+
 	id, err := h.pathSvc.CreatePath(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
@@ -60,7 +69,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 }
 
 func (h *Handler) Update(c *fiber.Ctx) error {
-	id := c.Params("path_id")
+	path_id := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 	var req model.UpdatePathRequest
@@ -68,14 +77,14 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	if err := h.pathSvc.UpdatePath(ctx, id, req); err != nil {
+	if err := h.pathSvc.UpdatePath(ctx, path_id, req); err != nil {
 		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Learning path updated successfully",
 		"data": fiber.Map{
-			"path_id": id,
+			"path_id": path_id,
 		},
 	})
 }
