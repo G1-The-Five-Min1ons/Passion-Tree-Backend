@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"passiontree/internal/learning-path/model"
-
 	"github.com/google/uuid"
+	"passiontree/internal/learning-path/model"
 )
 
 func (r *repositoryImpl) CreateQuestion(ctx context.Context, req model.CreateQuestionRequest) (string, error) {
@@ -37,13 +36,13 @@ func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string
 		if err := rows.Scan(&q.QuestionID, &q.QuestionText, &q.Type, &q.NodeID); err != nil {
 			return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan failed: %w", err)
 		}
-
+		
 		choices, err := r.GetChoicesByQuestionID(ctx, q.QuestionID)
 		if err != nil {
 			return nil, fmt.Errorf("repo.GetQuestionsByNodeID fetch choices failed: %w", err)
 		}
 		q.Choices = choices
-
+		
 		questions = append(questions, q)
 	}
 

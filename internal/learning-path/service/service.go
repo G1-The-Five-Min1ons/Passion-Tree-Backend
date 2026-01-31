@@ -22,8 +22,6 @@ type ServiceLearningPath interface {
 
 type ServiceSearch interface {
 	SearchLearningPaths(ctx context.Context, req model.SearchPathRequest) (*model.SearchPathResponse, error)
-	GetCollectionInfo(collectionName string) (*aiclient.CollectionInfoResponse, error)
-	SyncLearningPath(ctx context.Context, pathID string) (*model.SyncPathResponse, error)
 }
 
 type ServiceNode interface {

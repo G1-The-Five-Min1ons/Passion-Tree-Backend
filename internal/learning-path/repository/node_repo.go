@@ -5,9 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"passiontree/internal/learning-path/model"
-
 	"github.com/google/uuid"
+	"passiontree/internal/learning-path/model"
 )
 
 func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
@@ -99,18 +98,18 @@ func (r *repositoryImpl) GetMaterialsByNodeID(ctx context.Context, nodeID string
 
 	var mats []model.NodeMaterial
 	for rows.Next() {
-		var m model.NodeMaterial
-		if err := rows.Scan(&m.MaterialID, &m.Type, &m.URL, &m.NodeID); err != nil {
-			return nil, fmt.Errorf("repo.GetMaterialsByNodeID scan failed: %w", err)
-		}
-		mats = append(mats, m)
-	}
+        var m model.NodeMaterial
+        if err := rows.Scan(&m.MaterialID, &m.Type, &m.URL, &m.NodeID); err != nil {
+            return nil, fmt.Errorf("repo.GetMaterialsByNodeID scan failed: %w", err)
+        }
+        mats = append(mats, m)
+    }
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("repo.GetMaterialsByNodeID row iteration failed: %w", err)
-	}
+        return nil, fmt.Errorf("repo.GetMaterialsByNodeID row iteration failed: %w", err)
+    }
 
-	return mats, nil
+    return mats, nil
 }
 
 func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) error {
@@ -118,7 +117,7 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 	if err != nil {
 		return fmt.Errorf("repo.DeleteMaterial exec failed [id=%s]: %w", materialID, err)
 	}
-
+	
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
 		return sql.ErrNoRows
@@ -128,7 +127,7 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 
 func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error) {
 	query := `SELECT node_id, title, description, path_id FROM node WHERE node_id = @p1`
-
+	
 	var n model.Node
 	err := r.db.QueryRowContext(ctx, query, nodeID).Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID)
 	if err != nil {
@@ -153,7 +152,7 @@ func (r *repositoryImpl) UpdateNodeSequence(ctx context.Context, nodeIDs []strin
 		return fmt.Errorf("repo.ReorderNodesTx begin failed: %w", err)
 	}
 	defer tx.Rollback()
-
+	
 	query := `UPDATE node SET sequence = @p1 WHERE node_id = @p2`
 	stmt, err := tx.PrepareContext(ctx, query)
 	if err != nil {

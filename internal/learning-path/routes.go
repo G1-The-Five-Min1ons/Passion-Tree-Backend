@@ -19,8 +19,6 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
 		paths.Post("/search", h.Search)
-		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
-		paths.Post("/sync/:path_id", h.SyncLearningPath)
 		paths.Get("/:path_id", h.GetOne)
 		paths.Put("/:path_id", h.Update)
 		paths.Delete("/:path_id", h.Delete)
