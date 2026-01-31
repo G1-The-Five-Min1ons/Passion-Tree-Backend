@@ -6,20 +6,27 @@ import (
 )
 
 func SetupLogger(isDev bool) *slog.Logger {
-	opts := &slog.HandlerOptions{
-		AddSource: true, 
-		
-		Level: func() slog.Level {
-			if isDev {
-				return slog.LevelDebug
-			}
-			return slog.LevelInfo
-		}(),
+	// detail Log (Level)
+	logLevel := slog.LevelInfo
+	if isDev {
+		logLevel = slog.LevelDebug
 	}
 
-	handler := slog.NewJSONHandler(os.Stdout, opts)
+	opts := &slog.HandlerOptions{
+		AddSource: true, 
+		Level:     logLevel,
+	}
 
-	return slog.New(handler).With(
+	var handler slog.Handler
+	if isDev {
+		// on Development: use TextHandler
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	} else {
+		// on Production (Azure): use JSONHandler
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	}
+
+	logger := slog.New(handler).With(
 		slog.String("service", "passion-tree-backend"),
 		slog.String("env", func() string {
 			if isDev {
@@ -28,4 +35,8 @@ func SetupLogger(isDev bool) *slog.Logger {
 			return "production"
 		}()),
 	)
+
+	slog.SetDefault(logger)
+
+	return logger
 }

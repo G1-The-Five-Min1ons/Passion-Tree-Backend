@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -24,76 +24,84 @@ const (
 )
 
 func main() {
-	// Load configuration
-	cfg, err := config.LoadDBConfig()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	// Initialize database connection
-	db, err := initializeDatabase(cfg.DBConnString)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer db.Close()
-
-	// Initialize AI client
-	aiClient := initializeAIClient(cfg.AIServiceURL)
-
-	// Initialize Azure Storage client
-	storageClient := initializeStorageClient(cfg)
-
 	isDev := os.Getenv("APP_ENV") != "production" 
 	myLogger := logger.SetupLogger(isDev)
 
-	app := createFiberApp()
-	routes.Setup(app, db, aiClient, storageClient, myLogger)
+	// Load configuration
+	cfg, err := config.LoadDBConfig()
+    if err != nil {
+        myLogger.Error("Failed to load config", "error", err)
+        os.Exit(1)
+    }
+
+	// Initialize database connection
+	db, err := initializeDatabase(cfg.DBConnString, myLogger)
+    if err != nil {
+        myLogger.Error("Failed to initialize database", "error", err)
+        os.Exit(1)
+    }
+    defer db.Close()
+
+	// Initialize AI client
+	aiClient := initializeAIClient(cfg.AIServiceURL, myLogger)
+
+	// Initialize Azure Storage client
+	storageClient := initializeStorageClient(cfg, myLogger)
+
+	// Setup Fiber with custom Logger
+	app := createFiberApp(myLogger)
+    routes.Setup(app, db, aiClient, storageClient, myLogger)
 
 	// Start server
 	port := getPort()
-	log.Printf("Starting server on port %s", port)
-	log.Fatal(app.Listen(":" + port))
+	myLogger.Info("starting server", "port", port, "app_name", AppName)
+
+	if err := app.Listen(":" + port); err != nil {
+        myLogger.Error("server crashed", "error", err)
+        os.Exit(1)
+    }
 }
 
 // initializeDatabase connects to the database with retry logic
-func initializeDatabase(connString string) (database.Database, error) {
+func initializeDatabase(connString string, logger *slog.Logger) (database.Database, error) {
 	db, err := database.NewDatabaseWithRetry(connString, DBRetryAttempts, DBRetryDelay)
 	if err != nil {
 		return nil, err
 	}
-	log.Println("Database connected successfully")
+	logger.Info("database connected successfully")
 	return db, nil
 }
 
 // initializeAIClient creates and configures the AI service client
-func initializeAIClient(serviceURL string) *aiclient.AIClient {
+func initializeAIClient(serviceURL string, logger *slog.Logger) *aiclient.AIClient {
 	if serviceURL == "" {
-		log.Fatalf("AI_SERVICE_URL is not set or empty. Please check your environment variables or configuration.")
+		logger.Error("AI_SERVICE_URL is not set or empty. Please check your environment variables or configuration.")
+		os.Exit(1)
 	}
 	client := aiclient.NewAIClient(serviceURL)
-	log.Printf("AI Service configured: %s", serviceURL)
+	logger.Info("AI Service configured", "service_url", serviceURL)
 	return client
 }
 
 // initializeStorageClient creates Azure Storage client if configured
-func initializeStorageClient(cfg *config.Config) *database.StorageClient {
+func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *database.StorageClient {
 	if cfg.AzureStorageConnString == "" {
-		log.Println("Azure Storage not configured, skipping initialization")
+		logger.Info("Azure Storage not configured, skipping initialization")
 		return nil
 	}
 
 	storageClient, err := database.NewStorageClient(cfg)
 	if err != nil {
-		log.Printf("Warning: Failed to initialize Azure Storage: %v", err)
+		logger.Warn("Failed to initialize Azure Storage", "error", err)
 		return nil
 	}
 
-	log.Println("Azure Storage initialized successfully")
+	logger.Info("Azure Storage initialized successfully")
 	return storageClient
 }
 
 // createFiberApp creates and configures the Fiber application with middleware
-func createFiberApp() *fiber.App {
+func createFiberApp(logger *slog.Logger) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName: AppName,
 	})
