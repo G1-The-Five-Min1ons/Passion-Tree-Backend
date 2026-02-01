@@ -21,10 +21,11 @@ func (r *userRepositoryImpl) CreateUser(ctx context.Context, user *model.User, p
 	userID := uuid.New().String()
 
 	// Insert into users table
-	userQuery := `INSERT INTO users (user_id, username, email, password, first_name, last_name, role, heart_count) 
-	              VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8)`
+	userQuery := `INSERT INTO users (user_id, username, email, password, first_name, last_name, role, heart_count, is_email_verified) 
+	              VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9)`
 	_, err = tx.ExecContext(ctx, userQuery,
-		userID, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount)
+		userID, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount,
+		user.IsEmailVerified)
 	if err != nil {
 		return "", fmt.Errorf("insert users failed: %w", err)
 	}
@@ -51,8 +52,9 @@ func (r *userRepositoryImpl) CreateUser(ctx context.Context, user *model.User, p
 func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 	query := `
 		SELECT 
-			u.user_id, u.username, u.email, u.first_name, u.last_name, u.role, u.heart_count,
-			p.Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
+			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
+			u.is_email_verified,
+			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
 			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
 		LEFT JOIN profile p ON u.user_id = p.user_id
@@ -65,7 +67,8 @@ func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model
 	var xp sql.NullInt64
 
 	err := r.db.QueryRow(query, id).Scan(
-		&u.UserID, &u.Username, &u.Email, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
+		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
+		&u.IsEmailVerified,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
 		&location, &bio, &level, &xp, &hourLearned,
 	)
@@ -97,12 +100,12 @@ func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model
 
 // GetUserByEmail fetches a user by email
 func (r *userRepositoryImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	query := `SELECT user_id, username, email, password, first_name, last_name, role, heart_count 
-	          FROM users WHERE email = @p1`
+	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count, is_email_verified FROM users WHERE email = @p1`
 	var user model.User
-	err := r.db.QueryRow(query, email).Scan(
+	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.UserID, &user.Username, &user.Email, &user.Password,
-		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount)
+		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
+		&user.IsEmailVerified)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -112,22 +115,72 @@ func (r *userRepositoryImpl) GetUserByEmail(ctx context.Context, email string) (
 	return &user, nil
 }
 
-// UpdateUser updates user info by ID
-func (r *userRepositoryImpl) UpdateUser(ctx context.Context, id string, user *model.User) error {
-	query := `UPDATE users SET username=@p1, email=@p2, password=@p3, first_name=@p4, last_name=@p5, role=@p6, heart_count=@p7 
-	          WHERE user_id=@p8`
-	_, err := r.db.Exec(query, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount, id)
+// GetUserByUsername fetches a user by username
+func (r *userRepositoryImpl) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
+	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count,
+	          is_email_verified
+	          FROM users WHERE username = @p1`
+	var user model.User
+	err := r.db.QueryRowContext(ctx, query, username).Scan(
+		&user.UserID, &user.Username, &user.Email, &user.Password,
+		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
+		&user.IsEmailVerified)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get user by username failed: %w", err)
+	}
+	return &user, nil
+}
+
+// UpdateUser updates user info by ID (only first_name and last_name)
+func (r *userRepositoryImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
+	query := `UPDATE users SET first_name=@p1, last_name=@p2 WHERE user_id=@p3`
+	_, err := r.db.ExecContext(ctx, query, firstName, lastName, id)
 	if err != nil {
 		return fmt.Errorf("update user failed [id=%s]: %w", id, err)
 	}
 	return nil
 }
 
-// DeleteUser deletes a user by ID (cascade will delete profile)
+// UpdateProfile updates profile info by user ID
+func (r *userRepositoryImpl) UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error {
+	query := `UPDATE profile 
+	          SET Avatar_URL=@p1, Rank_Name=@p2, Learning_streak=@p3, Learning_count=@p4, 
+	              Location=@p5, Bio=@p6, Level=@p7, XP=@p8, Hour_learned=@p9
+	          WHERE user_id=@p10`
+	_, err := r.db.ExecContext(ctx, query,
+		profile.AvatarURL, profile.RankName, profile.LearningStreak, profile.LearningCount,
+		profile.Location, profile.Bio, profile.Level, profile.XP, profile.HourLearned, userID)
+	if err != nil {
+		return fmt.Errorf("update profile failed [user_id=%s]: %w", userID, err)
+	}
+	return nil
+}
+
+// DeleteUser deletes a user by ID (must delete profile first due to FK constraint)
 func (r *userRepositoryImpl) DeleteUser(ctx context.Context, id string) error {
-	_, err := r.db.Exec("DELETE FROM users WHERE user_id = @p1", id)
+	// Delete profile first to avoid FK constraint violation
+	_, err := r.db.ExecContext(ctx, "DELETE FROM profile WHERE user_id = @p1", id)
+	if err != nil {
+		return fmt.Errorf("delete profile failed [id=%s]: %w", id, err)
+	}
+
+	// Then delete user
+	_, err = r.db.ExecContext(ctx, "DELETE FROM users WHERE user_id = @p1", id)
 	if err != nil {
 		return fmt.Errorf("delete user failed [id=%s]: %w", id, err)
+	}
+	return nil
+}
+
+// UpdateEmailVerified updates the email verification status for a user
+func (r *userRepositoryImpl) UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error {
+	query := `UPDATE users SET is_email_verified=@p1 WHERE user_id=@p2`
+	_, err := r.db.ExecContext(ctx, query, isVerified, userID)
+	if err != nil {
+		return fmt.Errorf("update email verified failed [user_id=%s]: %w", userID, err)
 	}
 	return nil
 }

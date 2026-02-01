@@ -14,6 +14,9 @@ func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "fetching quiz questions for node", "node_id", nodeID)
+
 	questions, err := h.quizSvc.GetQuestions(ctx, nodeID)
 	if err != nil {
 		return h.handleError(c, err)
@@ -35,6 +38,8 @@ func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 	}
 	req.NodeID = nodeID
 
+	h.logger.InfoContext(ctx, "creating new quiz question", "node_id", nodeID)
+
 	id, err := h.quizSvc.AddQuestion(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
@@ -53,9 +58,15 @@ func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
 	question_id := c.Params("question_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "deleting quiz question", "question_id", question_id)
+
 	if err := h.quizSvc.RemoveQuestion(ctx, question_id); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "quiz question deleted successfully", "question_id", question_id)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Question has been deleted successfully",
@@ -75,10 +86,14 @@ func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 	}
 	req.QuestionID = questionID
 
+	h.logger.InfoContext(ctx, "adding choice to question", "question_id", questionID)
+
 	id, err := h.quizSvc.AddChoice(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "choice added successfully", "question_id", questionID, "choice_id", id)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -93,9 +108,15 @@ func (h *Handler) DeleteChoice(c *fiber.Ctx) error {
 	choice_id := c.Params("choice_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "deleting choice", "choice_id", choice_id)
+
 	if err := h.quizSvc.RemoveChoice(ctx, choice_id); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "choice deleted successfully", "choice_id", choice_id)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Choice deleted successfully",

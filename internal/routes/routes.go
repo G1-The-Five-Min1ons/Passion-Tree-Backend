@@ -1,20 +1,22 @@
 package routes
 
 import (
+	"log/slog"
+
 	"passiontree/internal/database"
 	"passiontree/internal/platform/aiclient"
 
 	auth "passiontree/internal/auth"
+	history "passiontree/internal/history"
 	learningpath "passiontree/internal/learning-path"
 	reflection "passiontree/internal/reflection"
-	history "passiontree/internal/history"
 	resume "passiontree/internal/resume"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // Setup configures all routes for the application
-func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, storageClient *database.StorageClient) {
+func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, storageClient *database.StorageClient, logger *slog.Logger) {
 	// Health check endpoint
 	api := app.Group("/api/v1")
 
@@ -23,8 +25,8 @@ func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, st
 	})
 
 	auth.RegisterRoutes(api, db)
-	learningpath.RegisterRoutes(api, db, aiClient, storageClient)
-	reflection.RegisterRoutes(api, db, aiClient)
+	learningpath.RegisterRoutes(api, db, aiClient, logger, storageClient)
+	reflection.RegisterRoutes(api, db, aiClient, logger)
 	history.RegisterRoutes(api, db)
 	resume.RegisterRoutes(api, db)
 }

@@ -1,20 +1,24 @@
 package service
 
 import (
+	"fmt"
 	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 	"regexp"
 	"strings"
-	"fmt"
 )
 
 func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
+	s.logger.InfoContext(ctx, "fetching all learning paths from database")
+
 	paths, err := s.pathRepo.GetAllLearnningPath(ctx)
 	if err != nil {
 		return nil, apperror.NewInternal(err)
 	}
+
+	s.logger.InfoContext(ctx, "successfully retrieved paths", "count", len(paths))
 	return paths, nil
 }
 
@@ -22,11 +26,17 @@ func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*mode
 	if path_id == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
+
+	s.logger.InfoContext(ctx, "fetching path details", "path_id", path_id)
+	
 	path, err := s.pathRepo.GetLearnningPathByID(ctx, path_id)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			s.logger.WarnContext(ctx, "learning path not found", "path_id", path_id)
 			return nil, apperror.NewNotFound("learning path with id '%s' not found", path_id)
 		}
+
+		s.logger.ErrorContext(ctx, "database error while fetching path", "error", err, "path_id", path_id)
 		return nil, apperror.NewInternal(err)
 	}
 	return path, nil
@@ -36,16 +46,25 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 	if req.Title == "" {
 		return "", apperror.NewBadRequest("title cannot be empty")
 	}
+	
+	s.logger.InfoContext(ctx, "creating new learning path", "title", req.Title, "creator_id", req.CreatorID)
+
 	id, err := s.pathRepo.CreateLearnningPath(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
+			s.logger.WarnContext(ctx, "conflict: path title already exists", "title", req.Title)
 			return "", apperror.NewConflict("learning path with this title or ID already exists")
 		}
 		if apperror.IsForeignKeyError(err) {
+			s.logger.WarnContext(ctx, "invalid creator: user not found", "creator_id", req.CreatorID)
 			return "", apperror.NewBadRequest("invalid creator_id: user does not exist")
 		}
-		return "", apperror.NewInternal(err)
+
+		s.logger.ErrorContext(ctx, "database error during path creation", "error", err, "title", req.Title)
+		return "", apperror.NewInternal(fmt.Errorf("failed to create learning path: %w", err))
 	}
+
+	s.logger.InfoContext(ctx, "learning path created successfully", "path_id", id)
 	return id, nil
 }
 
@@ -53,6 +72,7 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 	if path_id == "" {
 		return apperror.NewBadRequest("path_id is required")
 	}
+
 	if req.Title == "" &&
 		req.Objective == "" &&
 		req.Description == "" &&
@@ -60,79 +80,114 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 		req.Publish_status == "" {
 		return apperror.NewBadRequest("request body cannot be empty")
 	}
+
+	s.logger.InfoContext(ctx, "updating learning path", "path_id", path_id)
+
 	if _, err := s.pathRepo.GetLearnningPathByID(ctx, path_id); err != nil {
 		if err == sql.ErrNoRows {
+			s.logger.WarnContext(ctx, "update failed: path not found", "path_id", path_id)
 			return apperror.NewNotFound("cannot update: path_id '%s' not found", path_id)
 		}
-		return apperror.NewInternal(err)
+		
+		return apperror.NewInternal(fmt.Errorf("failed to verify path before update: %w", err))
 	}
 
 	if err := s.pathRepo.UpdateLearnningPath(ctx, path_id, req); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("learning path with this title already exists")
 		}
+
 		if apperror.IsForeignKeyError(err) {
 			return apperror.NewBadRequest("invalid creator_id: user does not exist")
 		}
-		return apperror.NewInternal(err)
+
+		s.logger.ErrorContext(ctx, "database error during path update", "error", err, "path_id", path_id)
+		return apperror.NewInternal(fmt.Errorf("failed to update learning path %s: %w", path_id, err))
 	}
+
+	s.logger.InfoContext(ctx, "learning path updated successfully", "path_id", path_id)
 	return nil
 }
 
-func (s *serviceImpl) DeletePath(ctx context.Context, id string) error {
-	if id == "" {
+func (s *serviceImpl) DeletePath(ctx context.Context, path_id string) error {
+	if path_id == "" {
 		return apperror.NewBadRequest("path_id is required")
 	}
-	if err := s.pathRepo.DeleteLearnningPath(ctx, id); err != nil {
+
+	s.logger.InfoContext(ctx, "requesting path deletion", "path_id", path_id)
+
+	if err := s.pathRepo.DeleteLearnningPath(ctx, path_id); err != nil {
 		if apperror.IsForeignKeyError(err) {
+			s.logger.WarnContext(ctx, "deletion blocked by dependencies", "path_id", path_id)
 			return apperror.NewConflict("cannot delete path: there are existing enrollments or nodes associated with this path")
 		}
-		return apperror.NewInternal(err)
+
+		s.logger.ErrorContext(ctx, "database error during path deletion", "error", err, "path_id", path_id)
+		return apperror.NewInternal(fmt.Errorf("failed to delete path %s: %w", path_id, err))
 	}
+
+	s.logger.InfoContext(ctx, "learning path deleted successfully", "path_id", path_id)
 	return nil
 }
 
-func (s *serviceImpl) StartPath(ctx context.Context, pathID string, userID string) error {
-	if userID == "" {
+func (s *serviceImpl) StartPath(ctx context.Context, path_id string, user_id string) error {
+	if user_id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
-	if pathID == "" {
-		return apperror.NewBadRequest("path_ID is required")
+
+	if path_id == "" {
+		return apperror.NewBadRequest("path_id is required")
 	}
-	if err := s.pathRepo.EnrollLearnningPathUser(ctx, pathID, userID); err != nil {
+
+	s.logger.InfoContext(ctx, "enrolling user in path", "user_id", user_id, "path_id", path_id)
+
+	if err := s.pathRepo.EnrollLearnningPathUser(ctx, path_id, user_id); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
+			s.logger.WarnContext(ctx, "user already enrolled", "user_id", user_id, "path_id", path_id)
 			return apperror.NewConflict("user is already enrolled in this learning path")
 		}
 		return apperror.NewInternal(err)
 	}
+
+	s.logger.InfoContext(ctx, "user enrollment successful", "user_id", user_id, "path_id", path_id)
 	return nil
 }
 
-func (s *serviceImpl) GetEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error) {
-	if userID == "" {
+func (s *serviceImpl) GetEnrollmentStatus(ctx context.Context, path_id string, user_id string) (*model.PathEnroll, error) {
+	if user_id == "" {
 		return nil, apperror.NewBadRequest("user_id is required")
 	}
-	if pathID == "" {
+	
+	if path_id == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
-	enroll, err := s.pathRepo.GetLearnningPathEnrollmentStatus(ctx, pathID, userID)
+
+	s.logger.InfoContext(ctx, "checking enrollment status", "user_id", user_id, "path_id", path_id)
+
+	enroll, err := s.pathRepo.GetLearnningPathEnrollmentStatus(ctx, path_id, user_id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, apperror.NewNotFound("enrollment not found for user '%s'", userID)
+			s.logger.InfoContext(ctx, "no enrollment found", "user_id", user_id, "path_id", path_id)
+			return nil, apperror.NewNotFound("enrollment not found for user '%s'", user_id)
 		}
-		return nil, apperror.NewInternal(err)
+
+		s.logger.ErrorContext(ctx, "failed to fetch enrollment status", "error", err, "user_id", user_id, "path_id", path_id)
+		return nil, apperror.NewInternal(fmt.Errorf("failed to get enrollment status: %w", err))
 	}
 	return enroll, nil
 }
 
-func (s *serviceImpl) GetPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error) {
-	if pathID == "" || userID == "" {
+func (s *serviceImpl) GetPathProgress(ctx context.Context, path_id string, user_id string) (*model.PathProgressResponse, error) {
+	if path_id == "" || user_id == "" {
 		return nil, apperror.NewBadRequest("path_id and user_id are required")
 	}
 
-	progress, err := s.pathRepo.GetUserPathProgress(ctx, pathID, userID)
+	s.logger.InfoContext(ctx, "calculating path progress", "user_id", user_id, "path_id", path_id)
+
+	progress, err := s.pathRepo.GetUserPathProgress(ctx, path_id, user_id)
 	if err != nil {
-		return nil, apperror.NewInternal(err)
+		s.logger.ErrorContext(ctx, "failed to calculate progress", "error", err, "user_id", user_id, "path_id", path_id)
+		return nil, apperror.NewInternal(fmt.Errorf("failed to calculate progress: %w", err))
 	}
 
 	return progress, nil
@@ -143,12 +198,17 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 		return nil, apperror.NewBadRequest("topic is required")
 	}
 
+	s.logger.InfoContext(ctx, "generating learning path with AI", "topic", topic)
+
 	rawResponse, err := s.aiClient.GenerateLearningPath(ctx, topic)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "AI generation failed", "error", err, "topic", topic)
 		return nil, apperror.NewInternal(err)
 	}
 
 	nodes := parseAINodes(rawResponse.Result)
+
+	s.logger.InfoContext(ctx, "AI path generation successful", "topic", topic, "nodes_generated", len(nodes))
 
 	return &model.GeneratedPathResponse{
 		Topic: rawResponse.Topic,

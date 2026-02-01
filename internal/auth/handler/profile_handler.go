@@ -6,17 +6,22 @@ import (
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // UpdateProfile updates user profile information
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+        return h.handleError(c, err)
+    }
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
-	var profile model.Profile
 
+	var profile model.Profile
 	if err := c.BodyParser(&profile); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
@@ -37,7 +42,11 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 
 // GetProfile gets profile by user ID
 func (h *Handler) GetProfile(c *fiber.Ctx) error {
-	userID := c.Params("user_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+    if err != nil {
+        return h.handleError(c, err)
+    }
+	
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
