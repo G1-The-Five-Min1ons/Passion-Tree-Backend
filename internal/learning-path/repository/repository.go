@@ -55,6 +55,12 @@ type DBTX interface {
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
 
+type Database interface {
+	DBTX
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	Close() error
+}
+
 type Repository interface {
 	RepositoryLearningPath
 	RepositoryNode
@@ -63,7 +69,7 @@ type Repository interface {
 }
 
 type repositoryImpl struct {
-	db *sql.DB
+	db Database
 }
 
 func NewRepository(ds database.Database) Repository {

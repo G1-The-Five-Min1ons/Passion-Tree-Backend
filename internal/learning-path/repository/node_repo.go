@@ -176,7 +176,11 @@ func (r *repositoryImpl) UpdateNodeSequence(ctx context.Context, nodeIDs []strin
 }
 
 func (r *repositoryImpl) CreateNodeWithContent(ctx context.Context, req model.CreateNodeRequest) (string, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
+	return r.CreateNodeWithContentInternal(ctx, r.db, req)
+}
+
+func (r *repositoryImpl) CreateNodeWithContentInternal(ctx context.Context, db Database, req model.CreateNodeRequest) (string, error) {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", fmt.Errorf("begin tx failed: %w", err)
 	}
