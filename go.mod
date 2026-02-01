@@ -4,10 +4,13 @@ go 1.23.4
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.1
+	github.com/go-resty/resty/v2 v2.17.1
 	github.com/gofiber/fiber/v2 v2.52.10
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/microsoft/go-mssqldb v1.9.5
+	github.com/robfig/cron/v3 v3.0.1
+	golang.org/x/crypto v0.41.0
 )
 
 require (

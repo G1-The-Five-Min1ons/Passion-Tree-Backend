@@ -217,3 +217,33 @@ func (s *StorageClient) ValidateUploadedFile(ctx context.Context, blobURL string
 
 	return nil
 }
+
+func (s *StorageClient) ListBlobsOlderThan(ctx context.Context, containerType string, duration time.Duration) ([]string, error) {
+	containerName := s.getContainerName(containerType)
+	
+	pager := s.client.NewListBlobsFlatPager(containerName, nil)
+
+	var blobNames []string
+	cutoffTime := time.Now().Add(-duration)
+
+	for pager.More() {
+		resp, err := pager.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list blobs: %w", err)
+		}
+
+		for _, item := range resp.Segment.BlobItems {
+			if item.Properties.CreationTime != nil && item.Properties.CreationTime.Before(cutoffTime) {
+				blobNames = append(blobNames, *item.Name)
+			}
+		}
+	}
+
+	return blobNames, nil
+}
+
+func (s *StorageClient) DeleteBlob(ctx context.Context, blobName string, containerType string) error {
+	containerName := s.getContainerName(containerType)
+	_, err := s.client.DeleteBlob(ctx, containerName, blobName, nil)
+	return err
+}

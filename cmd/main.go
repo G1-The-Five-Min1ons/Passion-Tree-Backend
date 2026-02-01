@@ -8,11 +8,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/robfig/cron/v3"
 
 	"passiontree/internal/config"
 	"passiontree/internal/database"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/routes"
+	"passiontree/internal/worker"
 )
 
 const (
@@ -44,6 +46,9 @@ func main() {
 
 	app := createFiberApp()
 	routes.Setup(app, db, aiClient, storageClient)
+
+	cronJob := initializeBackgroundJobs(db, storageClient)
+    defer cronJob.Stop()
 
 	// Start server
 	port := getPort()
@@ -110,4 +115,23 @@ func getPort() string {
 		return port
 	}
 	return DefaultPort
+}
+
+func initializeBackgroundJobs(db database.Database, storage *database.StorageClient) *cron.Cron {
+    cleanupWorker := worker.NewCleanupWorker(db, storage)
+    c := cron.New()
+    
+    // Run every midnight
+    _, err := c.AddFunc("0 0 * * *", func() {
+        cleanupWorker.RunCleanup()
+    })
+
+    if err != nil {
+        log.Printf("Error initializing background jobs: %v", err)
+        return c
+    }
+
+    c.Start()
+    log.Println("Background jobs started")
+    return c
 }
