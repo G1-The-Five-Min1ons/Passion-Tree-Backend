@@ -9,7 +9,6 @@ import (
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
-	s.logger.InfoContext(ctx, "starting reflection creation", "tree_node_id", req.TreeNodeID)
 	
 	if req.Learned == "" {
 		return nil, apperror.NewBadRequest("what have learned is required")

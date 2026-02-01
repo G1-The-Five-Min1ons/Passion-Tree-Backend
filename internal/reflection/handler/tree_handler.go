@@ -19,8 +19,6 @@ func (h *Handler) CreateTree(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	h.logger.InfoContext(ctx, "creating new reflection tree", "album_id", req.AlbumID, "title", req.Title)
-
 	resp, err := h.reflectSvc.CreateTree(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
@@ -68,8 +66,6 @@ func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("album_id is required as query parameter"))
 	}
 
-	h.logger.InfoContext(ctx, "fetching all trees in album", "album_id", albumID)
-
 	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID)
 	if err != nil {
 		return h.handleError(c, err)
@@ -97,8 +93,6 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	h.logger.InfoContext(ctx, "updating tree information", "tree_id", treeID)
-
 	err := h.reflectSvc.UpdateTree(ctx, treeID, req)
 	if err != nil {
 		return h.handleError(c, err)
@@ -117,8 +111,6 @@ func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
-
-	h.logger.InfoContext(ctx, "requesting tree deletion", "tree_id", treeID)
 
 	err := h.reflectSvc.DeleteTree(ctx, treeID)
 	if err != nil {
