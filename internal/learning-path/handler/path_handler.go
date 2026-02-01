@@ -4,7 +4,9 @@ import (
 	"context"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+	"strings"
 	"time"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -38,21 +40,56 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 	})
 }
 
+func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
+	filename := c.Query("filename")
+	if filename == "" {
+		return h.handleError(c, apperror.NewBadRequest("filename is required"))
+	}
+
+	if !strings.HasSuffix(strings.ToLower(filename), ".jpg") && 
+	   !strings.HasSuffix(strings.ToLower(filename), ".png") && 
+	   !strings.HasSuffix(strings.ToLower(filename), ".jpeg") {
+		return h.handleError(c, apperror.NewBadRequest("Only JPEG and PNG images are allowed"))
+	}
+
+	uploadURL, publicURL, err := h.storage.GeneratePresignedURL(filename, "learning-path", 15*time.Minute)
+	if err != nil {
+		return h.handleError(c, apperror.NewInternal(err))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Presigned URL generated successfully",
+		"data": fiber.Map{
+			"upload_url": uploadURL,
+			"public_url": publicURL,
+			"expires_in": "15m",
+		},
+	})
+}
+
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreatePathRequest
-	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
+	
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	file, err := c.FormFile("cover_image")
-	if err == nil {
-		imgURL, uploadErr := h.storage.UploadFile(ctx, file, "learning-path")
-		if uploadErr != nil {
-			return h.handleError(c, apperror.NewInternal(uploadErr))
+	if req.CoverImgURL == "" {
+		return h.handleError(c, apperror.NewBadRequest("cover_image_url is required"))
+	}
+
+	if req.CoverImgURL != "" {
+		if !strings.Contains(req.CoverImgURL, "learning-path") {
+			 return h.handleError(c, apperror.NewBadRequest("Invalid image URL source"))
 		}
-		req.CoverImgURL = imgURL
+
+		err := h.storage.ValidateUploadedFile(ctx, req.CoverImgURL, "learning-path")
+		if err != nil {
+			return h.handleError(c, apperror.NewBadRequest(fmt.Sprintf("Image validation failed: %v", err)))
+		}
 	}
 
 	id, err := h.pathSvc.CreatePath(ctx, req)

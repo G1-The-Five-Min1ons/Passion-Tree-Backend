@@ -3,16 +3,20 @@ package database
 import (
 	"context"
 	"fmt"
-	"mime/multipart"
 	"passiontree/internal/config"
+	"strings"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"github.com/google/uuid"
 )
 
 type StorageClient struct {
 	client                *azblob.Client
 	accountName           string
+	accountKey            string
 	containerLearningPath string
 	containerProfile      string
 }
@@ -30,10 +34,12 @@ func NewStorageClient(cfg *config.Config) (*StorageClient, error) {
 
 	// Extract account name from connection string for URL generation
 	accountName := extractAccountName(cfg.AzureStorageConnString)
+	accountKey := extractAccountKey(cfg.AzureStorageConnString)
 
 	return &StorageClient{
 		client:                client,
 		accountName:           accountName,
+		accountKey:            accountKey,
 		containerLearningPath: cfg.ContainerLearningPath,
 		containerProfile:      cfg.ContainerProfile,
 	}, nil
@@ -100,45 +106,114 @@ func (s *StorageClient) generateBlobName(filename string) string {
 	return uuid.New().String() + ext
 }
 
+func (s *StorageClient) GeneratePresignedURL(filename string, containerType string, expiresIn time.Duration) (string, string, error) {
+	containerName := s.getContainerName(containerType)
+	blobName := s.generateBlobName(filename)
+
+	cred, err := azblob.NewSharedKeyCredential(s.accountName, s.accountKey)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid credentials for SAS: %w", err)
+	}
+
+	sasPermissions := sas.BlobPermissions{
+		Create: true,
+		Write:  true,
+		Add:    true,
+		Read:   true,
+	}
+
+	expiry := time.Now().Add(expiresIn)
+
+	sasQueryParams, err := sas.BlobSignatureValues{
+		Protocol:      sas.ProtocolHTTPS,
+		StartTime:     time.Now().Add(-1 * time.Minute),
+		ExpiryTime:    expiry,
+		Permissions:   sasPermissions.String(),
+		ContainerName: containerName,
+		BlobName:      blobName,
+	}.SignWithSharedKey(cred)
+
+	if err != nil {
+		return "", "", fmt.Errorf("failed to sign SAS: %w", err)
+	}
+
+	uploadURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s?%s",
+		s.accountName,
+		containerName,
+		blobName,
+		sasQueryParams.Encode(),
+	)
+
+	publicURL := fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s",
+		s.accountName,
+		containerName,
+		blobName,
+	)
+
+	return uploadURL, publicURL, nil
+}
+
 // extractAccountName ดึงชื่อ storage account จาก connection string
 func extractAccountName(connString string) string {
-	// Parse connection string to extract AccountName
-	// Format: "...;AccountName=xxx;..."
-	start := 0
-	for i := 0; i < len(connString)-12; i++ {
-		if connString[i:i+12] == "AccountName=" {
-			start = i + 12
-			break
+    parts := strings.Split(connString, ";")
+
+    for _, part := range parts {
+        if strings.HasPrefix(part, "AccountName=") {
+            return strings.TrimPrefix(part, "AccountName=")
+        }
+    }
+
+    return ""
+}
+
+func extractAccountKey(connString string) string {
+	parts := strings.Split(connString, ";")
+	for _, part := range parts {
+		if strings.HasPrefix(part, "AccountKey=") {
+			return strings.TrimPrefix(part, "AccountKey=")
+		}
+	}
+	return ""
+}
+
+func (s *StorageClient) ValidateUploadedFile(ctx context.Context, blobURL string, containerType string) error {
+	parts := strings.Split(blobURL, "/")
+	if len(parts) < 1 {
+		return fmt.Errorf("invalid blob URL")
+	}
+	blobName := parts[len(parts)-1]
+	containerName := s.getContainerName(containerType)
+	
+	serviceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", s.accountName)
+	cred, err := azblob.NewSharedKeyCredential(s.accountName, s.accountKey)
+	if err != nil {
+		return err
+	}
+	
+	blobClient, err := blob.NewClientWithSharedKeyCredential(fmt.Sprintf("%s%s/%s", serviceURL, containerName, blobName), cred, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create blob client: %w", err)
+	}
+
+	props, err := blobClient.GetProperties(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get blob properties (file might not exist): %w", err)
+	}
+
+	const maxFileSize = 5 * 1024 * 1024
+
+	if props.ContentLength != nil && *props.ContentLength > maxFileSize {
+		_, _ = blobClient.Delete(ctx, nil) 
+		return fmt.Errorf("file size %d exceeds limit of 5MB", *props.ContentLength)
+	}
+
+	if props.ContentType != nil {
+		ct := *props.ContentType
+		if ct != "image/jpeg" && ct != "image/png" && ct != "image/jpg" {
+			_, _ = blobClient.Delete(ctx, nil)
+			return fmt.Errorf("invalid content type: %s", ct)
 		}
 	}
 
-	if start == 0 {
-		return ""
-	}
-
-	end := start
-	for end < len(connString) && connString[end] != ';' {
-		end++
-	}
-
-	return connString[start:end]
-}
-
-
-func (s *StorageClient) UploadFile(ctx context.Context, file *multipart.FileHeader, containerType string) (string, error) {
-	src, err := file.Open()
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer src.Close()
-
-	containerName := s.getContainerName(containerType)
-	blobName := s.generateBlobName(file.Filename)
-
-	_, err = s.client.UploadStream(ctx, containerName, blobName, src, &azblob.UploadStreamOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to upload blob: %w", err)
-	}
-
-	return s.GetBlobURL(blobName, containerType), nil
+	return nil
 }
