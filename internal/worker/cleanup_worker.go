@@ -4,16 +4,17 @@ import (
 	"context"
 	"log"
 	"passiontree/internal/database"
+	"passiontree/internal/pkg/storage"
 	"strings"
 	"time"
 )
 
 type CleanupWorker struct {
 	db      database.Database
-	storage *database.StorageClient
+	storage *storage.BlobService
 }
 
-func NewCleanupWorker(db database.Database, storage *database.StorageClient) *CleanupWorker {
+func NewCleanupWorker(db database.Database, storage *storage.BlobService) *CleanupWorker {
 	return &CleanupWorker{
 		db:      db,
 		storage: storage,

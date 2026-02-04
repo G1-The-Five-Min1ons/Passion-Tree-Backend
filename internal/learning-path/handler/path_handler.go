@@ -6,7 +6,6 @@ import (
 	"passiontree/internal/pkg/apperror"
 	"strings"
 	"time"
-	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -100,7 +99,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 
 		err := h.storage.ValidateUploadedFile(ctx, req.CoverImgURL, "learning-path")
 		if err != nil {
-			return h.handleError(c, apperror.NewBadRequest(fmt.Sprintf("Image validation failed: %v", err)))
+			return h.handleError(c, apperror.NewBadRequest("Image validation failed: %v", err))
 		}
 	}
 

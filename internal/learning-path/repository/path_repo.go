@@ -77,9 +77,14 @@ func (r *repositoryImpl) UpdateLearnningPath(ctx context.Context, path_id string
 }
 
 func (r *repositoryImpl) DeleteLearnningPath(ctx context.Context, path_id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM learning_path WHERE path_id = @p1", path_id)
+	res, err := r.db.ExecContext(ctx, "DELETE FROM learning_path WHERE path_id = @p1", path_id)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteLearnningPath failed [id=%s]: %w", path_id, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }

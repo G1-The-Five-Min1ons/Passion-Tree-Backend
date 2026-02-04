@@ -12,6 +12,7 @@ import (
 
 	"passiontree/internal/config"
 	"passiontree/internal/database"
+	"passiontree/internal/pkg/storage"
 	"passiontree/internal/pkg/logger"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/routes"
@@ -89,13 +90,13 @@ func initializeAIClient(serviceURL string, logger *slog.Logger) *aiclient.AIClie
 }
 
 // initializeStorageClient creates Azure Storage client if configured
-func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *database.StorageClient {
+func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *storage.BlobService {
 	if cfg.AzureStorageConnString == "" {
 		logger.Info("Azure Storage not configured, skipping initialization")
 		return nil
 	}
 
-	storageClient, err := database.NewStorageClient(cfg)
+	storageClient, err := database.InitBlobStorage(cfg)
 	if err != nil {
 		logger.Warn("Failed to initialize Azure Storage", "error", err)
 		return nil
@@ -129,7 +130,7 @@ func getPort() string {
 	return DefaultPort
 }
 
-func initializeBackgroundJobs(db database.Database, storage *database.StorageClient, logger *slog.Logger) *cron.Cron {
+func initializeBackgroundJobs(db database.Database, storage *storage.BlobService, logger *slog.Logger) *cron.Cron {
     cleanupWorker := worker.NewCleanupWorker(db, storage)
     c := cron.New()
     

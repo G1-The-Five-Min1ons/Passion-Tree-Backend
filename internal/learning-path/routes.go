@@ -5,13 +5,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"passiontree/internal/database"
+	"passiontree/internal/pkg/storage"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/learning-path/service"
 	"passiontree/internal/platform/aiclient"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient, logger *slog.Logger, storageClient *database.StorageClient) {
+func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient, logger *slog.Logger, storageClient *storage.BlobService) {
 	repo := repository.NewRepository(db)
 	svc := service.NewService(repo, aiClient, logger)
 	h := handler.NewHandler(svc, logger, storageClient)

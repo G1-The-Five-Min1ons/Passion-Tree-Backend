@@ -133,7 +133,7 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model
 	err := r.db.QueryRowContext(ctx, query, nodeID).Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, err
+			return nil, nil
 		}
 		return nil, fmt.Errorf("repo.GetNodeByID scan failed: %w", err)
 	}
