@@ -69,9 +69,14 @@ func (r *repositoryImpl) CreateLearnningPath(ctx context.Context, req model.Crea
 
 func (r *repositoryImpl) UpdateLearnningPath(ctx context.Context, path_id string, req model.UpdatePathRequest) error {
 	query := `UPDATE learning_path SET title=@p1, objective=@p2, description=@p3, cover_img_url=@p4, publish_status=@p5, update_at=GETDATE() WHERE path_id=@p6`
-	_, err := r.db.ExecContext(ctx, query, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Publish_status, path_id)
+	res, err := r.db.ExecContext(ctx, query, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Publish_status, path_id)
 	if err != nil {
 		return fmt.Errorf("repo.UpdateLearnningPath failed [id=%s]: %w", path_id, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
 	}
 	return nil
 }

@@ -51,21 +51,30 @@ func (w *CleanupWorker) RunCleanup() {
 		return
 	}
 
-	deletedCount := 0
-	for _, blobName := range blobs {
-		if !validFiles[blobName] {
-			log.Printf("[Cleanup Worker] Found orphaned file: %s. Deleting...", blobName)
-			
-			err := w.storage.DeleteBlob(ctx, blobName, "learning-path")
-			if err != nil {
-				log.Printf("[Cleanup Worker] Failed to delete blob %s: %v\n", blobName, err)
-			} else {
-				deletedCount++
-			}
-		}
-	}
+	var deletedFiles []string
+    var errorCount int
 
-	log.Printf("[Cleanup Worker] Cleanup finished. Deleted %d files.\n", deletedCount)
+    for _, blobName := range blobs {
+        if !validFiles[blobName] {
+            err := w.storage.DeleteBlob(ctx, blobName, "learning-path")
+            if err != nil {
+                log.Printf("[Cleanup Worker] Failed to delete blob %s: %v\n", blobName, err)
+                errorCount++
+            } else {
+                deletedFiles = append(deletedFiles, blobName)
+            }
+        }
+    }
+
+    if len(deletedFiles) > 0 {
+        log.Printf("[Cleanup Worker] Cleanup finished. Deleted %d files. Errors: %d. Files: [%s]\n", 
+            len(deletedFiles), 
+            errorCount, 
+            strings.Join(deletedFiles, ", "),
+        )
+    } else {
+        log.Println("[Cleanup Worker] Cleanup finished. No orphaned files found.")
+    }
 }
 
 func extractFilenameFromURL(url string) string {

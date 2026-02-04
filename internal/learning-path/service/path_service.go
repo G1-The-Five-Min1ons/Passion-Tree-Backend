@@ -1,9 +1,9 @@
 package service
 
 import (
-	"fmt"
 	"context"
 	"database/sql"
+	"fmt"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 	"regexp"
@@ -28,7 +28,7 @@ func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*mode
 	}
 
 	s.logger.InfoContext(ctx, "fetching path details", "path_id", path_id)
-	
+
 	path, err := s.pathRepo.GetLearnningPathByID(ctx, path_id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -46,7 +46,22 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 	if req.Title == "" {
 		return "", apperror.NewBadRequest("title cannot be empty")
 	}
-	
+
+	if req.CoverImgURL == "" {
+		return "", apperror.NewBadRequest("cover_image_url is required")
+	}
+
+	if req.CoverImgURL != "" {
+		if !strings.Contains(req.CoverImgURL, "learning-path") {
+			return "", apperror.NewBadRequest("Invalid image URL source")
+		}
+
+		err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, "learning-path")
+		if err != nil {
+			return "", apperror.NewBadRequest("Image validation failed: %v", err)
+		}
+	}
+
 	s.logger.InfoContext(ctx, "creating new learning path", "title", req.Title, "creator_id", req.CreatorID)
 
 	id, err := s.pathRepo.CreateLearnningPath(ctx, req)
@@ -88,7 +103,7 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 			s.logger.WarnContext(ctx, "update failed: path not found", "path_id", path_id)
 			return apperror.NewNotFound("cannot update: path_id '%s' not found", path_id)
 		}
-		
+
 		return apperror.NewInternal(fmt.Errorf("failed to verify path before update: %w", err))
 	}
 
@@ -157,7 +172,7 @@ func (s *serviceImpl) GetEnrollmentStatus(ctx context.Context, path_id string, u
 	if user_id == "" {
 		return nil, apperror.NewBadRequest("user_id is required")
 	}
-	
+
 	if path_id == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
@@ -218,9 +233,9 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 
 func parseAINodes(rawResult string) []model.GeneratedNode {
 	var nodes []model.GeneratedNode
-	
+
 	segments := strings.Split(rawResult, ",")
-	
+
 	re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)
 
 	for _, seg := range segments {

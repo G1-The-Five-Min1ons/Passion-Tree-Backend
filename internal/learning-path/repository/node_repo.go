@@ -16,7 +16,7 @@ func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeReq
 
 func (r *repositoryImpl) createNodeInternal(ctx context.Context, db DBTX, req model.CreateNodeRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (@p1, @p2, @p3, @p5, @p6)`
+	query := `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (@p1, @p2, @p3, @p4, @p5)`
 	_, err := db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID, req.Sequence)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateNode exec failed: %w", err)

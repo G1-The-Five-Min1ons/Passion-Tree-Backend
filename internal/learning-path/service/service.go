@@ -6,6 +6,7 @@ import (
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/platform/aiclient"
+	"passiontree/internal/pkg/storage"
 )
 
 type ServiceLearningPath interface {
@@ -67,6 +68,7 @@ type serviceImpl struct {
 	quizRepo    repository.RepositoryQuiz
 	logger  	*slog.Logger
 	aiClient    *aiclient.AIClient
+	storage    *storage.BlobService
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {

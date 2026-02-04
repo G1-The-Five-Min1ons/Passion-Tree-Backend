@@ -88,21 +88,6 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "creating new learning path", "title", req.Title)
 
-	if req.CoverImgURL == "" {
-		return h.handleError(c, apperror.NewBadRequest("cover_image_url is required"))
-	}
-
-	if req.CoverImgURL != "" {
-		if !strings.Contains(req.CoverImgURL, "learning-path") {
-			 return h.handleError(c, apperror.NewBadRequest("Invalid image URL source"))
-		}
-
-		err := h.storage.ValidateUploadedFile(ctx, req.CoverImgURL, "learning-path")
-		if err != nil {
-			return h.handleError(c, apperror.NewBadRequest("Image validation failed: %v", err))
-		}
-	}
-
 	id, err := h.pathSvc.CreatePath(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
