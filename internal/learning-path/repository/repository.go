@@ -16,6 +16,7 @@ type RepositoryLearningPath interface {
 	EnrollLearnningPathUser(ctx context.Context, pathID string, userID string) error
 	GetLearnningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
+	UpdateLearnningPathImage(ctx context.Context, pathID string, coverImgURL string) error
 }
 
 type RepositoryNode interface {

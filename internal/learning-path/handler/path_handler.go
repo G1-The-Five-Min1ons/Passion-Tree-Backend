@@ -252,3 +252,29 @@ func (h *Handler) Generate(c *fiber.Ctx) error {
 		"data":    result,
 	})
 }
+
+func (h *Handler) UpdateCoverImage(c *fiber.Ctx) error {
+    pathID := c.Params("path_id")
+    ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+    defer cancel()
+
+    var req model.UpdateImageRequest
+    if err := c.BodyParser(&req); err != nil {
+        return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+    }
+
+    h.logger.InfoContext(ctx, "requesting update cover image", "path_id", pathID)
+
+    if err := h.pathSvc.UpdatePathCoverImage(ctx, pathID, req.CoverImgURL); err != nil {
+        return h.handleError(c, err)
+    }
+
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "success": true,
+        "message": "Learning path cover image updated successfully",
+        "data": fiber.Map{
+            "path_id": pathID,
+            "cover_image_url": req.CoverImgURL,
+        },
+    })
+}

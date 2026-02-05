@@ -19,6 +19,7 @@ type ServiceLearningPath interface {
 	GetEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	GeneratePathWithAI(ctx context.Context, topic string) (*model.GeneratedPathResponse, error)
+	UpdatePathCoverImage(ctx context.Context, pathID string, coverImgURL string) error
 }
 
 type ServiceSearch interface {

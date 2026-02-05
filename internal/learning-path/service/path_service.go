@@ -252,3 +252,39 @@ func parseAINodes(rawResult string) []model.GeneratedNode {
 	}
 	return nodes
 }
+
+func (s *serviceImpl) UpdatePathCoverImage(ctx context.Context, pathID string, coverImgURL string) error {
+    if pathID == "" {
+        return apperror.NewBadRequest("path_id is required")
+    }
+    if coverImgURL == "" {
+        return apperror.NewBadRequest("cover_image_url is required")
+    }
+
+    s.logger.InfoContext(ctx, "updating learning path cover image", "path_id", pathID)
+
+    if !strings.Contains(coverImgURL, "learning-path") {
+        return apperror.NewBadRequest("Invalid image URL source")
+    }
+
+    err := s.storage.ValidateUploadedFile(ctx, coverImgURL, "learning-path")
+    if err != nil {
+        s.logger.WarnContext(ctx, "image validation failed", "error", err, "url", coverImgURL)
+        return apperror.NewBadRequest("Image validation failed: %v", err)
+    }
+
+    if _, err := s.pathRepo.GetLearnningPathByID(ctx, pathID); err != nil {
+        if err == sql.ErrNoRows {
+            return apperror.NewNotFound("learning path not found")
+        }
+        return apperror.NewInternal(err)
+    }
+
+    if err := s.pathRepo.UpdateLearnningPathImage(ctx, pathID, coverImgURL); err != nil {
+        s.logger.ErrorContext(ctx, "database error during image update", "error", err, "path_id", pathID)
+        return apperror.NewInternal(fmt.Errorf("failed to update cover image: %w", err))
+    }
+
+    s.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
+    return nil
+}

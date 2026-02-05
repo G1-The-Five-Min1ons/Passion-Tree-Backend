@@ -42,3 +42,7 @@ type PathEnroll struct {
 	EnrollAt          *time.Time `json:"enroll_at"`
 	CompleteAt        *time.Time `json:"complete_at"`
 }
+
+type UpdateImageRequest struct {
+    CoverImgURL string `json:"cover_image_url"`
+}

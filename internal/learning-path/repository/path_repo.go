@@ -116,3 +116,19 @@ func (r *repositoryImpl) GetLearnningPathEnrollmentStatus(ctx context.Context, p
 	}
 	return &pe, nil
 }
+
+
+func (r *repositoryImpl) UpdateLearnningPathImage(ctx context.Context, pathID string, coverImgURL string) error {
+    query := `UPDATE learning_path SET cover_img_url = @p1, update_at = GETDATE() WHERE path_id = @p2`
+    
+    res, err := r.db.ExecContext(ctx, query, coverImgURL, pathID)
+    if err != nil {
+        return fmt.Errorf("repo.UpdateLearnningPathImage failed [id=%s]: %w", pathID, err)
+    }
+
+    rows, _ := res.RowsAffected()
+    if rows == 0 {
+        return sql.ErrNoRows
+    }
+    return nil
+}
