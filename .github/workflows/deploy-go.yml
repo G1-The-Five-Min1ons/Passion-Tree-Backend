@@ -12,7 +12,7 @@ env:
   ACR_NAME: passiontreecontainerregistry
   IMAGE_NAME: backend-app
   CONTAINER_APP_NAME: backend-go
-  RESOURCE_GROUP: passion-tree
+  RESOURCE_GROUP: Passion-Tree
 
 jobs:
   build-push-deploy:

@@ -18,6 +18,6 @@ COPY --from=builder /out/app ./app
 # Create non-root user
 RUN adduser -D -H -u 10001 appuser
 USER 10001
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=5000
+EXPOSE 5000
 ENTRYPOINT ["/app/app"]
