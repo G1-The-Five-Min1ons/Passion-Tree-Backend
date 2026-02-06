@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 ENV CGO_ENABLED=0
 ENV GOOS=linux
-RUN go build -ldflags "-s -w" -o /out/app ./
+RUN go build -ldflags "-s -w" -o /out/app ./cmd
 
 # 2) Runtime stage
 FROM alpine:3.20
