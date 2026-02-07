@@ -28,7 +28,7 @@ func (s *serviceImpl) GetUserHistory(ctx context.Context, userID string) ([]mode
 
 	historyList, err := s.repo.GetHistoryByUserID(ctx, userID)
 	if err != nil {
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to retrieve history for user %s: %w", userID, err)
 	}
 
 	if historyList == nil {

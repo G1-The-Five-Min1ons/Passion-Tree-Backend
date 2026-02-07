@@ -22,7 +22,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, userID string, prof
 	// Check if user exists
 	user, _, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
 		return apperror.NewNotFound("user with id '%s' not found", userID)
@@ -30,7 +30,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, userID string, prof
 
 	// Update profile in repository
 	if err := s.userRepo.UpdateProfile(ctx, userID, profile); err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to update profile: %w", err)
 	}
 
 	return nil

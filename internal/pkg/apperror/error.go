@@ -45,12 +45,12 @@ func NewConflict(format string, args ...interface{}) *AppError {
 	}
 }
 
-// 500
-func NewInternal(err error) *AppError {
+// 500 with formatted log message
+func NewInternal(format string, args ...interface{}) *AppError {
 	return &AppError{
 		Code:    fiber.StatusInternalServerError,
 		Message: "internal server error",
-		Log:     err,
+		Log:     fmt.Errorf(format, args...),
 	}
 }
 

@@ -39,12 +39,12 @@ func (s *serviceImpl) GetResumeNode(ctx context.Context, userID string, pathID s
 		if err == sql.ErrNoRows {
 			return nil, apperror.NewNotFound("No pending node found or path completed")
 		}
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to get resume node: %w", err)
 	}
 
 	nodeDetail, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
 	if err != nil {
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to get node detail: %w", err)
 	}
 
 	return &model.ResumeResponse{

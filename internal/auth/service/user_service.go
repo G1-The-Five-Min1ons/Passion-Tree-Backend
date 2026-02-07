@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
@@ -41,7 +40,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	}
 
 	if err != nil {
-		return "", apperror.NewInternal(err)
+		return "", apperror.NewInternal("failed to get user: %w", err)
 	}
 	if user == nil {
 		return "", apperror.NewUnauthorized("invalid username/email or password")
@@ -56,7 +55,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	jwtService := jwt.NewService()
 	token, err := jwtService.GenerateAccessToken(user)
 	if err != nil {
-		return "", apperror.NewInternal(fmt.Errorf("failed to generate token: %w", err))
+		return "", apperror.NewInternal("failed to generate token: %w", err)
 	}
 
 	return token, nil
@@ -78,7 +77,7 @@ func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*mod
 	// Get user from database
 	user, _, err := s.userRepo.GetUserByID(ctx, claims.UserID)
 	if err != nil {
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
 		return nil, apperror.NewNotFound("user not found")

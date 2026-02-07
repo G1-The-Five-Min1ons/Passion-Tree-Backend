@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
@@ -25,7 +24,7 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 			return "", apperror.NewBadRequest("invalid path_id: learning path does not exist")
 		}
 		s.logger.ErrorContext(ctx, "database error during node creation", "error", err, "path_id", req.PathID)
-		return "", apperror.NewInternal(fmt.Errorf("failed to create node in path %s: %w", req.PathID, err))
+		return "", apperror.NewInternal("failed to create node in path %s: %w", req.PathID, err)
 	}
 
 	s.logger.InfoContext(ctx, "node added successfully", "node_id", id, "path_id", req.PathID)
@@ -52,7 +51,7 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 		}
 		
 		s.logger.ErrorContext(ctx, "database error during node update", "error", err, "node_id", nodeID)
-		return apperror.NewInternal(fmt.Errorf("failed to update node %s: %w", nodeID, err))
+		return apperror.NewInternal("failed to update node %s: %w", nodeID, err)
 	}
 
 	s.logger.InfoContext(ctx, "node updated successfully", "node_id", nodeID)
@@ -77,7 +76,7 @@ func (s *serviceImpl) RemoveNode(ctx context.Context, nodeID string) error {
 		}
 		
 		s.logger.ErrorContext(ctx, "database error during node deletion", "error", err, "node_id", nodeID)
-		return apperror.NewInternal(fmt.Errorf("failed to remove node %s: %w", nodeID, err))
+		return apperror.NewInternal("failed to remove node %s: %w", nodeID, err)
 	}
 
 	s.logger.InfoContext(ctx, "node removed successfully", "node_id", nodeID)
@@ -102,7 +101,7 @@ func (s *serviceImpl) AddMaterial(ctx context.Context, req model.CreateMaterialR
 		}
 		
 		s.logger.ErrorContext(ctx, "database error during material creation", "error", err, "node_id", req.NodeID)
-		return "", apperror.NewInternal(fmt.Errorf("failed to add material to node %s: %w", req.NodeID, err))
+		return "", apperror.NewInternal("failed to add material to node %s: %w", req.NodeID, err)
 	}
 
 	s.logger.InfoContext(ctx, "material added successfully", "material_id", id, "node_id", req.NodeID)
@@ -123,7 +122,7 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 		}
 		
 		s.logger.ErrorContext(ctx, "database error during material deletion", "error", err, "material_id", materialID)
-		return apperror.NewInternal(fmt.Errorf("failed to remove material %s: %w", materialID, err))
+		return apperror.NewInternal("failed to remove material %s: %w", materialID, err)
 	}
 
 	s.logger.InfoContext(ctx, "material removed successfully", "material_id", materialID)
@@ -139,7 +138,7 @@ func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model
 
 	if err := s.nodeRepo.UpdateNodeSequence(ctx, req.NodeIDs); err != nil {
 		s.logger.ErrorContext(ctx, "failed to update node sequence", "error", err, "path_id", pathID)
-		return apperror.NewInternal(fmt.Errorf("failed to reorder nodes for path %s: %w", pathID, err))
+		return apperror.NewInternal("failed to reorder nodes for path %s: %w", pathID, err)
 	}
 
 	s.logger.InfoContext(ctx, "nodes sequence updated successfully", "path_id", pathID)
@@ -161,7 +160,7 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model
 		}
 		
 		s.logger.ErrorContext(ctx, "database error fetching node details", "error", err, "node_id", nodeID)
-		return nil, apperror.NewInternal(fmt.Errorf("failed to retrieve details for node %s: %w", nodeID, err))
+		return nil, apperror.NewInternal("failed to retrieve details for node %s: %w", nodeID, err)
 	}
 
 	return node, nil

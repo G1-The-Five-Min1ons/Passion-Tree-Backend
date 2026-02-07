@@ -8,15 +8,15 @@ import (
 )
 
 type RepositoryLearningPath interface {
-	GetAllLearnningPath(ctx context.Context) ([]model.LearningPath, error)
-	GetLearnningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error)
-	CreateLearnningPath(ctx context.Context, req model.CreatePathRequest) (string, error)
-	UpdateLearnningPath(ctx context.Context, path_id string, req model.UpdatePathRequest) error
-	DeleteLearnningPath(ctx context.Context, path_id string) error
-	EnrollLearnningPathUser(ctx context.Context, pathID string, userID string) error
-	GetLearnningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
+	GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error)
+	GetLearningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error)
+	CreateLearningPath(ctx context.Context, req model.CreatePathRequest) (string, error)
+	UpdateLearningPath(ctx context.Context, path_id string, req model.UpdatePathRequest) error
+	DeleteLearningPath(ctx context.Context, path_id string) error
+	EnrollLearningPathUser(ctx context.Context, pathID string, userID string) error
+	GetLearningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
-	UpdateLearnningPathImage(ctx context.Context, pathID string, coverImgURL string) error
+	UpdateLearningPathImage(ctx context.Context, pathID string, coverImgURL string) error
 }
 
 type RepositoryNode interface {
