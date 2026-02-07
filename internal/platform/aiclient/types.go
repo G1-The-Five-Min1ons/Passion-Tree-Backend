@@ -24,32 +24,23 @@ type SearchResponse struct {
 
 // SentimentRequest represents the sentiment analysis request
 type SentimentRequest struct {
-	WhatLearned           string `json:"what_learned"`
-	FeelingsAfterLearning string `json:"feelings_after_learning"`
-}
-
-// Advanced represents advanced sentiment metrics
-type Advanced struct {
-	PrimaryEmotion      string  `json:"primary_emotion"`
-	ConfidenceScore     float64 `json:"confidence_score"`
-	StrugglePoint       string  `json:"struggle_point"`
-	LearningDisposition string  `json:"learning_disposition"`
-	ConsistencyCheck    string  `json:"consistency_check"`
-}
-
-// DevelopmentPlan represents learning development plan
-type DevelopmentPlan struct {
-	NextSteps []string `json:"next_steps"`
+	LearningReflect  string `json:"learning_reflect"`
+	MoodReflect      string `json:"mood_reflect"`
+	FeelScore        int    `json:"feel_score"`
+	ProgressScore    int    `json:"progress_score"`
+	ChallengeScore   int    `json:"challenge_score"`
 }
 
 // SentimentResponse represents the sentiment analysis response
 type SentimentResponse struct {
-	Sentiment       string           `json:"sentiment"`
-	ReflectionScore float64          `json:"reflection_score"`
-	Summary         string           `json:"summary"`
-	Advanced        *Advanced        `json:"advanced,omitempty"`
-	DevelopmentPlan *DevelopmentPlan `json:"development_plan,omitempty"`
-	RerankedResults []string         `json:"reranked_results"`
+	Summary                  string          `json:"summary"`
+	SentimentAnalysis        string          `json:"sentiment_analysis"`
+	PrimaryEmotion           *string         `json:"primary_emotion"`
+	StrugglePoint            string          `json:"struggle_point"`
+	DevelopmentPlan          []string        `json:"development_plan"`
+	AIConfidentScore         float64         `json:"ai_confident_score"`
+	ReflectionScore          float64         `json:"reflection_score"`
+	WeightedReflectionScore  float64         `json:"weighted_reflection_score"`
 }
 
 // SamplePoint represents a sample point in the collection

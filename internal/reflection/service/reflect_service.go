@@ -10,48 +10,46 @@ import (
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
-	if req.Learned == "" {
-		return nil, apperror.NewBadRequest("what have learned is required")
+	
+	if req.LearningReflect == "" {
+		return nil, apperror.NewBadRequest("learning_reflect is required")
 	}
-	if req.Reflect == "" {
-		return nil, apperror.NewBadRequest("reflection is required")
-	}
-	if req.FeelScore == "" {
-		return nil, apperror.NewBadRequest("feel_score is required")
-	}
-	if req.ProgressScore == "" {
-		return nil, apperror.NewBadRequest("progress_score is required")
-	}
-	if req.ChallengeScore == "" {
-		return nil, apperror.NewBadRequest("challenge_score is required")
+	if req.MoodReflect == "" {
+		return nil, apperror.NewBadRequest("mood_reflect is required")
 	}
 	if req.TreeNodeID == "" {
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
 
-	var sentimentResp *aiclient.SentimentResponse
-
-	if s.aiClient != nil {
-		sentimentReq := &aiclient.SentimentRequest{
-			WhatLearned:           req.Learned,
-			FeelingsAfterLearning: req.Reflect,
-		}
-
-		var err error
-		sentimentResp, err = s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
-		if err != nil {
-			fmt.Printf("AI sentiment analysis failed: %v\n", err)
-		} else {
-			req.Mood = sentimentResp.Sentiment
-			if req.Tag == "" && sentimentResp.Advanced.PrimaryEmotion != "" {
-				req.Tag = sentimentResp.Advanced.PrimaryEmotion
-			}
-			fmt.Printf("AI Sentiment: %s, Score: %.2f, Summary: %s\n",
-				sentimentResp.Sentiment, sentimentResp.ReflectionScore, sentimentResp.Summary)
-		}
+	// AI analysis is required
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "AI client is not available")
+		return nil, apperror.NewInternal(fmt.Errorf("AI analysis service is not configured"))
 	}
 
-	id, err := s.refRepo.CreateReflection(ctx, req)
+	s.logger.InfoContext(ctx, "calling AI sentiment analysis service")
+
+	sentimentReq := &aiclient.SentimentRequest{
+		LearningReflect: req.LearningReflect,
+		MoodReflect:     req.MoodReflect,
+		FeelScore:       req.FeelScore,
+		ProgressScore:   req.ProgressScore,
+		ChallengeScore:  req.ChallengeScore,
+	}
+
+	sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "AI sentiment analysis failed", "error", err)
+		return nil, apperror.NewInternal(fmt.Errorf("failed to analyze reflection: %w", err))
+	}
+
+	s.logger.InfoContext(ctx, "AI analysis successful", 
+		"sentiment", sentimentResp.SentimentAnalysis, 
+		"reflection_score", sentimentResp.ReflectionScore,
+		"weighted_reflection_score", sentimentResp.WeightedReflectionScore,
+	)
+
+	id, err := s.refRepo.CreateReflection(ctx, req, sentimentResp.Summary, sentimentResp.SentimentAnalysis, sentimentResp.PrimaryEmotion, sentimentResp.StrugglePoint, sentimentResp.AIConfidentScore, sentimentResp.ReflectionScore, sentimentResp.WeightedReflectionScore)
 	if err != nil {
 		fmt.Printf("CreateReflection database error: %v\n", err)
 		if apperror.IsDuplicateKeyError(err) {
@@ -63,33 +61,17 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewInternal(err)
 	}
 
-	// Build response with AI sentiment data
-	resp := &model.ReflectionResponse{
-		ReflectID:       id,
-		Sentiment:       req.Mood,
-		ReflectionScore: 0,
-		Summary:         req.Learned,
-	}
-
-	// Add AI analysis data if available
-	if sentimentResp != nil {
-		resp.Sentiment = sentimentResp.Sentiment
-		resp.ReflectionScore = sentimentResp.ReflectionScore
-		resp.Summary = sentimentResp.Summary
-		resp.Advanced = &model.AdvancedMetrics{
-			PrimaryEmotion:      sentimentResp.Advanced.PrimaryEmotion,
-			ConfidenceScore:     sentimentResp.Advanced.ConfidenceScore,
-			StrugglePoint:       sentimentResp.Advanced.StrugglePoint,
-			LearningDisposition: sentimentResp.Advanced.LearningDisposition,
-			ConsistencyCheck:    sentimentResp.Advanced.ConsistencyCheck,
-		}
-		resp.DevelopmentPlan = &model.DevelopmentPlan{
-			NextSteps: sentimentResp.DevelopmentPlan.NextSteps,
-		}
-		resp.RerankedResults = sentimentResp.RerankedResults
-	}
-
-	return resp, nil
+	return &model.ReflectionResponse{
+		ReflectID:               id,
+		Summary:                 sentimentResp.Summary,
+		SentimentAnalysis:       sentimentResp.SentimentAnalysis,
+		PrimaryEmotion:          sentimentResp.PrimaryEmotion,
+		StrugglePoint:           sentimentResp.StrugglePoint,
+		DevelopmentPlan:         sentimentResp.DevelopmentPlan,
+		AIConfidentScore:        sentimentResp.AIConfidentScore,
+		ReflectionScore:         sentimentResp.ReflectionScore,
+		WeightedReflectionScore: sentimentResp.WeightedReflectionScore,
+	}, nil
 }
 
 func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
@@ -118,21 +100,13 @@ func (s *serviceImpl) UpdateReflection(ctx context.Context, reflectID string, re
 	if reflectID == "" {
 		return apperror.NewBadRequest("reflect_id is required")
 	}
-	if req.Learned == "" {
-		return apperror.NewBadRequest("what have learned is required")
+	if req.LearningReflect == "" {
+		return apperror.NewBadRequest("learning_reflect is required")
 	}
-	if req.Reflect == "" {
-		return apperror.NewBadRequest("reflection is required")
+	if req.MoodReflect == "" {
+		return apperror.NewBadRequest("mood_reflect is required")
 	}
-	if req.FeelScore == "" {
-		return apperror.NewBadRequest("feel_score is required")
-	}
-	if req.ProgressScore == "" {
-		return apperror.NewBadRequest("progress_score is required")
-	}
-	if req.ChallengeScore == "" {
-		return apperror.NewBadRequest("challenge_score is required")
-	}
+
 	if err := s.refRepo.UpdateReflection(ctx, reflectID, req); err != nil {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("cannot update: reflection id '%s' not found", reflectID)
@@ -161,5 +135,7 @@ func (s *serviceImpl) DeleteReflection(ctx context.Context, reflectID string) er
 		}
 		return apperror.NewInternal(err)
 	}
+
+	s.logger.InfoContext(ctx, "reflection deleted successfully", "reflect_id", reflectID)
 	return nil
 }

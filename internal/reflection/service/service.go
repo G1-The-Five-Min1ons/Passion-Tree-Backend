@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"passiontree/internal/reflection/model"
 	"passiontree/internal/reflection/repository"
 	"passiontree/internal/platform/aiclient"
@@ -32,11 +33,13 @@ type ReflectionService interface {
 type serviceImpl struct {
 	refRepo  repository.RepositoryReflection
 	aiClient *aiclient.AIClient
+	logger   *slog.Logger
 }
 
 func NewService(repo repository.RepositoryReflection, aiClient *aiclient.AIClient) ReflectionService {
 	return &serviceImpl{
 		refRepo:  repo,
 		aiClient: aiClient,
+		logger:   slog.Default(),
 	}
 }

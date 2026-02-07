@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log"
+	"log/slog"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/service"
 
@@ -10,11 +11,13 @@ import (
 
 type Handler struct {
 	reflectSvc service.ReflectionService
+	logger     *slog.Logger
 }
 
 func NewHandler(svc service.ReflectionService) *Handler {
 	return &Handler{
 		reflectSvc: svc,
+		logger:     slog.Default(),
 	}
 }
 

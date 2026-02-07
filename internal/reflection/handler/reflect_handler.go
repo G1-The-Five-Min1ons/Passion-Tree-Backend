@@ -24,12 +24,12 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "reflection created successfully", "reflect_id", res.ReflectID)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "reflection created successfully",
-		"data": fiber.Map{
-			"reflect_id": res,
-		},
+		"data":    res,
 	})
 }
 
