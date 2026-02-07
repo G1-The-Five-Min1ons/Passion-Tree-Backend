@@ -1,0 +1,91 @@
+name: Build, Push and Deploy to Azure Container App
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: passiontreecontainerregistry
+  IMAGE_NAME: backend-app
+  CONTAINER_APP_NAME: backend-go
+  RESOURCE_GROUP: Passion-Tree
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and Push Image
+        run: |
+          IMAGE_TAG="${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker build . -t $IMAGE_TAG
+          docker push $IMAGE_TAG
+          docker tag $IMAGE_TAG ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+
+      - name: Debug - Print Environment Variables
+        run: |
+          echo "GITHUB_SHA: $GITHUB_SHA"
+          echo "ACR_NAME: ${{ env.ACR_NAME }}"
+          echo "IMAGE_NAME: ${{ env.IMAGE_NAME }}"
+          echo "CONTAINER_APP_NAME: ${{ env.CONTAINER_APP_NAME }}"
+          echo "RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}"
+          echo "APP_URL: ${{ secrets.APP_URL }}"
+          echo "AZURESQL_SERVER: ${{ secrets.AZURESQL_SERVER }}"
+          echo "AI_SERVICE_URL: ${{ secrets.AI_SERVICE_URL }}"
+          echo "--- List all env ---"
+          printenv
+
+      - name: Set Container App Secrets
+        run: |
+          az containerapp secret set \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --secrets \
+              "azuresql-password=${{ secrets.AZURESQL_PASSWORD }}" \
+              "azure-storage-conn=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              "smtp-password=${{ secrets.SMTP_PASSWORD }}" \
+              "mailersend-api-key=${{ secrets.MAILERSEND_API_KEY }}"
+
+      - name: Deploy to Azure Container App
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --set-env-vars \
+              "APP_ENV=${{ secrets.APP_ENV }}" \
+              "APP_URL=${{ secrets.APP_URL }}" \
+              "BACKEND_PORT=${{ secrets.BACKEND_PORT }}" \
+              "AI_PORT=${{ secrets.AI_PORT }}" \
+              "AZURESQL_SERVER=${{ secrets.AZURESQL_SERVER }}" \
+              "AZURESQL_PORT=${{ secrets.AZURESQL_PORT }}" \
+              "AZURESQL_USER=${{ secrets.AZURESQL_USER }}" \
+              "AZURESQL_PASSWORD=${{ secrets.AZURESQL_PASSWORD }}" \
+              "AZURESQL_DATABASE=${{ secrets.AZURESQL_DATABASE }}" \
+              "AI_SERVICE_URL=${{ secrets.AI_SERVICE_URL }}" \
+              "AZURE_STORAGE_CONNECTION_STRING=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              "CONTAINER_LEARNING_PATH=${{ secrets.CONTAINER_LEARNING_PATH }}" \
+              "CONTAINER_PROFILE=${{ secrets.CONTAINER_PROFILE }}" \
+              "SMTP_HOST=${{ secrets.SMTP_HOST }}" \
+              "SMTP_PORT=${{ secrets.SMTP_PORT }}" \
+              "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" \
+              "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" \
+              "SMTP_FROM_EMAIL=${{ secrets.SMTP_FROM_EMAIL }}" \
+              "MAILERSEND_API_KEY=${{ secrets.MAILERSEND_API_KEY }}"

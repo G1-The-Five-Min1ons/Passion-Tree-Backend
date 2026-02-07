@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 ENV CGO_ENABLED=0
 ENV GOOS=linux
-RUN go build -ldflags "-s -w" -o /out/app ./
+RUN go build -ldflags "-s -w" -o /out/app ./cmd
 
 # 2) Runtime stage
 FROM alpine:3.20
@@ -18,6 +18,6 @@ COPY --from=builder /out/app ./app
 # Create non-root user
 RUN adduser -D -H -u 10001 appuser
 USER 10001
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=5000
+EXPOSE 5000
 ENTRYPOINT ["/app/app"]

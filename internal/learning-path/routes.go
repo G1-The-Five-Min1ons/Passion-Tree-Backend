@@ -1,19 +1,20 @@
 package learningpath
 
 import (
+	"log/slog"
+	"github.com/gofiber/fiber/v2"
+
 	"passiontree/internal/database"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/learning-path/service"
 	"passiontree/internal/platform/aiclient"
-
-	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient) {
+func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient, logger *slog.Logger) {
 	repo := repository.NewRepository(db)
-	svc := service.NewService(repo, aiClient)
-	h := handler.NewHandler(svc)
+	svc := service.NewService(repo, aiClient, logger)
+	h := handler.NewHandler(svc, logger)
 
 	paths := r.Group("/learningpaths")
 	{

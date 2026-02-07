@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log"
 	"log/slog"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/service"
@@ -14,7 +13,7 @@ type Handler struct {
 	logger     *slog.Logger
 }
 
-func NewHandler(svc service.ReflectionService) *Handler {
+func NewHandler(svc service.ReflectionService, logger *slog.Logger) *Handler {
 	return &Handler{
 		reflectSvc: svc,
 		logger:     slog.Default(),
@@ -22,9 +21,15 @@ func NewHandler(svc service.ReflectionService) *Handler {
 }
 
 func (h *Handler) handleError(c *fiber.Ctx, err error) error {
+	ctx := c.UserContext()
+
 	if appErr, ok := err.(*apperror.AppError); ok {
 		if appErr.Log != nil {
-			log.Printf("[APP ERROR] Code: %d, Msg: %s, Cause: %v", appErr.Code, appErr.Message, appErr.Log)
+			h.logger.WarnContext(ctx, "application error",
+				"code", appErr.Code,
+				"message", appErr.Message,
+				"cause", appErr.Log,
+			)
 		}
 		return c.Status(appErr.Code).JSON(fiber.Map{
 			"success": false,
@@ -32,7 +37,11 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 		})
 	}
 
-	log.Printf("[UNKNOWN ERROR] %v", err)
+	h.logger.ErrorContext(ctx, "unexpected system error", 
+		"error", err.Error(),
+		"path", c.Path(),
+	)
+	
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 		"success": false,
 		"error":   "internal server error",

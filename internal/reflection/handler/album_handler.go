@@ -24,6 +24,8 @@ func (h *Handler) CreateAlbum(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "album created successfully", "album_id", resp)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "album created successfully",
@@ -44,6 +46,8 @@ func (h *Handler) GetAlbumByID(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "album retrieved successfully", "album_id", albumID)
+
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data": fiber.Map{
@@ -62,6 +66,8 @@ func (h *Handler) GetAlbumsByUserID(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "albums retrieved successfully", "user_id", userID, "count", len(albums))
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -88,6 +94,8 @@ func (h *Handler) UpdateAlbum(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "album updated successfully", "album_id", albumID)
+
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "album updated successfully",
@@ -104,6 +112,8 @@ func (h *Handler) DeleteAlbum(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "album deleted successfully", "album_id", albumID)
 
 	return c.JSON(fiber.Map{
 		"success": true,

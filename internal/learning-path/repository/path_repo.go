@@ -72,17 +72,17 @@ func (r *repositoryImpl) GetLearnningPathByID(ctx context.Context, path_id strin
 	return &p, nil
 }
 
-func (r *repositoryImpl) CreateLearnningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
-	newID := uuid.New().String()
-	now := time.Now()
-	query := `INSERT INTO learning_path (path_id, title, objective, description, cover_img_url, avg_rating, publish_status, creator_ID, create_at, update_at) VALUES (@p1, @p2, @p3, @p4, @p5, 0.0, @p6, @p7, @p8, @p9)`
+	func (r *repositoryImpl) CreateLearnningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
+		newID := uuid.New().String()
+		now := time.Now()
+		query := `INSERT INTO learning_path (path_id, title, objective, description, cover_img_url, avg_rating, publish_status, creator_ID, create_at, update_at) VALUES (@p1, @p2, @p3, @p4, @p5, 0.0, @p6, @p7, @p8, @p9)`
 
-	_, err := r.db.ExecContext(ctx, query, newID, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Status, req.CreatorID, now, now)
-	if err != nil {
-		return "", fmt.Errorf("repo.CreateLearnningPath exec failed: %w", err)
+		_, err := r.db.ExecContext(ctx, query, newID, req.Title, req.Objective, req.Description, req.CoverImgURL, req.Status, req.CreatorID, now, now)
+		if err != nil {
+			return "", fmt.Errorf("repo.CreateLearnningPath exec failed: %w", err)
+		}
+		return newID, nil
 	}
-	return newID, nil
-}
 
 func (r *repositoryImpl) UpdateLearnningPath(ctx context.Context, id string, req model.UpdatePathRequest) error {
 	query := `UPDATE learning_path SET title=@p1, objective=@p2, description=@p3, cover_img_url=@p4, publish_status=@p5, update_at=@p6 WHERE path_id=@p7`
