@@ -5,21 +5,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"passiontree/internal/database"
+	"passiontree/internal/pkg/storage"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/learning-path/service"
 	"passiontree/internal/platform/aiclient"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient, logger *slog.Logger) {
+func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient, logger *slog.Logger, storageClient *storage.BlobService) {
 	repo := repository.NewRepository(db)
 	svc := service.NewService(repo, aiClient, logger)
-	h := handler.NewHandler(svc, logger)
+	h := handler.NewHandler(svc, logger, storageClient)
 
 	paths := r.Group("/learningpaths")
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
+		paths.Post("/uploadimg", h.GetUploadURL)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
 		paths.Post("/sync/:path_id", h.SyncLearningPath)
@@ -28,7 +30,8 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		paths.Delete("/:path_id", h.Delete)
 		paths.Post("/:path_id/start", h.Start)
 		paths.Post("/:path_id/nodes", h.CreateNode)
-		paths.Post("/:path_id/generate", h.Generate)
+		paths.Post("/generate", h.Generate)
+		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 	}
 
 	nodes := r.Group("/learningpaths/nodes")
@@ -41,13 +44,14 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		nodes.Post("/:node_id/comments", h.CreateComment)
 		nodes.Get("/:node_id/questions", h.GetQuestions)
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
-		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
+		nodes.Delete("/materials/:material_id", h.DeleteMaterial)
 	}
 
 	questions := r.Group("/learningpaths/questions")
 	{
 		questions.Delete("/:question_id", h.DeleteQuestion)
 		questions.Post("/:question_id/choices", h.CreateChoice)
+		questions.Delete("/choices/:choice_id", h.DeleteChoice)
 	}
 
 	userPaths := r.Group("/user/learningpaths")
@@ -56,9 +60,10 @@ func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIC
 		userPaths.Get("/:path_id/progress", h.GetPathProgress)
 	}
 
-	r.Post("/learningpaths/comments/:comment_id/mentions", h.CreateMention)
-	r.Post("/learningpaths/comments/:comment_id/reactions", h.CreateReaction)
-	r.Delete("/learningpaths/comments/:comment_id", h.DeleteComment)
-	r.Delete("/learningpaths/choices/:choice_id", h.DeleteChoice)
-	r.Delete("/learningpaths/materials/:material_id", h.DeleteMaterial)
+	comments := r.Group("/learningpaths/comments")
+	{
+		comments.Post("/:comment_id/mentions", h.CreateMention)
+		comments.Post("/:comment_id/reactions", h.CreateReaction)
+		comments.Delete("/:comment_id", h.DeleteComment)
+	}
 }

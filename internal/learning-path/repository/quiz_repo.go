@@ -10,44 +10,78 @@ import (
 )
 
 func (r *repositoryImpl) CreateQuestion(ctx context.Context, req model.CreateQuestionRequest) (string, error) {
-	id := uuid.New().String()
+	return r.createQuestionInternal(ctx, r.db, req)
+}
+
+func (r *repositoryImpl) createQuestionInternal(ctx context.Context, db DBTX, req model.CreateQuestionRequest) (string, error) {
+	question_id := uuid.New().String()
 	query := `INSERT INTO node_question (question_id, question_text, type, node_id) VALUES (@p1, @p2, @p3, @p4)`
-	_, err := r.db.ExecContext(ctx, query, id, req.QuestionText, req.Type, req.NodeID)
+	_, err := db.ExecContext(ctx, query, question_id, req.QuestionText, req.Type, req.NodeID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateQuestion exec failed: %w", err)
 	}
-	return id, nil
+	return question_id, nil
 }
 
 func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string) ([]model.NodeQuestion, error) {
-	query := `SELECT question_id, question_text, type, node_id FROM node_question WHERE node_id = @p1`
-	rows, err := r.db.QueryContext(ctx, query, nodeID)
-	if err != nil {
-		return nil, fmt.Errorf("repo.GetQuestionsByNodeID query failed: %w", err)
-	}
-	defer rows.Close()
+    queryQ := `SELECT question_id, question_text, type, node_id FROM node_question WHERE node_id = @p1`
+    rowsQ, err := r.db.QueryContext(ctx, queryQ, nodeID)
+    if err != nil {
+        return nil, fmt.Errorf("repo.GetQuestionsByNodeID query questions failed: %w", err)
+    }
+    defer rowsQ.Close()
 
-	var questions []model.NodeQuestion
-	for rows.Next() {
-		var q model.NodeQuestion
-		if err := rows.Scan(&q.QuestionID, &q.QuestionText, &q.Type, &q.NodeID); err != nil {
-			return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan failed: %w", err)
-		}
+    questions := []model.NodeQuestion{}
+    for rowsQ.Next() {
+        var q model.NodeQuestion
+        if err := rowsQ.Scan(&q.QuestionID, &q.QuestionText, &q.Type, &q.NodeID); err != nil {
+            return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan question failed: %w", err)
+        }
+        q.Choices = []model.QuestionChoice{}
+        questions = append(questions, q)
+    }
 
-		choices, err := r.GetChoicesByQuestionID(ctx, q.QuestionID)
-		if err != nil {
-			return nil, fmt.Errorf("repo.GetQuestionsByNodeID fetch choices failed: %w", err)
-		}
-		q.Choices = choices
+    if err := rowsQ.Err(); err != nil {
+        return nil, fmt.Errorf("repo.GetQuestionsByNodeID questions iteration failed: %w", err)
+    }
 
-		questions = append(questions, q)
-	}
+    if len(questions) == 0 {
+        return questions, nil
+    }
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("repo.GetQuestionsByNodeID row iteration failed: %w", err)
-	}
+    queryC := `
+        SELECT c.choice_id, c.choice_text, c.is_correct, c.reasoning, c.question_id 
+        FROM question_choice c
+        JOIN node_question q ON c.question_id = q.question_id
+        WHERE q.node_id = @p1
+    `
+    rowsC, err := r.db.QueryContext(ctx, queryC, nodeID)
+    if err != nil {
+        return nil, fmt.Errorf("repo.GetQuestionsByNodeID query choices failed: %w", err)
+    }
+    defer rowsC.Close()
 
-	return questions, nil
+    choicesMap := make(map[string][]model.QuestionChoice)
+    
+    for rowsC.Next() {
+        var c model.QuestionChoice
+        if err := rowsC.Scan(&c.ChoiceID, &c.ChoiceText, &c.IsCorrect, &c.Reasoning, &c.QuestionID); err != nil {
+            return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan choice failed: %w", err)
+        }
+        choicesMap[c.QuestionID] = append(choicesMap[c.QuestionID], c)
+    }
+
+    if err := rowsC.Err(); err != nil {
+        return nil, fmt.Errorf("repo.GetQuestionsByNodeID choices iteration failed: %w", err)
+    }
+
+    for i := range questions {
+        if choices, ok := choicesMap[questions[i].QuestionID]; ok {
+            questions[i].Choices = choices
+        }
+    }
+
+    return questions, nil
 }
 
 func (r *repositoryImpl) DeleteQuestion(ctx context.Context, questionID string) error {
@@ -64,9 +98,13 @@ func (r *repositoryImpl) DeleteQuestion(ctx context.Context, questionID string) 
 }
 
 func (r *repositoryImpl) CreateChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error) {
+	return r.createChoiceInternal(ctx, r.db, req)
+}
+
+func (r *repositoryImpl) createChoiceInternal(ctx context.Context, db DBTX, req model.CreateChoiceRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO question_choice (choice_id, choice_text, is_correct, reasoning, node_id) VALUES (@p1, @p2, @p3, @p4, @p5)`
-	_, err := r.db.ExecContext(ctx, query, id, req.ChoiceText, req.IsCorrect, req.Reasoning, req.QuestionID)
+	query := `INSERT INTO question_choice (choice_id, choice_text, is_correct, reasoning, question_id) VALUES (@p1, @p2, @p3, @p4, @p5)`
+	_, err := db.ExecContext(ctx, query, id, req.ChoiceText, req.IsCorrect, req.Reasoning, req.QuestionID)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateChoice exec failed: %w", err)
 	}
@@ -74,7 +112,7 @@ func (r *repositoryImpl) CreateChoice(ctx context.Context, req model.CreateChoic
 }
 
 func (r *repositoryImpl) GetChoicesByQuestionID(ctx context.Context, questionID string) ([]model.QuestionChoice, error) {
-	query := `SELECT choice_id, choice_text, is_correct, reasoning, node_id FROM question_choice WHERE node_id = @p1`
+	query := `SELECT choice_id, choice_text, is_correct, reasoning, question_id FROM question_choice WHERE question_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, questionID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetChoicesByQuestionID query failed: %w", err)

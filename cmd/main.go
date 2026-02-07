@@ -8,12 +8,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	flogger "github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/robfig/cron/v3"
 
 	"passiontree/internal/config"
 	"passiontree/internal/database"
+	"passiontree/internal/pkg/storage"
 	"passiontree/internal/pkg/logger"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/routes"
+	"passiontree/internal/worker"
 )
 
 const (
@@ -52,6 +55,9 @@ func main() {
 	app := createFiberApp(myLogger)
     routes.Setup(app, db, aiClient, storageClient, myLogger)
 
+	cronJob := initializeBackgroundJobs(db, storageClient, myLogger)
+    defer cronJob.Stop()
+
 	// Start server
 	port := getPort()
 	myLogger.Info("starting server", "port", port, "app_name", AppName)
@@ -84,13 +90,13 @@ func initializeAIClient(serviceURL string, logger *slog.Logger) *aiclient.AIClie
 }
 
 // initializeStorageClient creates Azure Storage client if configured
-func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *database.StorageClient {
+func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *storage.BlobService {
 	if cfg.AzureStorageConnString == "" {
 		logger.Info("Azure Storage not configured, skipping initialization")
 		return nil
 	}
 
-	storageClient, err := database.NewStorageClient(cfg)
+	storageClient, err := database.InitBlobStorage(cfg)
 	if err != nil {
 		logger.Warn("Failed to initialize Azure Storage", "error", err)
 		return nil
@@ -122,4 +128,23 @@ func getPort() string {
 		return port
 	}
 	return DefaultPort
+}
+
+func initializeBackgroundJobs(db database.Database, storage *storage.BlobService, logger *slog.Logger) *cron.Cron {
+    cleanupWorker := worker.NewCleanupWorker(db, storage)
+    c := cron.New()
+    
+    // Run every midnight
+    _, err := c.AddFunc("0 0 * * *", func() {
+        cleanupWorker.RunCleanup()
+    })
+
+    if err != nil {
+        logger.Warn("Error initializing background jobs: %v", err)
+        return c
+    }
+
+    c.Start()
+    logger.Warn("Background jobs started")
+    return c
 }

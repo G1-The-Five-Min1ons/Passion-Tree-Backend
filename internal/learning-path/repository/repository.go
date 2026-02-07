@@ -9,13 +9,14 @@ import (
 
 type RepositoryLearningPath interface {
 	GetAllLearnningPath(ctx context.Context) ([]model.LearningPath, error)
-	GetLearnningPathByID(ctx context.Context, id string) (*model.LearningPath, error)
+	GetLearnningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error)
 	CreateLearnningPath(ctx context.Context, req model.CreatePathRequest) (string, error)
-	UpdateLearnningPath(ctx context.Context, id string, req model.UpdatePathRequest) error
-	DeleteLearnningPath(ctx context.Context, id string) error
+	UpdateLearnningPath(ctx context.Context, path_id string, req model.UpdatePathRequest) error
+	DeleteLearnningPath(ctx context.Context, path_id string) error
 	EnrollLearnningPathUser(ctx context.Context, pathID string, userID string) error
 	GetLearnningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
+	UpdateLearnningPathImage(ctx context.Context, pathID string, coverImgURL string) error
 }
 
 type RepositoryNode interface {
@@ -28,6 +29,7 @@ type RepositoryNode interface {
 	GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
 	DeleteMaterial(ctx context.Context, materialID string) error
 	UpdateNodeSequence(ctx context.Context, nodeIDs []string) error
+	CreateNodeWithContent(ctx context.Context, req model.CreateNodeRequest) (string, error)
 }
 
 type RepositoryComment interface {
@@ -48,6 +50,18 @@ type RepositoryQuiz interface {
 	DeleteChoice(ctx context.Context, choiceID string) error
 }
 
+type DBTX interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+}
+
+type Database interface {
+	DBTX
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	Close() error
+}
+
 type Repository interface {
 	RepositoryLearningPath
 	RepositoryNode
@@ -56,7 +70,7 @@ type Repository interface {
 }
 
 type repositoryImpl struct {
-	db *sql.DB
+	db Database
 }
 
 func NewRepository(ds database.Database) Repository {

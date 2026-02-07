@@ -4,6 +4,7 @@ import (
 	"context"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -48,10 +49,39 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 	})
 }
 
+func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
+	filename := c.Query("filename")
+	if filename == "" {
+		return h.handleError(c, apperror.NewBadRequest("filename is required"))
+	}
+
+	if !strings.HasSuffix(strings.ToLower(filename), ".jpg") && 
+	   !strings.HasSuffix(strings.ToLower(filename), ".png") && 
+	   !strings.HasSuffix(strings.ToLower(filename), ".jpeg") {
+		return h.handleError(c, apperror.NewBadRequest("Only JPEG and PNG images are allowed"))
+	}
+
+	uploadURL, publicURL, err := h.storage.GeneratePresignedURL(filename, "learning-path", 15*time.Minute)
+	if err != nil {
+		return h.handleError(c, apperror.NewInternal(err))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Presigned URL generated successfully",
+		"data": fiber.Map{
+			"upload_url": uploadURL,
+			"public_url": publicURL,
+			"expires_in": "15m",
+		},
+	})
+}
+
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreatePathRequest
-	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
+	
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
@@ -75,7 +105,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 }
 
 func (h *Handler) Update(c *fiber.Ctx) error {
-	id := c.Params("path_id")
+	path_id := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 	var req model.UpdatePathRequest
@@ -83,19 +113,19 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	h.logger.InfoContext(ctx, "updating learning path", "path_id", id)
+	h.logger.InfoContext(ctx, "updating learning path", "path_id", path_id)
 
-	if err := h.pathSvc.UpdatePath(ctx, id, req); err != nil {
+	if err := h.pathSvc.UpdatePath(ctx, path_id, req); err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "learning path updated successfully", "path_id", id)
+	h.logger.InfoContext(ctx, "learning path updated successfully", "path_id", path_id)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Learning path updated successfully",
 		"data": fiber.Map{
-			"path_id": id,
+			"path_id": path_id,
 		},
 	})
 }
@@ -221,4 +251,30 @@ func (h *Handler) Generate(c *fiber.Ctx) error {
 		"message": "Path generated successfully",
 		"data":    result,
 	})
+}
+
+func (h *Handler) UpdateCoverImage(c *fiber.Ctx) error {
+    pathID := c.Params("path_id")
+    ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+    defer cancel()
+
+    var req model.UpdateImageRequest
+    if err := c.BodyParser(&req); err != nil {
+        return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+    }
+
+    h.logger.InfoContext(ctx, "requesting update cover image", "path_id", pathID)
+
+    if err := h.pathSvc.UpdatePathCoverImage(ctx, pathID, req.CoverImgURL); err != nil {
+        return h.handleError(c, err)
+    }
+
+    return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "success": true,
+        "message": "Learning path cover image updated successfully",
+        "data": fiber.Map{
+            "path_id": pathID,
+            "cover_image_url": req.CoverImgURL,
+        },
+    })
 }

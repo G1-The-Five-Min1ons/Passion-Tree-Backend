@@ -6,18 +6,20 @@ import (
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/platform/aiclient"
+	"passiontree/internal/pkg/storage"
 )
 
 type ServiceLearningPath interface {
 	GetPaths(ctx context.Context) ([]model.LearningPath, error)
 	GetPathDetails(ctx context.Context, id string) (*model.LearningPath, error)
 	CreatePath(ctx context.Context, req model.CreatePathRequest) (string, error)
-	UpdatePath(ctx context.Context, id string, req model.UpdatePathRequest) error
+	UpdatePath(ctx context.Context, path_id string, req model.UpdatePathRequest) error
 	DeletePath(ctx context.Context, id string) error
 	StartPath(ctx context.Context, pathID string, userID string) error
 	GetEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	GeneratePathWithAI(ctx context.Context, topic string) (*model.GeneratedPathResponse, error)
+	UpdatePathCoverImage(ctx context.Context, pathID string, coverImgURL string) error
 }
 
 type ServiceSearch interface {
@@ -67,6 +69,7 @@ type serviceImpl struct {
 	quizRepo    repository.RepositoryQuiz
 	logger  	*slog.Logger
 	aiClient    *aiclient.AIClient
+	storage    *storage.BlobService
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
