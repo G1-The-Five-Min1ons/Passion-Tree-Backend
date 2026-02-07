@@ -124,3 +124,32 @@ func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 		"message": "tree deleted successfully",
 	})
 }
+
+// PauseTree handles pausing/unpausing a tree
+func (h *Handler) PauseTree(c *fiber.Ctx) error {
+	treeID := c.Params("tree_id")
+	var req model.PauseTreeRequest
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	err := h.reflectSvc.PauseTree(ctx, treeID, req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	pauseStatus := "paused"
+	if !req.IsPause {
+		pauseStatus = "unpaused"
+	}
+
+	h.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID)
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "tree " + pauseStatus + " successfully",
+	})
+}

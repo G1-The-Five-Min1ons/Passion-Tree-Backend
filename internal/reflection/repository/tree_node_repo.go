@@ -1,0 +1,265 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"passiontree/internal/reflection/model"
+
+	"github.com/google/uuid"
+)
+
+// CreateTreeNode creates a single tree node record
+func (r *repositoryImpl) CreateTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
+	treeNodeID := uuid.New().String()
+	
+	query := `
+		INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, child_node, create_at)
+		VALUES (@p1, @p2, @p3, @p4, @p5, GETDATE())
+	`
+	
+	_, err := r.db.ExecContext(ctx, query, treeNodeID, req.NodeTitle, req.NodeID, req.TreeID, req.ChildNode)
+	if err != nil {
+		return "", fmt.Errorf("failed to create tree_node: %w", err)
+	}
+	
+	return treeNodeID, nil
+}
+
+// GetTreeNodesByTreeID retrieves all tree nodes for a specific tree
+func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error) {
+	query := `
+		SELECT CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
+		       tn.node_title,
+		       CONVERT(VARCHAR(36), tn.node_id) as node_id,
+		       tn.node_score,
+		       tn.create_at,
+		       CONVERT(VARCHAR(36), tn.tree_id) as tree_id,
+		       CASE WHEN tn.child_node IS NOT NULL THEN CONVERT(VARCHAR(36), tn.child_node) ELSE NULL END as child_node,
+		       ISNULL(n.sequence, 0) as sequence
+		FROM Tree_Node tn
+		LEFT JOIN node n ON tn.node_id = n.node_id
+		WHERE tn.tree_id = @p1
+		ORDER BY n.sequence ASC
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, treeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tree nodes: %w", err)
+	}
+	defer rows.Close()
+	
+	var nodes []model.TreeNode
+	for rows.Next() {
+		var node model.TreeNode
+		err := rows.Scan(
+			&node.TreeNodeID,
+			&node.NodeTitle,
+			&node.NodeID,
+			&node.NodeScore,
+			&node.CreatedAt,
+			&node.TreeID,
+			&node.ChildNode,
+			&node.Sequence,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan tree node: %w", err)
+		}
+		nodes = append(nodes, node)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetTreeNodesByTreeID row iteration failed: %w", err)
+	}
+
+	return nodes, nil
+}
+
+// GetTreeNodeByID retrieves a specific tree node by its ID
+func (r *repositoryImpl) GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
+	query := `
+		SELECT CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
+		       tn.node_title,
+		       CONVERT(VARCHAR(36), tn.node_id) as node_id,
+		       tn.node_score,
+		       tn.create_at,
+		       CONVERT(VARCHAR(36), tn.tree_id) as tree_id,
+		       CASE WHEN tn.child_node IS NOT NULL THEN CONVERT(VARCHAR(36), tn.child_node) ELSE NULL END as child_node,
+		       ISNULL(n.sequence, 0) as sequence
+		FROM Tree_Node tn
+		LEFT JOIN node n ON tn.node_id = n.node_id
+		WHERE tn.tree_node_id = @p1
+	`
+	
+	var node model.TreeNode
+	err := r.db.QueryRowContext(ctx, query, treeNodeID).Scan(
+		&node.TreeNodeID,
+		&node.NodeTitle,
+		&node.NodeID,
+		&node.NodeScore,
+		&node.CreatedAt,
+		&node.TreeID,
+		&node.ChildNode,
+		&node.Sequence,
+	)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("repo.GetTreeNodeByID scan failed: %w", err)
+	}
+	
+	return &node, nil
+}
+
+// UpdateTreeNode updates a tree node
+func (r *repositoryImpl) UpdateTreeNode(ctx context.Context, treeNodeID string, req model.UpdateTreeNodeRequest) error {
+	query := `
+		UPDATE Tree_Node
+		SET node_title = @p1, node_score = @p2, child_node = @p3
+		WHERE tree_node_id = @p4
+	`
+	
+	result, err := r.db.ExecContext(ctx, query, req.NodeTitle, req.NodeScore, req.ChildNode, treeNodeID)
+	if err != nil {
+		return fmt.Errorf("failed to update tree node: %w", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+	
+	return nil
+}
+
+// DeleteTreeNode deletes a tree node
+func (r *repositoryImpl) DeleteTreeNode(ctx context.Context, treeNodeID string) error {
+	query := `DELETE FROM Tree_Node WHERE tree_node_id = @p1`
+	
+	result, err := r.db.ExecContext(ctx, query, treeNodeID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tree node: %w", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+	
+	return nil
+}
+
+// CreateTreeNodes creates tree_node records for all nodes in a learning path
+func (r *repositoryImpl) CreateTreeNodes(ctx context.Context, treeID string, pathID string) error {
+	// First, get all nodes from the learning path
+	nodesQuery := `
+		SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, sequence
+		FROM node
+		WHERE path_id = @p1
+		ORDER BY sequence ASC
+	`
+	
+	rows, err := r.db.QueryContext(ctx, nodesQuery, pathID)
+	if err != nil {
+		return fmt.Errorf("failed to get nodes for tree: %w", err)
+	}
+	defer rows.Close()
+	
+	var nodeCount int
+	for rows.Next() {
+		var nodeID, title string
+		var sequence int
+		
+		if err := rows.Scan(&nodeID, &title, &sequence); err != nil {
+			return fmt.Errorf("failed to scan node: %w", err)
+		}
+		
+		// Create tree_node record
+		treeNodeID := uuid.New().String()
+		insertQuery := `
+			INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, create_at)
+			VALUES (@p1, @p2, @p3, @p4, GETDATE())
+		`
+		
+		_, err := r.db.ExecContext(ctx, insertQuery, treeNodeID, title, nodeID, treeID)
+		if err != nil {
+			return fmt.Errorf("failed to create tree_node: %w", err)
+		}
+		
+		nodeCount++
+	}
+	
+	if err = rows.Err(); err != nil {
+		return fmt.Errorf("row iteration failed: %w", err)
+	}
+	
+	// Update the node_count in the tree table
+	updateQuery := `
+		UPDATE tree
+		SET node_count = @p1, last_update = GETDATE()
+		WHERE tree_id = @p2
+	`
+	
+	_, err = r.db.ExecContext(ctx, updateQuery, nodeCount, treeID)
+	if err != nil {
+		return fmt.Errorf("failed to update tree node_count: %w", err)
+	}
+	
+	return nil
+}
+
+// GetNodesByPathID retrieves all nodes for a specific learning path, ordered by sequence
+func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.TreeNode, error) {
+	query := `
+		SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, 
+		       ISNULL(description, '') as description, 
+		       sequence, CONVERT(VARCHAR(36), path_id) as path_id
+		FROM node
+		WHERE path_id = @p1
+		ORDER BY sequence ASC
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, pathID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nodes: %w", err)
+	}
+	defer rows.Close()
+	
+	var nodes []model.TreeNode
+	for rows.Next() {
+		var node model.TreeNode
+		var title, description, pathID string
+		var sequence int
+		
+		err := rows.Scan(
+			&node.NodeID,
+			&title,
+			&description,
+			&sequence,
+			&pathID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan node: %w", err)
+		}
+		
+		node.NodeTitle = title
+		node.Sequence = sequence
+		nodes = append(nodes, node)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetNodesByPathID row iteration failed: %w", err)
+	}
+
+	return nodes, nil
+}

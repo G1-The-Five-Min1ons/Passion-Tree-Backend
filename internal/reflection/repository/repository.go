@@ -27,6 +27,16 @@ type RepositoryReflection interface {
 	GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error)
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTree(ctx context.Context, treeID string) error
+	PauseTree(ctx context.Context, treeID string, isPause bool) error
+	
+	// Tree Node methods
+	CreateTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
+	GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error)
+	GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error)
+	UpdateTreeNode(ctx context.Context, treeNodeID string, req model.UpdateTreeNodeRequest) error
+	DeleteTreeNode(ctx context.Context, treeNodeID string) error
+	CreateTreeNodes(ctx context.Context, treeID string, pathID string) error
+	GetNodesByPathID(ctx context.Context, pathID string) ([]model.TreeNode, error)
 }
 
 type repositoryImpl struct {

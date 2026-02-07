@@ -42,6 +42,17 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		trees.Get("", h.GetTreesByAlbumID)  // ?album_id=xxx
 		trees.Get("/:tree_id", h.GetTreeByID)
 		trees.Put("/:tree_id", h.UpdateTree)
+		trees.Patch("/:tree_id/pause", h.PauseTree)
 		trees.Delete("/:tree_id", h.DeleteTree)
+	}
+	
+	// Tree Node routes
+	treeNodes := r.Group("/tree-nodes")
+	{
+		treeNodes.Post("", h.CreateTreeNode)
+		treeNodes.Get("", h.GetTreeNodesByTreeID)  // ?tree_id=xxx
+		treeNodes.Get("/:tree_node_id", h.GetTreeNodeByID)
+		treeNodes.Put("/:tree_node_id", h.UpdateTreeNode)
+		treeNodes.Delete("/:tree_node_id", h.DeleteTreeNode)
 	}
 }

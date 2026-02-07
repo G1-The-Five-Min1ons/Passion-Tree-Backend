@@ -20,22 +20,73 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 	treeID := uuid.New().String()
 	
 	query := `
-		INSERT INTO tree (tree_id, title, status, is_pause, create_at, last_update, album_id)
-		VALUES (@p1, @p2, 'active', 0, GETDATE(), GETDATE(), @p3)
+		INSERT INTO tree (tree_id, title, difficulties, path_id, status, is_pause, node_count, create_at, last_update, album_id)
+		VALUES (@p1, @p2, @p3, @p4, 'active', 0, 0, GETDATE(), GETDATE(), @p5)
 	`
 	
-	_, err = tx.ExecContext(ctx, query, treeID, req.Title, req.AlbumID)
+	_, err = tx.ExecContext(ctx, query, treeID, req.Title, req.Difficulties, req.PathID, req.AlbumID)
 	if err != nil {
 		return "", fmt.Errorf("insert tree failed: %w", err)
 	}
 	
+	// Create tree nodes from learning path nodes
+	nodesQuery := `
+		SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, sequence
+		FROM node
+		WHERE path_id = @p1
+		ORDER BY sequence ASC
+	`
+	
+	rows, err := tx.QueryContext(ctx, nodesQuery, req.PathID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get nodes for tree: %w", err)
+	}
+	
+	var nodeCount int
+	for rows.Next() {
+		var nodeID, title string
+		var sequence int
+		
+		if err := rows.Scan(&nodeID, &title, &sequence); err != nil {
+			rows.Close()
+			return "", fmt.Errorf("failed to scan node: %w", err)
+		}
+		
+		// Create tree_node record
+		treeNodeID := uuid.New().String()
+		insertNodeQuery := `
+			INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, create_at)
+			VALUES (@p1, @p2, @p3, @p4, GETDATE())
+		`
+		
+		_, err := tx.ExecContext(ctx, insertNodeQuery, treeNodeID, title, nodeID, treeID)
+		if err != nil {
+			rows.Close()
+			return "", fmt.Errorf("failed to create tree_node: %w", err)
+		}
+		
+		nodeCount++
+	}
+	rows.Close()
+	
+	// Update node_count in tree
+	updateTreeQuery := `
+		UPDATE tree
+		SET node_count = @p1
+		WHERE tree_id = @p2
+	`
+	_, err = tx.ExecContext(ctx, updateTreeQuery, nodeCount, treeID)
+	if err != nil {
+		return "", fmt.Errorf("failed to update tree node_count: %w", err)
+	}
+	
 	// Increment tree_count in the album
-	updateQuery := `
+	updateAlbumQuery := `
 		UPDATE tree_album
 		SET tree_count = tree_count + 1, last_edit = GETDATE()
 		WHERE album_id = @p1
 	`
-	_, err = tx.ExecContext(ctx, updateQuery, req.AlbumID)
+	_, err = tx.ExecContext(ctx, updateAlbumQuery, req.AlbumID)
 	if err != nil {
 		return "", fmt.Errorf("update album tree count failed: %w", err)
 	}
@@ -50,7 +101,10 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 // GetTreeByID retrieves a tree by its ID
 func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error) {
 	query := `
-		SELECT CONVERT(VARCHAR(36), tree_id) as tree_id, title, status, is_pause, create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id
+		SELECT CONVERT(VARCHAR(36), tree_id) as tree_id, title, difficulties, 
+		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause, 
+		       ISNULL(node_count, 0) as node_count,
+		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id
 		FROM tree
 		WHERE tree_id = @p1
 	`
@@ -59,8 +113,11 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 	err := r.db.QueryRowContext(ctx, query, treeID).Scan(
 		&tree.TreeID,
 		&tree.Title,
+		&tree.Difficulties,
+		&tree.PathID,
 		&tree.Status,
 		&tree.IsPause,
+		&tree.NodeCount,
 		&tree.CreatedAt,
 		&tree.LastUpdate,
 		&tree.AlbumID,
@@ -79,7 +136,10 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 // GetTreesByAlbumID retrieves all trees for a specific album
 func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error) {
 	query := `
-		SELECT CONVERT(VARCHAR(36), tree_id) as tree_id, title, status, is_pause, create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id
+		SELECT CONVERT(VARCHAR(36), tree_id) as tree_id, title, difficulties, 
+		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause, 
+		       ISNULL(node_count, 0) as node_count,
+		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id
 		FROM tree
 		WHERE album_id = @p1
 		ORDER BY last_update DESC
@@ -97,8 +157,11 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 		err := rows.Scan(
 			&tree.TreeID,
 			&tree.Title,
+			&tree.Difficulties,
+			&tree.PathID,
 			&tree.Status,
 			&tree.IsPause,
+			&tree.NodeCount,
 			&tree.CreatedAt,
 			&tree.LastUpdate,
 			&tree.AlbumID,
@@ -189,6 +252,31 @@ func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit transaction failed: %w", err)
+	}
+	
+	return nil
+}
+
+// PauseTree toggles the pause state of a tree
+func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, isPause bool) error {
+	query := `
+		UPDATE tree
+		SET is_pause = @p1, last_update = GETDATE()
+		WHERE tree_id = @p2
+	`
+	
+	result, err := r.db.ExecContext(ctx, query, isPause, treeID)
+	if err != nil {
+		return fmt.Errorf("failed to pause tree: %w", err)
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
 	}
 	
 	return nil
