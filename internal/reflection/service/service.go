@@ -32,7 +32,6 @@ type ReflectionService interface {
 
 type serviceImpl struct {
 	refRepo  repository.RepositoryReflection
-	logger   *slog.Logger
 	aiClient *aiclient.AIClient
 	logger   *slog.Logger
 }
@@ -40,8 +39,7 @@ type serviceImpl struct {
 func NewService(repo repository.RepositoryReflection, aiClient *aiclient.AIClient, logger *slog.Logger) ReflectionService {
 	return &serviceImpl{
 		refRepo:  repo,
-		logger:   logger,
 		aiClient: aiClient,
-		logger:   slog.Default(),
+		logger:   logger,
 	}
 }

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
@@ -20,27 +21,10 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
 
-	if s.aiClient != nil {
-		s.logger.InfoContext(ctx, "calling AI sentiment analysis service")
-
-		sentimentReq := &aiclient.SentimentRequest{
-			WhatLearned:           req.Learned,
-			FeelingsAfterLearning: req.Reflect,
-		}
-
-		sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
-		if err != nil {
-			s.logger.WarnContext(ctx, "AI sentiment analysis failed, proceeding with defaults", "error", err)
-		} else {
-			req.Mood = sentimentResp.Sentiment
-			if req.Tag == "" {
-				req.Tag = sentimentResp.Advanced.PrimaryEmotion
-			}
-			s.logger.InfoContext(ctx, "AI analysis successful", 
-				"sentiment", sentimentResp.Sentiment, 
-				"reflection_score", sentimentResp.ReflectionScore,
-			)
-		}
+	// AI analysis is required
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "AI client is not available")
+		return nil, apperror.NewInternal(fmt.Errorf("AI analysis service is not configured"))
 	}
 
 	s.logger.InfoContext(ctx, "calling AI sentiment analysis service")
@@ -67,8 +51,8 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 
 	id, err := s.refRepo.CreateReflection(ctx, req, sentimentResp.Summary, sentimentResp.SentimentAnalysis, sentimentResp.PrimaryEmotion, sentimentResp.StrugglePoint, sentimentResp.AIConfidentScore, sentimentResp.ReflectionScore, sentimentResp.WeightedReflectionScore)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to save reflection to database", 
-			"error", err, 
+		s.logger.ErrorContext(ctx, "failed to save reflection to database",
+			"error", err,
 			"tree_node_id", req.TreeNodeID,
 		)
 		if apperror.IsDuplicateKeyError(err) {

@@ -16,7 +16,7 @@ type Handler struct {
 func NewHandler(svc service.ReflectionService, logger *slog.Logger) *Handler {
 	return &Handler{
 		reflectSvc: svc,
-		logger:     slog.Default(),
+		logger:     logger,
 	}
 }
 
