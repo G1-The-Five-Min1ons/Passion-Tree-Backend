@@ -31,13 +31,13 @@ func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string
     }
     defer rowsQ.Close()
 
-    var questions []model.NodeQuestion
+    questions := []model.NodeQuestion{}
     for rowsQ.Next() {
         var q model.NodeQuestion
         if err := rowsQ.Scan(&q.QuestionID, &q.QuestionText, &q.Type, &q.NodeID); err != nil {
             return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan question failed: %w", err)
         }
-        q.Choices = []model.QuestionChoice{} 
+        q.Choices = []model.QuestionChoice{}
         questions = append(questions, q)
     }
 

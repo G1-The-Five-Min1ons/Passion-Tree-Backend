@@ -5,11 +5,25 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"path/filepath"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
 	"github.com/google/uuid"
+)
+
+const (
+	ContainerTypeLearningPath = "learning-path"
+	ContainerTypeProfile      = "profile"
+
+	MaxFileSizeBytes = 5 * 1024 * 1024 // 5MB
+	MaxFileSizeHuman = "5MB"
+
+	ContentTypeJPEG = "image/jpeg"
+	ContentTypeJPG  = "image/jpg"
+	ContentTypePNG  = "image/png"
+
+	SASStartTimeBuffer = -1 * time.Minute // Buffer เวลาเผื่อนาฬิกา server ไม่ตรงกัน
 )
 
 type BlobService struct {
@@ -20,7 +34,6 @@ type BlobService struct {
 	containerProfile      string
 }
 
-// NewBlobService สร้าง Service instance (ถูกเรียกใช้โดย package connection)
 func NewBlobService(client *azblob.Client, accName, accKey, contLearning, contProfile string) *BlobService {
 	return &BlobService{
 		client:                client,
@@ -29,29 +42,6 @@ func NewBlobService(client *azblob.Client, accName, accKey, contLearning, contPr
 		containerLearningPath: contLearning,
 		containerProfile:      contProfile,
 	}
-}
-
-// GenerateBlobURL สร้าง blob URL string จากชื่อไฟล์
-func (s *BlobService) GenerateBlobURL(filename, containerType string) string {
-	containerName := s.getContainerName(containerType)
-	blobName := s.generateBlobName(filename)
-
-	return fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s",
-		s.accountName,
-		containerName,
-		blobName,
-	)
-}
-
-// GetBlobURL สร้าง URL สำหรับ blob ที่มีอยู่แล้ว
-func (s *BlobService) GetBlobURL(blobName, containerType string) string {
-	containerName := s.getContainerName(containerType)
-
-	return fmt.Sprintf("https://%s.blob.core.windows.net/%s/%s",
-		s.accountName,
-		containerName,
-		blobName,
-	)
 }
 
 // GeneratePresignedURL สร้าง SAS URL สำหรับอัปโหลด
@@ -75,7 +65,7 @@ func (s *BlobService) GeneratePresignedURL(filename string, containerType string
 
 	sasQueryParams, err := sas.BlobSignatureValues{
 		Protocol:      sas.ProtocolHTTPS,
-		StartTime:     time.Now().Add(-1 * time.Minute),
+		StartTime:     time.Now().Add(SASStartTimeBuffer),
 		ExpiryTime:    expiry,
 		Permissions:   sasPermissions.String(),
 		ContainerName: containerName,
@@ -111,32 +101,21 @@ func (s *BlobService) ValidateUploadedFile(ctx context.Context, blobURL string, 
 	blobName := parts[len(parts)-1]
 	containerName := s.getContainerName(containerType)
 
-	serviceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", s.accountName)
-	cred, err := azblob.NewSharedKeyCredential(s.accountName, s.accountKey)
-	if err != nil {
-		return err
-	}
-
-	blobClient, err := blob.NewClientWithSharedKeyCredential(fmt.Sprintf("%s%s/%s", serviceURL, containerName, blobName), cred, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create blob client: %w", err)
-	}
+	blobClient := s.client.ServiceClient().NewContainerClient(containerName).NewBlobClient(blobName)
 
 	props, err := blobClient.GetProperties(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to get blob properties (file might not exist): %w", err)
+		return fmt.Errorf("failed to get blob properties: %w", err)
 	}
 
-	const maxFileSize = 5 * 1024 * 1024
-
-	if props.ContentLength != nil && *props.ContentLength > maxFileSize {
+	if props.ContentLength != nil && *props.ContentLength > MaxFileSizeBytes {
 		_, _ = blobClient.Delete(ctx, nil)
-		return fmt.Errorf("file size %d exceeds limit of 5MB", *props.ContentLength)
+		return fmt.Errorf("file size %d exceeds limit of %s", *props.ContentLength, MaxFileSizeHuman)
 	}
 
 	if props.ContentType != nil {
 		ct := *props.ContentType
-		if ct != "image/jpeg" && ct != "image/png" && ct != "image/jpg" {
+		if ct != ContentTypeJPEG && ct != ContentTypePNG && ct != ContentTypeJPG {
 			_, _ = blobClient.Delete(ctx, nil)
 			return fmt.Errorf("invalid content type: %s", ct)
 		}
@@ -178,9 +157,9 @@ func (s *BlobService) DeleteBlob(ctx context.Context, blobName string, container
 // getContainerName เลือก container name ตาม type
 func (s *BlobService) getContainerName(containerType string) string {
 	switch containerType {
-	case "learning-path":
+	case ContainerTypeLearningPath:
 		return s.containerLearningPath
-	case "profile":
+	case ContainerTypeProfile:
 		return s.containerProfile
 	default:
 		return s.containerLearningPath
@@ -189,15 +168,8 @@ func (s *BlobService) getContainerName(containerType string) string {
 
 // generateBlobName สร้างชื่อ blob ที่ unique
 func (s *BlobService) generateBlobName(filename string) string {
-	// ดึง extension จากชื่อไฟล์เดิม
-	ext := ""
-	for i := len(filename) - 1; i >= 0; i-- {
-		if filename[i] == '.' {
-			ext = filename[i:]
-			break
-		}
-	}
-
-	// สร้างชื่อใหม่ด้วย UUID
-	return uuid.New().String() + ext
+    cleanName := filepath.Base(filename) 
+    
+    ext := filepath.Ext(cleanName)
+    return uuid.New().String() + ext
 }
