@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 )
 
 type ResumeRepository interface {
@@ -15,7 +15,7 @@ type repositoryImpl struct {
 	db *sql.DB
 }
 
-func NewRepository(ds database.Database) ResumeRepository {
+func NewRepository(ds connection.Database) ResumeRepository {
 	return &repositoryImpl{
 		db: ds.GetDB(),
 	}

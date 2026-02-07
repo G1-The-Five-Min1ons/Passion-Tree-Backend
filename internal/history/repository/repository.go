@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/history/model"
 )
 
@@ -16,7 +16,7 @@ type repositoryImpl struct {
 	db *sql.DB
 }
 
-func NewRepository(ds database.Database) RepositoryHistory {
+func NewRepository(ds connection.Database) RepositoryHistory {
 	return &repositoryImpl{
 		db: ds.GetDB(),
 	}

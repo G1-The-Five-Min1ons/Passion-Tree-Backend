@@ -11,7 +11,7 @@ import (
 	"github.com/robfig/cron/v3"
 
 	"passiontree/internal/config"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/pkg/logger"
 	"passiontree/internal/platform/aiclient"
@@ -69,8 +69,8 @@ func main() {
 }
 
 // initializeDatabase connects to the database with retry logic
-func initializeDatabase(connString string, logger *slog.Logger) (database.Database, error) {
-	db, err := database.NewDatabaseWithRetry(connString, DBRetryAttempts, DBRetryDelay)
+func initializeDatabase(connString string, logger *slog.Logger) (connection.Database, error) {
+	db, err := connection.NewDatabaseWithRetry(connString, DBRetryAttempts, DBRetryDelay)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *storage.B
 		return nil
 	}
 
-	storageClient, err := database.InitBlobStorage(cfg)
+	storageClient, err := connection.InitBlobStorage(cfg)
 	if err != nil {
 		logger.Warn("Failed to initialize Azure Storage", "error", err)
 		return nil
@@ -130,7 +130,7 @@ func getPort() string {
 	return DefaultPort
 }
 
-func initializeBackgroundJobs(db database.Database, storage *storage.BlobService, logger *slog.Logger) *cron.Cron {
+func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, logger *slog.Logger) *cron.Cron {
     cleanupWorker := worker.NewCleanupWorker(db, storage)
     c := cron.New()
     

@@ -5,13 +5,13 @@ import (
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/auth/service"
 	"passiontree/internal/config"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database) {
+func RegisterRoutes(r fiber.Router, db connection.Database) {
 	// Load configuration for email service
 	cfg, err := config.LoadDBConfig()
 	if err != nil {

@@ -3,7 +3,7 @@ package worker
 import (
 	"context"
 	"log"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/pkg/storage"
 	"strings"
 	"sync"
@@ -16,11 +16,11 @@ const (
 )
 
 type CleanupWorker struct {
-	db      database.Database
+	db      connection.Database
 	storage *storage.BlobService
 }
 
-func NewCleanupWorker(db database.Database, storage *storage.BlobService) *CleanupWorker {
+func NewCleanupWorker(db connection.Database, storage *storage.BlobService) *CleanupWorker {
 	return &CleanupWorker{
 		db:      db,
 		storage: storage,

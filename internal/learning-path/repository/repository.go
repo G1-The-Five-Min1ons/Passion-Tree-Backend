@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/learning-path/model"
 )
 
@@ -73,7 +73,7 @@ type repositoryImpl struct {
 	db Database
 }
 
-func NewRepository(ds database.Database) Repository {
+func NewRepository(ds connection.Database) Repository {
 	return &repositoryImpl{
 		db: ds.GetDB(),
 	}

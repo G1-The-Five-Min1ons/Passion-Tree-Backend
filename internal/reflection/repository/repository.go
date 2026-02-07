@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/reflection/model"
 )
 
@@ -33,7 +33,7 @@ type repositoryImpl struct {
 	db *sql.DB
 }
 
-func NewRepository(ds database.Database) RepositoryReflection {
+func NewRepository(ds connection.Database) RepositoryReflection {
 	return &repositoryImpl{
 		db: ds.GetDB(),
 	}

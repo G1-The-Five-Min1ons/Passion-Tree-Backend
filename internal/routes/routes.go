@@ -3,7 +3,7 @@ package routes
 import (
 	"log/slog"
 
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
 
@@ -17,7 +17,7 @@ import (
 )
 
 // Setup configures all routes for the application
-func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, storageClient *storage.BlobService, logger *slog.Logger) {
+func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, storageClient *storage.BlobService, logger *slog.Logger) {
 	// Health check endpoint
 	api := app.Group("/api/v1")
 
@@ -33,7 +33,7 @@ func Setup(app *fiber.App, db database.Database, aiClient *aiclient.AIClient, st
 }
 
 // healthCheck returns the service health status
-func healthCheck(c *fiber.Ctx, db database.Database, storageClient *storage.BlobService) error {
+func healthCheck(c *fiber.Ctx, db connection.Database, storageClient *storage.BlobService) error {
 	response := fiber.Map{
 		"status":  "up",
 		"service": "Go Backend Orchestrator",

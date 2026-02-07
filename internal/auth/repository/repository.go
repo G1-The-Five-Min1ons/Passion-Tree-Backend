@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"passiontree/internal/auth/model"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 )
 
 type UserRepository interface {
@@ -23,7 +23,7 @@ type userRepositoryImpl struct {
 	db *sql.DB
 }
 
-func NewUserRepository(ds database.Database) UserRepository {
+func NewUserRepository(ds connection.Database) UserRepository {
 	return &userRepositoryImpl{
 		db: ds.GetDB(),
 	}
