@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
@@ -37,7 +36,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 	aiResp, err := s.aiClient.Search(ctx, aiReq)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to search via AI service", "error", err, "query", req.Query)
-		return nil, apperror.NewInternal(fmt.Errorf("failed to search via AI service: %w", err))
+		return nil, apperror.NewInternal("failed to search via AI service: %w", err)
 	}
 
 	// If no results, return empty response
@@ -100,13 +99,13 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		// If critical fields are missing from payload, query database
 		if result.Title == "" {
 			s.logger.WarnContext(ctx, "incomplete payload in vector db, fetching from SQL", "path_id", pathID)
-			path, err := s.pathRepo.GetLearnningPathByID(ctx, pathID)
+			path, err := s.pathRepo.GetLearningPathByID(ctx, pathID)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					s.logger.WarnContext(ctx, "path in vector db not found in SQL database", "path_id", pathID)
 					continue
 				}
-				return nil, apperror.NewInternal(fmt.Errorf("failed to fetch path details: %w", err))
+				return nil, apperror.NewInternal("failed to fetch path details: %w", err)
 			}
 
 			// Fill in missing fields from database
@@ -144,7 +143,7 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 	info, err := s.aiClient.GetCollectionInfo(collectionName)
 	if err != nil {
 		s.logger.ErrorContext(context.Background(), "failed to get collection info", "error", err, "collection", collectionName)
-		return nil, apperror.NewInternal(fmt.Errorf("failed to get collection info from AI service: %w", err))
+		return nil, apperror.NewInternal("failed to get collection info from AI service: %w", err)
 	}
 
 	return info, nil
@@ -154,7 +153,7 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*model.SyncPathResponse, error) {
 	s.logger.DebugContext(ctx, "SyncLearningPath called", 
 		"path_id", pathID, 
-		"ai_client_ptr", fmt.Sprintf("%p", s.aiClient),
+		"ai_client_nil", s.aiClient == nil,
 	)
 
 	if s.aiClient != nil {
@@ -166,13 +165,13 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 	}
 
 	// Get learning path from database
-	path, err := s.pathRepo.GetLearnningPathByID(ctx, pathID)
+	path, err := s.pathRepo.GetLearningPathByID(ctx, pathID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "sync failed: path not found", "path_id", pathID)
 			return nil, apperror.NewNotFound("learning path not found")
 		}
-		return nil, apperror.NewInternal(fmt.Errorf("failed to fetch learning path from database: %w", err))
+		return nil, apperror.NewInternal("failed to fetch learning path from database: %w", err)
 	}
 
 	// Prepare metadata for filtering
@@ -206,13 +205,13 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 	// Call AI service to sync to Qdrant
 	if s.aiClient == nil {
 		s.logger.ErrorContext(ctx, "sync aborted: AI client is nil")
-		return nil, apperror.NewInternal(fmt.Errorf("ai client is not initialized"))
+		return nil, apperror.NewInternal("ai client is not initialized")
 	}
 
 	syncResp, err := s.aiClient.SyncLearningPath(ctx, syncReq)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "vector sync failed", "error", err, "path_id", pathID)
-		return nil, apperror.NewInternal(fmt.Errorf("failed to sync learning path to Qdrant: %w", err))
+		return nil, apperror.NewInternal("failed to sync learning path to Qdrant: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "sync completed successfully", "path_id", pathID, "msg", syncResp.Message)

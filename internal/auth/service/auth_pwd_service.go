@@ -20,7 +20,7 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 	// Get user by email
 	user, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by email: %w", err)
 	}
 	if user == nil {
 		// Don't reveal if email exists for security
@@ -35,7 +35,7 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 	// Generate new password reset code
 	resetCode, err := GenerateVerificationToken()
 	if err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to generate reset code: %w", err))
+		return apperror.NewInternal("failed to generate reset code: %w", err)
 	}
 
 	// Save reset code to Token table
@@ -48,7 +48,7 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 		ExpireAt:  tokenExpiry,
 	}
 	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to save reset code: %w", err))
+		return apperror.NewInternal("failed to save reset code: %w", err)
 	}
 
 	// Send password reset email
@@ -58,14 +58,14 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 			if revokeErr := s.tokenRepo.RevokeToken(tokenModel.TokenID); revokeErr != nil {
 				fmt.Printf("Warning: failed to rollback token after email failure: %v\n", revokeErr)
 			}
-			return apperror.NewInternal(fmt.Errorf("failed to send password reset email: %w", err))
+			return apperror.NewInternal("failed to send password reset email: %w", err)
 		}
 	} else {
 		// Rollback: revoke the token we just created
 		if revokeErr := s.tokenRepo.RevokeToken(tokenModel.TokenID); revokeErr != nil {
 			fmt.Printf("Warning: failed to rollback token after email service check: %v\n", revokeErr)
 		}
-		return apperror.NewInternal(fmt.Errorf("email service is not configured"))
+		return apperror.NewInternal("email service is not configured")
 	}
 
 	return nil
@@ -86,7 +86,7 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	// Get token from Token table
 	tokenModel, err := s.tokenRepo.GetTokenByValue(code, model.TokenTypePasswordReset)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get token by value: %w", err)
 	}
 	if tokenModel == nil {
 		return apperror.NewBadRequest("invalid or expired reset code")
@@ -100,7 +100,7 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	// Get user
 	user, _, err := s.userRepo.GetUserByID(ctx, tokenModel.UserID)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
 		return apperror.NewNotFound("user not found")
@@ -109,31 +109,31 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	// Hash new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to hash password: %w", err))
+		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 
 	// Begin transaction to ensure atomicity
 	tx, err := s.userRepo.GetDB().Begin()
 	if err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to begin transaction: %w", err))
+		return apperror.NewInternal("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback() // rollback if not committed
 
 	// Update password in transaction
 	updateQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
 	if _, err := tx.Exec(updateQuery, string(hashedPassword), user.UserID); err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to update password: %w", err))
+		return apperror.NewInternal("failed to update password: %w", err)
 	}
 
 	// Revoke the reset token in transaction
 	revokeQuery := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
 	if _, err := tx.Exec(revokeQuery, tokenModel.TokenID); err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to revoke token: %w", err))
+		return apperror.NewInternal("failed to revoke token: %w", err)
 	}
 
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to commit transaction: %w", err))
+		return apperror.NewInternal("failed to commit transaction: %w", err)
 	}
 
 	return nil
@@ -157,7 +157,7 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 	// Get user
 	user, _, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
 		return apperror.NewNotFound("user not found")
@@ -176,13 +176,13 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 	// Hash new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to hash password: %w", err))
+		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 
 	// Update password in database
 	updateQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
 	if _, err := s.userRepo.GetDB().Exec(updateQuery, string(hashedPassword), user.UserID); err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to update password: %w", err))
+		return apperror.NewInternal("failed to update password: %w", err)
 	}
 
 	return nil

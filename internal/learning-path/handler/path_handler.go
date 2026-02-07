@@ -44,7 +44,7 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Learning path retrieved by one successfully",
+		"message": "Learning path retrieved successfully",
 		"data":    path,
 	})
 }
@@ -63,7 +63,7 @@ func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
 
 	uploadURL, publicURL, err := h.storage.GeneratePresignedURL(filename, "learning-path", 15*time.Minute)
 	if err != nil {
-		return h.handleError(c, apperror.NewInternal(err))
+		return h.handleError(c, apperror.NewInternal("failed to generate presigned URL for file %s: %w", filename, err))
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{

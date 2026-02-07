@@ -23,13 +23,13 @@ func (s *serviceImpl) CreateAlbum(ctx context.Context, req model.CreateAlbumRequ
 		if apperror.IsForeignKeyError(err) {
 			return nil, apperror.NewBadRequest("invalid user_id: user does not exist")
 		}
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to create album: %w", err)
 	}
 	
 	album, err := s.refRepo.GetAlbumByID(ctx, albumID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to get album after creation", "error", err, "album_id", albumID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to get album after creation: %w", err)
 	}
 	
 	s.logger.InfoContext(ctx, "album created successfully", "album_id", albumID)
@@ -54,7 +54,7 @@ func (s *serviceImpl) GetAlbumByID(ctx context.Context, albumID string) (*model.
 			return nil, apperror.NewNotFound("album with id '%s' not found", albumID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching album", "error", err, "album_id", albumID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("database error fetching album: %w", err)
 	}
 	
 	return album, nil
@@ -74,7 +74,7 @@ func (s *serviceImpl) GetAlbumsByUserID(ctx context.Context, userID string) ([]m
 			return nil, apperror.NewNotFound("albums for user with id '%s' not found", userID)
 		}
 		s.logger.ErrorContext(ctx, "failed to fetch user albums", "error", err, "user_id", userID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to fetch user albums: %w", err)
 	}
 	
 	if len(albums) == 0 {
@@ -103,7 +103,7 @@ func (s *serviceImpl) UpdateAlbum(ctx context.Context, albumID string, req model
 			return apperror.NewNotFound("album with id '%s' not found", albumID)
 		}
 		s.logger.ErrorContext(ctx, "failed to update album", "error", err, "album_id", albumID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to update album: %w", err)
 	}
 	
 	s.logger.InfoContext(ctx, "album updated successfully", "album_id", albumID)
@@ -124,7 +124,7 @@ func (s *serviceImpl) DeleteAlbum(ctx context.Context, albumID string) error {
 			return apperror.NewNotFound("album with id '%s' not found", albumID)
 		}
 		s.logger.ErrorContext(ctx, "failed to delete album", "error", err, "album_id", albumID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to delete album: %w", err)
 	}
 	
 	return nil

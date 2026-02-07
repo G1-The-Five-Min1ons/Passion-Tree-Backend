@@ -31,14 +31,14 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 		if apperror.IsForeignKeyError(err) {
 			return nil, apperror.NewBadRequest("invalid album_id or path_id: referenced resource does not exist")
 		}
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to create tree: %w", err)
 	}
 	
 	// Get the created tree to return full details
 	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to get tree after creation", "error", err, "tree_id", treeID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to get tree after creation: %w", err)
 	}
 	
 	// Fetch tree nodes
@@ -80,7 +80,7 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
 
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("database error fetching tree: %w", err)
 	}
 	
 	s.logger.InfoContext(ctx, "successfully retrieved tree", "tree_id", treeID)
@@ -101,7 +101,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string) ([]
 			return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching album trees", "error", err, "album_id", albumID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("database error fetching album trees: %w", err)
 	}
 	
 	if len(trees) == 0 {
@@ -130,7 +130,7 @@ func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.U
 			return apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "failed to update tree", "error", err, "tree_id", treeID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to update tree: %w", err)
 	}
 	
 	s.logger.InfoContext(ctx, "tree updated successfully", "tree_id", treeID)
@@ -150,7 +150,7 @@ func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
 			return apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "failed to delete tree", "error", err, "tree_id", treeID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to delete tree: %w", err)
 	}
 	
 	s.logger.InfoContext(ctx, "tree deleted successfully", "tree_id", treeID)

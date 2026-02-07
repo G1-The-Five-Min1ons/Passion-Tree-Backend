@@ -61,7 +61,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		if apperror.IsForeignKeyError(err) {
 			return nil, apperror.NewBadRequest("invalid tree_node_id or user_id: node or user does not exist")
 		}
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to create reflection: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)
@@ -92,7 +92,7 @@ func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (
 			return nil, apperror.NewNotFound("reflection with id '%s' not found", reflectID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching reflection", "error", err, "reflect_id", reflectID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("database error fetching reflection: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "successfully retrieved reflection", "reflect_id", reflectID)
@@ -106,7 +106,7 @@ func (s *serviceImpl) GetAllReflections(ctx context.Context) ([]model.Reflection
 
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to fetch all reflections", "error", err)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to fetch all reflections: %w", err)
 	}
 	s.logger.InfoContext(ctx, "successfully fetched reflections", "count", len(reflections))
 	return reflections, nil
@@ -138,7 +138,7 @@ func (s *serviceImpl) UpdateReflection(ctx context.Context, reflectID string, re
 			s.logger.ErrorContext(ctx, "failed to update reflection: foreign key error", "reflect_id", reflectID, "error", err)
 			return apperror.NewBadRequest("invalid tree_node_id: node does not exist")
 		}
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to update reflection: %w", err)
 	}
 	s.logger.InfoContext(ctx, "reflection updated successfully", "reflect_id", reflectID)
 	return nil
@@ -158,7 +158,7 @@ func (s *serviceImpl) DeleteReflection(ctx context.Context, reflectID string) er
 			return apperror.NewConflict("cannot delete reflection: there are existing dependencies associated with this reflection")
 		}
 		s.logger.ErrorContext(ctx, "failed to delete reflection", "error", err, "reflect_id", reflectID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to delete reflection: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "reflection deleted successfully", "reflect_id", reflectID)

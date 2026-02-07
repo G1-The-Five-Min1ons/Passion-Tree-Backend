@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
@@ -28,7 +27,7 @@ func (s *serviceImpl) AddQuestion(ctx context.Context, req model.CreateQuestionR
 			return "", apperror.NewBadRequest("invalid node_id: node does not exist")
 		}
 		s.logger.ErrorContext(ctx, "database error: failed to create question", "error", err, "node_id", req.NodeID)
-		return "", apperror.NewInternal(err)
+		return "", apperror.NewInternal("failed to create question: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "quiz question added successfully", "question_id", id, "node_id", req.NodeID)
@@ -45,7 +44,7 @@ func (s *serviceImpl) GetQuestions(ctx context.Context, nodeID string) ([]model.
 	questions, err := s.quizRepo.GetQuestionsByNodeID(ctx, nodeID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "database error: failed to get questions", "error", err, "node_id", nodeID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to get questions for node '%s': %w", nodeID, err)
 	}
 
 	s.logger.InfoContext(ctx, "successfully retrieved questions", "node_id", nodeID, "count", len(questions))
@@ -70,7 +69,7 @@ func (s *serviceImpl) RemoveQuestion(ctx context.Context, questionID string) err
 		}
 
 		s.logger.ErrorContext(ctx, "database error: failed to delete question", "error", err, "question_id", questionID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to delete question '%s': %w", questionID, err)
 	}
 
 	s.logger.InfoContext(ctx, "quiz question removed successfully", "question_id", questionID)
@@ -95,7 +94,7 @@ func (s *serviceImpl) AddChoice(ctx context.Context, req model.CreateChoiceReque
 			return "", apperror.NewBadRequest("invalid question_id: question does not exist")
 		}
 		s.logger.ErrorContext(ctx, "database error: failed to create choice", "error", err, "question_id", req.QuestionID)
-		return "", apperror.NewInternal(fmt.Errorf("failed to create choice: %w", err))
+		return "", apperror.NewInternal("failed to create choice: %w", err)
 	}
 	
 	s.logger.InfoContext(ctx, "choice added successfully", "choice_id", id, "question_id", req.QuestionID)
@@ -115,7 +114,7 @@ func (s *serviceImpl) RemoveChoice(ctx context.Context, choiceID string) error {
 		}
 
 		s.logger.ErrorContext(ctx, "database error: failed to delete choice", "error", err, "choice_id", choiceID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to delete choice '%s': %w", choiceID, err)
 	}
 
 	s.logger.InfoContext(ctx, "choice removed successfully", "choice_id", choiceID)

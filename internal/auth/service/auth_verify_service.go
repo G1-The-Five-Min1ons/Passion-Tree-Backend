@@ -18,7 +18,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	// Get token from Token table
 	tokenModel, err := s.tokenRepo.GetTokenByValue(token, model.TokenTypeEmailVerification)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get verification token: %w", err)
 	}
 	if tokenModel == nil {
 		return apperror.NewBadRequest("invalid or expired verification token")
@@ -32,7 +32,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	// Get user
 	user, _, err := s.userRepo.GetUserByID(ctx, tokenModel.UserID)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
 		return apperror.NewNotFound("user not found")
@@ -45,7 +45,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 
 	// Update user email verification status
 	if err := s.userRepo.UpdateEmailVerified(ctx, tokenModel.UserID, true); err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to update email verification status: %w", err)
 	}
 
 	// Revoke the token
@@ -66,7 +66,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 	// Get user by email
 	user, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by email: %w", err)
 	}
 	if user == nil {
 		return apperror.NewNotFound("user not found")
@@ -86,7 +86,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 	// Generate new verification token
 	verificationToken, err := GenerateVerificationToken()
 	if err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to generate verification token: %w", err))
+		return apperror.NewInternal("failed to generate verification token: %w", err)
 	}
 
 	// Save new token to Token table
@@ -99,16 +99,16 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		ExpireAt:  tokenExpiry,
 	}
 	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
-		return apperror.NewInternal(fmt.Errorf("failed to save verification token: %w", err))
+		return apperror.NewInternal("failed to save verification token: %w", err)
 	}
 
 	// Send verification email
 	if s.emailService != nil {
 		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
-			return apperror.NewInternal(fmt.Errorf("failed to send verification email: %w", err))
+			return apperror.NewInternal("failed to send verification email: %w", err)
 		}
 	} else {
-		return apperror.NewInternal(fmt.Errorf("email service is not configured"))
+		return apperror.NewInternal("email service is not configured")
 	}
 
 	return nil

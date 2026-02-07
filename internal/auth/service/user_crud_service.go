@@ -26,7 +26,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	// Check if email already exists
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, user.Email)
 	if err != nil && err != sql.ErrNoRows {
-		return "", apperror.NewInternal(err)
+		return "", apperror.NewInternal("failed to get user by email: %w", err)
 	}
 	if existingUser != nil {
 		return "", apperror.NewConflict("email already registered")
@@ -35,7 +35,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	// Check if username already exists
 	existingUsername, err := s.userRepo.GetUserByUsername(ctx, user.Username)
 	if err != nil && err != sql.ErrNoRows {
-		return "", apperror.NewInternal(err)
+		return "", apperror.NewInternal("failed to get user by username: %w", err)
 	}
 	if existingUsername != nil {
 		return "", apperror.NewConflict("username already taken")
@@ -44,7 +44,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", apperror.NewInternal(fmt.Errorf("failed to hash password: %w", err))
+		return "", apperror.NewInternal("failed to hash password: %w", err)
 	}
 	user.Password = string(hashedPassword)
 
@@ -59,7 +59,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	// Generate email verification token
 	verificationToken, err := GenerateVerificationToken()
 	if err != nil {
-		return "", apperror.NewInternal(fmt.Errorf("failed to generate verification token: %w", err))
+		return "", apperror.NewInternal("failed to generate verification token: %w", err)
 	}
 	user.IsEmailVerified = false
 
@@ -89,7 +89,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("user already exists")
 		}
-		return "", apperror.NewInternal(err)
+		return "", apperror.NewInternal("failed to create user: %w", err)
 	}
 
 	// Save verification token to Token table
@@ -124,7 +124,7 @@ func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.Us
 
 	user, profile, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
-		return nil, nil, apperror.NewInternal(err)
+		return nil, nil, apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
 		return nil, nil, apperror.NewNotFound("user with id '%s' not found", id)
@@ -141,7 +141,7 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 
 	user, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal("failed to get user by email: %w", err)
 	}
 	if user == nil {
 		return nil, apperror.NewNotFound("user with email '%s' not found", email)
@@ -159,7 +159,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 	// Check if user exists
 	existingUser, _, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if existingUser == nil {
 		return apperror.NewNotFound("user with id '%s' not found", id)
@@ -169,7 +169,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("username already taken")
 		}
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to update user: %w", err)
 	}
 
 	return nil
@@ -187,7 +187,7 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 	// Get user and verify password
 	user, _, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
 		return apperror.NewNotFound("user not found")
@@ -199,7 +199,7 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 	}
 
 	if err := s.userRepo.DeleteUser(ctx, id); err != nil {
-		return apperror.NewInternal(err)
+		return apperror.NewInternal("failed to delete user: %w", err)
 	}
 
 	return nil
