@@ -3,7 +3,7 @@ package recommendation
 import (
 	"database/sql"
 	
-	"passiontree/internal/database" 
+	"passiontree/internal/connection" 
 )
 
 type Repository interface {
@@ -16,7 +16,7 @@ type repository struct {
 	db *sql.DB
 }
 
-func NewRepository(ds database.Database) Repository {
+func NewRepository(ds connection.Database) Repository {
 	return &repository{
 		db: ds.GetDB(), 
 	}

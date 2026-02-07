@@ -2,7 +2,7 @@ package resume
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	
 	nodeRepoPkg "passiontree/internal/learning-path/repository" 
 	resumeRepo "passiontree/internal/resume/repository"
@@ -10,7 +10,7 @@ import (
 	"passiontree/internal/resume/service"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database) {
+func RegisterRoutes(r fiber.Router, db connection.Database) {
 	rRepo := resumeRepo.NewRepository(db)
 	nRepo := nodeRepoPkg.NewRepository(db) 
 	svc := service.NewService(rRepo, nRepo)

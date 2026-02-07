@@ -7,11 +7,11 @@ import (
 	"passiontree/internal/reflection/handler"
 	"passiontree/internal/reflection/repository"
 	"passiontree/internal/reflection/service"
-	"passiontree/internal/database"
+	"passiontree/internal/connection"
 	"passiontree/internal/platform/aiclient"
 )
 
-func RegisterRoutes(r fiber.Router, db database.Database, aiClient *aiclient.AIClient, logger *slog.Logger) {
+func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, logger *slog.Logger) {
 	repo := repository.NewRepository(db)
 	svc := service.NewService(repo, aiClient, logger)
 	h := handler.NewHandler(svc, logger)

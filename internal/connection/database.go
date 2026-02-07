@@ -1,4 +1,4 @@
-package database
+package connection
 
 import (
 	"context"
@@ -70,7 +70,7 @@ func NewDatabaseWithRetry(connString string, maxRetries int, initialDelay time.D
 		log.Printf("Connection attempt %d failed: %v", attempt, err)
 
 		if attempt < maxRetries {
-			log.Printf("Retrying in %v...", delay)
+			log.Printf("Database Retrying in %v...", delay)
 			time.Sleep(delay)
 			delay = calculateNextDelay(delay)
 		}

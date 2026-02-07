@@ -3,14 +3,19 @@ package model
 type CreateQuestionRequest struct {
 	QuestionText string `json:"question_text" binding:"required"`
 	Type         string `json:"type" binding:"required"`
-	NodeID       string `json:"node_id" binding:"required"`
+	NodeID       string `json:"node_id"`
+}
+
+type CreateQuestionWithChoices struct {
+	CreateQuestionRequest
+	Choices []CreateChoiceRequest `json:"choice,omitempty"`
 }
 
 type CreateChoiceRequest struct {
 	ChoiceText string `json:"choice_text" binding:"required"`
 	IsCorrect  bool   `json:"is_correct"`
 	Reasoning  string `json:"reasoning"`
-	QuestionID string `json:"question_id" binding:"required"`
+	QuestionID string `json:"question_id"`
 }
 
 type NodeQuestion struct {

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"passiontree/internal/learning-path/service"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/storage"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,9 +16,10 @@ type Handler struct {
 	commentSvc service.ServiceComment
 	quizSvc    service.ServiceQuiz
 	logger     *slog.Logger
+	storage    *storage.BlobService
 }
 
-func NewHandler(svc service.Service, logger *slog.Logger) *Handler {
+func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobService) *Handler {
 	return &Handler{
 		pathSvc:    svc,
 		searchSvc:  svc,
@@ -25,6 +27,7 @@ func NewHandler(svc service.Service, logger *slog.Logger) *Handler {
 		commentSvc: svc,
 		quizSvc:    svc,
 		logger:     logger,
+		storage:    storage,
 	}
 }
 

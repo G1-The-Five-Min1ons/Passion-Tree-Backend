@@ -1,9 +1,9 @@
 package service
 
 import (
-	"fmt"
 	"context"
 	"database/sql"
+	"fmt"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 	"regexp"
@@ -28,7 +28,7 @@ func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*mode
 	}
 
 	s.logger.InfoContext(ctx, "fetching path details", "path_id", path_id)
-	
+
 	path, err := s.pathRepo.GetLearnningPathByID(ctx, path_id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -46,7 +46,22 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 	if req.Title == "" {
 		return "", apperror.NewBadRequest("title cannot be empty")
 	}
-	
+
+	if req.CoverImgURL == "" {
+		return "", apperror.NewBadRequest("cover_image_url is required")
+	}
+
+	if req.CoverImgURL != "" {
+		if !strings.Contains(req.CoverImgURL, "learning-path") {
+			return "", apperror.NewBadRequest("Invalid image URL source")
+		}
+
+		err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, "learning-path")
+		if err != nil {
+			return "", apperror.NewBadRequest("Image validation failed: %v", err)
+		}
+	}
+
 	s.logger.InfoContext(ctx, "creating new learning path", "title", req.Title, "creator_id", req.CreatorID)
 
 	id, err := s.pathRepo.CreateLearnningPath(ctx, req)
@@ -61,7 +76,7 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 		}
 
 		s.logger.ErrorContext(ctx, "database error during path creation", "error", err, "title", req.Title)
-		return "", apperror.NewInternal(fmt.Errorf("failed to create learning path: %w", err))
+		return "", apperror.NewInternal(err)
 	}
 
 	s.logger.InfoContext(ctx, "learning path created successfully", "path_id", id)
@@ -77,7 +92,7 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 		req.Objective == "" &&
 		req.Description == "" &&
 		req.CoverImgURL == "" &&
-		req.Status == "" {
+		req.Publish_status == "" {
 		return apperror.NewBadRequest("request body cannot be empty")
 	}
 
@@ -86,10 +101,10 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 	if _, err := s.pathRepo.GetLearnningPathByID(ctx, path_id); err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "update failed: path not found", "path_id", path_id)
-			return apperror.NewNotFound("cannot update: path id '%s' not found", path_id)
+			return apperror.NewNotFound("cannot update: path_id '%s' not found", path_id)
 		}
-		
-		return apperror.NewInternal(fmt.Errorf("failed to verify path before update: %w", err))
+		s.logger.ErrorContext(ctx, "database error during path creation", "error", err, "title", req.Title)
+		return apperror.NewInternal(err)
 	}
 
 	if err := s.pathRepo.UpdateLearnningPath(ctx, path_id, req); err != nil {
@@ -101,8 +116,8 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 			return apperror.NewBadRequest("invalid creator_id: user does not exist")
 		}
 
-		s.logger.ErrorContext(ctx, "database error during path update", "error", err, "path_id", path_id)
-		return apperror.NewInternal(fmt.Errorf("failed to update learning path %s: %w", path_id, err))
+		s.logger.ErrorContext(ctx, "failed to update learning path", "error", err, "path_id", path_id)
+		return apperror.NewInternal(err)
 	}
 
 	s.logger.InfoContext(ctx, "learning path updated successfully", "path_id", path_id)
@@ -123,7 +138,7 @@ func (s *serviceImpl) DeletePath(ctx context.Context, path_id string) error {
 		}
 
 		s.logger.ErrorContext(ctx, "database error during path deletion", "error", err, "path_id", path_id)
-		return apperror.NewInternal(fmt.Errorf("failed to delete path %s: %w", path_id, err))
+		return apperror.NewInternal(err)
 	}
 
 	s.logger.InfoContext(ctx, "learning path deleted successfully", "path_id", path_id)
@@ -157,7 +172,7 @@ func (s *serviceImpl) GetEnrollmentStatus(ctx context.Context, path_id string, u
 	if user_id == "" {
 		return nil, apperror.NewBadRequest("user_id is required")
 	}
-	
+
 	if path_id == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
@@ -172,7 +187,7 @@ func (s *serviceImpl) GetEnrollmentStatus(ctx context.Context, path_id string, u
 		}
 
 		s.logger.ErrorContext(ctx, "failed to fetch enrollment status", "error", err, "user_id", user_id, "path_id", path_id)
-		return nil, apperror.NewInternal(fmt.Errorf("failed to get enrollment status: %w", err))
+		return nil, apperror.NewInternal(err)
 	}
 	return enroll, nil
 }
@@ -187,7 +202,7 @@ func (s *serviceImpl) GetPathProgress(ctx context.Context, path_id string, user_
 	progress, err := s.pathRepo.GetUserPathProgress(ctx, path_id, user_id)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to calculate progress", "error", err, "user_id", user_id, "path_id", path_id)
-		return nil, apperror.NewInternal(fmt.Errorf("failed to calculate progress: %w", err))
+		return nil, apperror.NewInternal(err)
 	}
 
 	return progress, nil
@@ -218,9 +233,9 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 
 func parseAINodes(rawResult string) []model.GeneratedNode {
 	var nodes []model.GeneratedNode
-	
+
 	segments := strings.Split(rawResult, ",")
-	
+
 	re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)
 
 	for _, seg := range segments {
@@ -236,4 +251,40 @@ func parseAINodes(rawResult string) []model.GeneratedNode {
 		}
 	}
 	return nodes
+}
+
+func (s *serviceImpl) UpdatePathCoverImage(ctx context.Context, pathID string, coverImgURL string) error {
+    if pathID == "" {
+        return apperror.NewBadRequest("path_id is required")
+    }
+    if coverImgURL == "" {
+        return apperror.NewBadRequest("cover_image_url is required")
+    }
+
+    s.logger.InfoContext(ctx, "updating learning path cover image", "path_id", pathID)
+
+    if !strings.Contains(coverImgURL, "learning-path") {
+        return apperror.NewBadRequest("Invalid image URL source")
+    }
+
+    err := s.storage.ValidateUploadedFile(ctx, coverImgURL, "learning-path")
+    if err != nil {
+        s.logger.WarnContext(ctx, "image validation failed", "error", err, "url", coverImgURL)
+        return apperror.NewBadRequest("Image validation failed: %v", err)
+    }
+
+    if _, err := s.pathRepo.GetLearnningPathByID(ctx, pathID); err != nil {
+        if err == sql.ErrNoRows {
+            return apperror.NewNotFound("learning path not found")
+        }
+        return apperror.NewInternal(err)
+    }
+
+    if err := s.pathRepo.UpdateLearnningPathImage(ctx, pathID, coverImgURL); err != nil {
+        s.logger.ErrorContext(ctx, "database error during image update", "error", err, "path_id", pathID)
+        return apperror.NewInternal(err)
+    }
+
+    s.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
+    return nil
 }

@@ -15,7 +15,7 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 
 	s.logger.InfoContext(ctx, "adding new node to learning path", "path_id", req.PathID, "title", req.Title)
 
-	id, err := s.nodeRepo.CreateNode(ctx, req)
+	id, err := s.nodeRepo.CreateNodeWithContent(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("node with this ID already exists")

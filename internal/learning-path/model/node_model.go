@@ -1,10 +1,12 @@
 package model
 
 type CreateNodeRequest struct {
-	Title       string `json:"title" binding:"required"`
-	Description string `json:"description"`
-	PathID      string `json:"path_id" binding:"required"`
-	Sequence 	string `json:"sequence" binding:"required"`
+	Title       string                      `json:"title" binding:"required"`
+	Description string                      `json:"description"`
+	PathID      string                      `json:"path_id" binding:"required"`
+	Sequence    string                      `json:"sequence" binding:"required"`
+	Materials   []CreateMaterialRequest     `json:"material,omitempty"`
+	Questions   []CreateQuestionWithChoices `json:"Question,omitempty"`
 }
 
 type UpdateNodeRequest struct {
@@ -31,7 +33,7 @@ type NodeMaterial struct {
 type CreateMaterialRequest struct {
 	Type   string `json:"type" binding:"required"`
 	URL    string `json:"url" binding:"required"`
-	NodeID string `json:"node_id" binding:"required"`
+	NodeID string `json:"node_id"`
 }
 
 type ReorderNodesRequest struct {
