@@ -27,19 +27,19 @@ func (h *Handler) CreateTree(c *fiber.Ctx) error {
 	h.logger.InfoContext(ctx, "tree created successfully", "tree_id", resp.TreeID, "album_id", req.AlbumID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"success":     true,
-		"message":     "tree created successfully",
-		"tree_id":     resp.TreeID,
-		"title":       resp.Title,
+		"title":        resp.Title,
+		"success":      true,
+		"message":      "tree created successfully",
+		"tree_id":      resp.TreeID,
+		"album_id":     resp.AlbumID,
+		"path_id":      resp.PathID,
 		"difficulties": resp.Difficulties,
-		"status":      resp.Status,
-		"is_pause":    resp.IsPause,
-		"node_count":  resp.NodeCount,
-		"create_at":   resp.CreatedAt,
-		"last_update": resp.LastUpdate,
-		"album_id":    resp.AlbumID,
-		"path_id":     resp.PathID,
-		"nodes":       resp.Nodes,
+		"status":       resp.Status,
+		"is_pause":     resp.IsPause,
+		"node_count":   resp.NodeCount,
+		"create_at":    resp.CreatedAt,
+		"last_update":  resp.LastUpdate,
+		"nodes":        resp.Nodes,
 	})
 }
 

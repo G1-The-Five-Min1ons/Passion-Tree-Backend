@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
@@ -24,7 +23,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	// AI analysis is required
 	if s.aiClient == nil {
 		s.logger.ErrorContext(ctx, "AI client is not available")
-		return nil, apperror.NewInternal(fmt.Errorf("AI analysis service is not configured"))
+		return nil, apperror.NewInternal("AI analysis service is not configured")
 	}
 
 	s.logger.InfoContext(ctx, "calling AI sentiment analysis service")
@@ -40,7 +39,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "AI sentiment analysis failed", "error", err)
-		return nil, apperror.NewInternal(fmt.Errorf("failed to analyze reflection: %w", err))
+		return nil, apperror.NewInternal("failed to analyze reflection: %v", err)
 	}
 
 	s.logger.InfoContext(ctx, "AI analysis successful", 

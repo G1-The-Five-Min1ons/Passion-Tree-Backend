@@ -45,7 +45,7 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 	nodes, err := s.refRepo.GetTreeNodesByTreeID(ctx, treeID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to fetch tree nodes", "error", err, "tree_id", treeID)
-		return nil, apperror.NewInternal(err)
+		return nil, apperror.NewInternal(err.Error())
 	}
 
 	s.logger.InfoContext(ctx, "tree created successfully", "tree_id", treeID, "nodes_count", len(nodes))
@@ -172,7 +172,7 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 			return apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal(err.Error())
 	}
 	
 	// Update pause status
@@ -182,7 +182,7 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 			return apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "failed to pause/unpause tree", "error", err, "tree_id", treeID)
-		return apperror.NewInternal(err)
+		return apperror.NewInternal(err.Error())
 	}
 	
 	pauseStatus := "paused"
