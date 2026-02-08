@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"passiontree/internal/reflection/model"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -307,4 +308,106 @@ func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, isPause b
 	}
 	
 	return nil
+}
+
+//GetTreesWithNodesByAlbumID retrieves all trees with their nodes for a specific album ใช้ join มา optimize
+func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+	query := `
+		SELECT
+			CONVERT(VARCHAR(36), t.tree_id) as tree_id,
+			t.title as tree_title,
+			t.difficulties,
+			CONVERT(VARCHAR(36), t.path_id) as path_id,
+			t.status,
+			t.is_pause,
+			ISNULL(t.node_count, 0) as node_count,
+			t.create_at,
+			t.last_update,
+			CONVERT(VARCHAR(36), t.album_id) as album_id,
+			CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
+			tn.node_title,
+			CONVERT(VARCHAR(36), tn.node_id) as node_id,
+			tn.create_at as node_create_at
+		FROM tree t
+		LEFT JOIN Tree_Node tn ON t.tree_id = tn.tree_id
+		WHERE t.album_id = @p1
+		ORDER BY t.last_update DESC, tn.create_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, albumID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trees with nodes: %w", err)
+	}
+	defer rows.Close()
+
+	// Map to aggregate nodes per tree
+	treeMap := make(map[string]*model.TreeResponse)
+	var treeOrder []string
+
+	for rows.Next() {
+		var treeID, title, difficulties, pathID, status, treeAlbumID string
+		var isPause bool
+		var nodeCount int
+		var createdAt, lastUpdate time.Time
+
+		// Nullable node fields
+		var treeNodeID, nodeTitle, nodeID sql.NullString
+		var nodeCreatedAt sql.NullTime
+
+		err := rows.Scan(
+			&treeID, &title, &difficulties, &pathID, &status, &isPause, &nodeCount,
+			&createdAt, &lastUpdate, &treeAlbumID,
+			&treeNodeID, &nodeTitle, &nodeID, &nodeCreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan tree with nodes: %w", err)
+		}
+
+		// If tree not yet in map, add it
+		if _, exists := treeMap[treeID]; !exists {
+			treeMap[treeID] = &model.TreeResponse{
+				TreeID:       treeID,
+				Title:        title,
+				Difficulties: difficulties,
+				PathID:       pathID,
+				Status:       status,
+				IsPause:      isPause,
+				NodeCount:    nodeCount,
+				AlbumID:      treeAlbumID,
+				CreatedAt:    createdAt,
+				LastUpdate:   lastUpdate,
+				Nodes:        []model.TreeNode{},
+			}
+
+			treeOrder = append(treeOrder, treeID)
+		}
+
+		// Add node if it exists (LEFT JOIN might have NULL nodes)
+		if treeNodeID.Valid {
+			node := model.TreeNode{
+				TreeNodeID: treeNodeID.String,
+				NodeTitle:  nodeTitle.String,
+				NodeID:     nodeID.String,
+				TreeID:     treeID,
+			}
+
+			if nodeCreatedAt.Valid {
+				node.CreatedAt = nodeCreatedAt.Time
+			}
+
+			treeMap[treeID].Nodes = append(treeMap[treeID].Nodes, node)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetTreesWithNodesByAlbumID row iteration failed: %w", err)
+	}
+
+	// Convert map to ordered slice
+	var trees []model.TreeResponse
+	for _, treeID := range treeOrder {
+		trees = append(trees, *treeMap[treeID])
+	}
+
+	return trees, nil
 }
