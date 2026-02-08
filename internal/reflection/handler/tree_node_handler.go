@@ -52,7 +52,7 @@ func (h *Handler) GetTreeNodesByTreeID(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree nodes retrieved successfully",
 		"data": fiber.Map{
@@ -75,7 +75,7 @@ func (h *Handler) GetTreeNodeByID(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree node retrieved successfully",
 		"data": fiber.Map{
@@ -102,9 +102,12 @@ func (h *Handler) UpdateTreeNode(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "tree node updated successfully", "tree_node_id", treeNodeID)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree node updated successfully",
+		"data": fiber.Map{
+			"tree_node_id": treeNodeID,
+		},
 	})
 }
 
@@ -121,8 +124,11 @@ func (h *Handler) DeleteTreeNode(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "tree node deleted successfully", "tree_node_id", treeNodeID)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree node deleted successfully",
+		"data": fiber.Map{
+			"tree_node_id": treeNodeID,
+		},
 	})
 }

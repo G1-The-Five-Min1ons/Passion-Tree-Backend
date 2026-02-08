@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"passiontree/internal/reflection/model"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
-// CreateTreeNode creates a single tree node record
-func (r *repositoryImpl) CreateTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
+// AddSingleTreeNode creates a single tree node record (use when adding one custom node)
+func (r *repositoryImpl) AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
 	treeNodeID := uuid.New().String()
 	
 	query := `
@@ -159,8 +160,14 @@ func (r *repositoryImpl) DeleteTreeNode(ctx context.Context, treeNodeID string) 
 	return nil
 }
 
-// CreateTreeNodes creates tree_node records for all nodes in a learning path
+// CreateTreeNodes creates tree_node records for all nodes in a learning path (bulk operation with transaction)
 func (r *repositoryImpl) CreateTreeNodes(ctx context.Context, treeID string, pathID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
 	// First, get all nodes from the learning path
 	nodesQuery := `
 		SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, sequence
@@ -169,38 +176,61 @@ func (r *repositoryImpl) CreateTreeNodes(ctx context.Context, treeID string, pat
 		ORDER BY sequence ASC
 	`
 	
-	rows, err := r.db.QueryContext(ctx, nodesQuery, pathID)
+	rows, err := tx.QueryContext(ctx, nodesQuery, pathID)
 	if err != nil {
 		return fmt.Errorf("failed to get nodes for tree: %w", err)
 	}
-	defer rows.Close()
 	
-	var nodeCount int
+	//bulk insert
+	type nodeData struct {
+		treeNodeID string
+		title      string
+		nodeID     string
+	}
+	var nodesToInsert []nodeData
+	
 	for rows.Next() {
 		var nodeID, title string
 		var sequence int
 		
 		if err := rows.Scan(&nodeID, &title, &sequence); err != nil {
+			rows.Close()
 			return fmt.Errorf("failed to scan node: %w", err)
 		}
 		
-		// Create tree_node record
-		treeNodeID := uuid.New().String()
-		insertQuery := `
-			INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, create_at)
-			VALUES (@p1, @p2, @p3, @p4, GETDATE())
-		`
-		
-		_, err := r.db.ExecContext(ctx, insertQuery, treeNodeID, title, nodeID, treeID)
-		if err != nil {
-			return fmt.Errorf("failed to create tree_node: %w", err)
-		}
-		
-		nodeCount++
+		nodesToInsert = append(nodesToInsert, nodeData{
+			treeNodeID: uuid.New().String(),
+			title:      title,
+			nodeID:     nodeID,
+		})
+	}
+	rows.Close()
+	
+	if len(nodesToInsert) == 0 {
+		return fmt.Errorf("no nodes found for path_id: %s", pathID)
 	}
 	
-	if err = rows.Err(); err != nil {
-		return fmt.Errorf("row iteration failed: %w", err)
+	// True bulk insert - single query with multiple VALUES
+	// Build dynamic query: INSERT INTO ... VALUES (...), (...), (...)
+	var valueStrings []string
+	var valueArgs []interface{}
+	paramCount := 0
+	
+	for _, node := range nodesToInsert {
+		valueStrings = append(valueStrings, fmt.Sprintf("(@p%d, @p%d, @p%d, @p%d, GETDATE())", 
+			paramCount+1, paramCount+2, paramCount+3, paramCount+4))
+		valueArgs = append(valueArgs, node.treeNodeID, node.title, node.nodeID, treeID)
+		paramCount += 4
+	}
+	
+	bulkInsertQuery := fmt.Sprintf(`
+		INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, create_at)
+		VALUES %s
+	`, strings.Join(valueStrings, ","))
+	
+	_, err = tx.ExecContext(ctx, bulkInsertQuery, valueArgs...)
+	if err != nil {
+		return fmt.Errorf("failed to bulk insert tree_nodes: %w", err)
 	}
 	
 	// Update the node_count in the tree table
@@ -210,9 +240,13 @@ func (r *repositoryImpl) CreateTreeNodes(ctx context.Context, treeID string, pat
 		WHERE tree_id = @p2
 	`
 	
-	_, err = r.db.ExecContext(ctx, updateQuery, nodeCount, treeID)
+	_, err = tx.ExecContext(ctx, updateQuery, len(nodesToInsert), treeID)
 	if err != nil {
 		return fmt.Errorf("failed to update tree node_count: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction failed: %w", err)
 	}
 	
 	return nil

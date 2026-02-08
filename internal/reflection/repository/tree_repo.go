@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"passiontree/internal/reflection/model"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -42,7 +43,14 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 		return "", fmt.Errorf("failed to get nodes for tree: %w", err)
 	}
 	
-	var nodeCount int
+	// Collect all nodes for bulk insert
+	type nodeData struct {
+		treeNodeID string
+		title      string
+		nodeID     string
+	}
+	var nodesToInsert []nodeData
+	
 	for rows.Next() {
 		var nodeID, title string
 		var sequence int
@@ -52,22 +60,41 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 			return "", fmt.Errorf("failed to scan node: %w", err)
 		}
 		
-		// Create tree_node record
-		treeNodeID := uuid.New().String()
-		insertNodeQuery := `
-			INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, create_at)
-			VALUES (@p1, @p2, @p3, @p4, GETDATE())
-		`
-		
-		_, err := tx.ExecContext(ctx, insertNodeQuery, treeNodeID, title, nodeID, treeID)
-		if err != nil {
-			rows.Close()
-			return "", fmt.Errorf("failed to create tree_node: %w", err)
-		}
-		
-		nodeCount++
+		nodesToInsert = append(nodesToInsert, nodeData{
+			treeNodeID: uuid.New().String(),
+			title:      title,
+			nodeID:     nodeID,
+		})
 	}
 	rows.Close()
+	
+	if len(nodesToInsert) == 0 {
+		return "", fmt.Errorf("no nodes found for path_id: %s", req.PathID)
+	}
+	
+	// True bulk insert - single query with multiple VALUES
+	var valueStrings []string
+	var valueArgs []interface{}
+	paramCount := 0
+	
+	for _, node := range nodesToInsert {
+		valueStrings = append(valueStrings, fmt.Sprintf("(@p%d, @p%d, @p%d, @p%d, GETDATE())",
+			paramCount+1, paramCount+2, paramCount+3, paramCount+4))
+		valueArgs = append(valueArgs, node.treeNodeID, node.title, node.nodeID, treeID)
+		paramCount += 4
+	}
+	
+	bulkInsertQuery := fmt.Sprintf(`
+		INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, create_at)
+		VALUES %s
+	`, strings.Join(valueStrings, ","))
+	
+	_, err = tx.ExecContext(ctx, bulkInsertQuery, valueArgs...)
+	if err != nil {
+		return "", fmt.Errorf("failed to bulk insert tree_nodes: %w", err)
+	}
+	
+	nodeCount := len(nodesToInsert)
 	
 	// Update node_count in tree
 	updateTreeQuery := `

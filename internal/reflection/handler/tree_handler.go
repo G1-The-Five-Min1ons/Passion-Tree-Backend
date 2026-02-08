@@ -27,19 +27,9 @@ func (h *Handler) CreateTree(c *fiber.Ctx) error {
 	h.logger.InfoContext(ctx, "tree created successfully", "tree_id", resp.TreeID, "album_id", req.AlbumID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"title":        resp.Title,
-		"success":      true,
-		"message":      "tree created successfully",
-		"tree_id":      resp.TreeID,
-		"album_id":     resp.AlbumID,
-		"path_id":      resp.PathID,
-		"difficulties": resp.Difficulties,
-		"status":       resp.Status,
-		"is_pause":     resp.IsPause,
-		"node_count":   resp.NodeCount,
-		"create_at":    resp.CreatedAt,
-		"last_update":  resp.LastUpdate,
-		"nodes":        resp.Nodes,
+		"success": true,
+		"message": "tree created successfully",
+		"data":    resp,
 	})
 }
 
@@ -56,8 +46,9 @@ func (h *Handler) GetTreeByID(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "tree retrieved successfully",
 		"data": fiber.Map{
 			"tree": tree,
 		},
@@ -81,8 +72,9 @@ func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "successfully retrieved trees for album", "album_id", albumID, "count", len(trees))
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "trees retrieved successfully",
 		"data": fiber.Map{
 			"trees": trees,
 			"count": len(trees),
@@ -108,9 +100,12 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "tree updated successfully", "tree_id", treeID)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree updated successfully",
+		"data": fiber.Map{
+			"tree_id": treeID,
+		},
 	})
 }
 
@@ -127,9 +122,12 @@ func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "tree deleted successfully", "tree_id", treeID)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree deleted successfully",
+		"data": fiber.Map{
+			"tree_id": treeID,
+		},
 	})
 }
 
@@ -156,8 +154,12 @@ func (h *Handler) PauseTree(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree " + pauseStatus + " successfully",
+		"data": fiber.Map{
+			"tree_id":  treeID,
+			"is_pause": req.IsPause,
+		},
 	})
 }

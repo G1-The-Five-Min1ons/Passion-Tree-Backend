@@ -30,7 +30,7 @@ type RepositoryReflection interface {
 	PauseTree(ctx context.Context, treeID string, isPause bool) error
 	
 	// Tree Node methods
-	CreateTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
+	AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
 	GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error)
 	GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error)
 	UpdateTreeNode(ctx context.Context, treeNodeID string, req model.UpdateTreeNodeRequest) error

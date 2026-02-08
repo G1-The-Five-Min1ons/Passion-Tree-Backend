@@ -48,8 +48,8 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 }
 
 func (r *repositoryImpl) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
-	query := `SELECT 
-		CONVERT(VARCHAR(36), reflect_id) as reflect_id, 
+	query := `SELECT
+		CONVERT(VARCHAR(36), reflect_id) as reflect_id,
 		reflect_score, 
 		reflect_description, 
 		reflect, 
@@ -187,7 +187,7 @@ func (r *repositoryImpl) UpdateReflection(ctx context.Context, reflectID string,
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		return fmt.Errorf("repo.UpdateReflection: reflection with id '%s' not found", reflectID)
+		return sql.ErrNoRows
 	}
 
 	return nil
@@ -203,7 +203,7 @@ func (r *repositoryImpl) DeleteReflection(ctx context.Context, reflectID string)
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		return fmt.Errorf("repo.DeleteReflection: reflection with id '%s' not found", reflectID)
+		return sql.ErrNoRows
 	}
 
 	return nil

@@ -23,7 +23,7 @@ func (s *serviceImpl) CreateTreeNode(ctx context.Context, req model.CreateTreeNo
 	}
 	
 	// Create tree node
-	treeNodeID, err := s.refRepo.CreateTreeNode(ctx, req)
+	treeNodeID, err := s.refRepo.AddSingleTreeNode(ctx, req)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create tree node", "error", err)
 		if apperror.IsForeignKeyError(err) {
