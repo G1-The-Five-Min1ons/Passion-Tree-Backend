@@ -27,7 +27,7 @@ type CreateTreeRequest struct {
 type UpdateTreeRequest struct {
 	Title   string `json:"title"`
 	Status  string `json:"status"`
-	IsPause bool   `json:"is_pause"`
+	// Note: Use PATCH /trees/:tree_id/pause to toggle pause status
 }
 
 // TreeResponse
@@ -45,7 +45,8 @@ type TreeResponse struct {
 	Nodes        []TreeNode               `json:"nodes,omitempty"`
 }
 
-// PauseTreeRequest
+// PauseTreeRequest - body is optional, pause status will be toggled automatically
 type PauseTreeRequest struct {
-	IsPause bool `json:"is_pause" binding:"required"`
+	// Deprecated: This field is no longer used. The endpoint toggles pause status automatically.
+	IsPause *bool `json:"is_pause,omitempty"`
 }

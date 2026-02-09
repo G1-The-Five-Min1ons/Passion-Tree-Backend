@@ -211,11 +211,11 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 func (r *repositoryImpl) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
 	query := `
 		UPDATE tree
-		SET title = @p1, status = @p2, is_pause = @p3, last_update = GETDATE()
-		WHERE tree_id = @p4
+		SET title = @p1, status = @p2, last_update = GETDATE()
+		WHERE tree_id = @p3
 	`
-	
-	result, err := r.db.ExecContext(ctx, query, req.Title, req.Status, req.IsPause, treeID)
+
+	result, err := r.db.ExecContext(ctx, query, req.Title, req.Status, treeID)
 	if err != nil {
 		return fmt.Errorf("failed to update tree: %w", err)
 	}

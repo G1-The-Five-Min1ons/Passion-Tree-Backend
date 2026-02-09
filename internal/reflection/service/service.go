@@ -11,7 +11,7 @@ import (
 type ReflectionService interface {
 	CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error)
 	GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error)
-	GetAllReflections(ctx context.Context) ([]model.Reflection, error)
+	GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error)
 	UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error
 	DeleteReflection(ctx context.Context, reflectID string) error
 	
@@ -28,7 +28,7 @@ type ReflectionService interface {
 	GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool) (interface{}, error)
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTree(ctx context.Context, treeID string) error
-	PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) error
+	PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) (bool, error)
 	
 	// Tree Node methods
 	CreateTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (*model.TreeNodeResponse, error)

@@ -10,7 +10,7 @@ import (
 type RepositoryReflection interface {
 	CreateReflection(ctx context.Context, req model.CreateReflectionRequest, summary, sentimentAnalysis string, primaryEmotion *string, strugglePoint string, aiConfidentScore, reflectionScore, weightedReflectionScore float64) (string, error)
 	GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error)
-	GetAllReflections(ctx context.Context) ([]model.Reflection, error)
+	GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error)
 	UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error
 	DeleteReflection(ctx context.Context, reflectID string) error
 	

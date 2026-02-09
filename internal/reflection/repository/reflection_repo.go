@@ -101,26 +101,93 @@ func (r *repositoryImpl) GetReflectionByID(ctx context.Context, reflectID string
 	return &ref, nil
 }
 
-func (r *repositoryImpl) GetAllReflections(ctx context.Context) ([]model.Reflection, error) {
+func (r *repositoryImpl) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
 	query := `SELECT 
-		CONVERT(VARCHAR(36), reflect_id) as reflect_id, 
-		reflect_score, 
-		reflect_description, 
-		reflect, 
-		progress_score, 
-		challenge_score, 
-		summary,
-		sentiment_analysis,
-		primary_emotion,
-		struggle_point,
-		ai_confident_score,
-		reflection_score,
-		weighted_reflection_score,
-		create_at, 
-		CONVERT(VARCHAR(36), tree_node_id) as tree_node_id 
-		FROM Reflect`
+		CONVERT(VARCHAR(36), r.reflect_id) as reflect_id, 
+		r.reflect_score, 
+		r.reflect_description, 
+		r.reflect, 
+		r.progress_score, 
+		r.challenge_score, 
+		r.summary,
+		r.sentiment_analysis,
+		r.primary_emotion,
+		r.struggle_point,
+		r.ai_confident_score,
+		r.reflection_score,
+		r.weighted_reflection_score,
+		r.create_at, 
+		CONVERT(VARCHAR(36), r.tree_node_id) as tree_node_id 
+		FROM Reflect r`
 
-	rows, err := r.db.QueryContext(ctx, query)
+	// Build WHERE clause dynamically
+	whereClauses := []string{}
+	args := []interface{}{}
+	paramCount := 1
+
+	// Join tables only when necessary based on filters
+	needTreeNode := filter.TreeID != nil || filter.AlbumID != nil || filter.UserID != nil
+	needTree := filter.AlbumID != nil || filter.UserID != nil
+	needAlbum := filter.UserID != nil
+
+	if needTreeNode {
+		query += ` 
+		INNER JOIN tree_node tn ON r.tree_node_id = tn.tree_node_id`
+	}
+	
+	if needTree {
+		query += `
+		INNER JOIN tree t ON tn.tree_id = t.tree_id`
+	}
+	
+	if needAlbum {
+		query += `
+		INNER JOIN Album a ON t.album_id = a.album_id`
+	}
+
+	// Add filter conditions
+	if filter.TreeNodeID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("r.tree_node_id = @p%d", paramCount))
+		args = append(args, *filter.TreeNodeID)
+		paramCount++
+	}
+
+	if filter.TreeID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("tn.tree_id = @p%d", paramCount))
+		args = append(args, *filter.TreeID)
+		paramCount++
+	}
+
+	if filter.AlbumID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("t.album_id = @p%d", paramCount))
+		args = append(args, *filter.AlbumID)
+		paramCount++
+	}
+
+	if filter.UserID != nil {
+		whereClauses = append(whereClauses, fmt.Sprintf("a.user_id = @p%d", paramCount))
+		args = append(args, *filter.UserID)
+		paramCount++
+	}
+
+	// Add WHERE clause if any filters exist
+	if len(whereClauses) > 0 {
+		query += " WHERE " + whereClauses[0]
+		for i := 1; i < len(whereClauses); i++ {
+			query += " AND " + whereClauses[i]
+		}
+	}
+
+	// Add ORDER BY
+	query += ` ORDER BY r.create_at DESC`
+
+	// Add pagination
+	if filter.Limit > 0 {
+		query += fmt.Sprintf(" OFFSET @p%d ROWS FETCH NEXT @p%d ROWS ONLY", paramCount, paramCount+1)
+		args = append(args, filter.Offset, filter.Limit)
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetAllReflections query failed: %w", err)
 	}

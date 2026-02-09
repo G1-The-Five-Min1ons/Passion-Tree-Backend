@@ -141,35 +141,34 @@ func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	})
 }
 
-// PauseTree handles pausing/unpausing a tree
+// PauseTree handles toggling pause/unpause state of a tree
 func (h *Handler) PauseTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	var req model.PauseTreeRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	if err := c.BodyParser(&req); err != nil {
-		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
-	}
+	// Body is optional since we're toggling
+	_ = c.BodyParser(&req)
 
-	err := h.reflectSvc.PauseTree(ctx, treeID, req)
+	isPause, err := h.reflectSvc.PauseTree(ctx, treeID, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	pauseStatus := "paused"
-	if !req.IsPause {
-		pauseStatus = "unpaused"
+	statusMsg := "paused"
+	if !isPause {
+		statusMsg = "unpaused"
 	}
 
-	h.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID)
+	h.logger.InfoContext(ctx, "tree "+statusMsg+" successfully", "tree_id", treeID, "is_pause", isPause)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "tree " + pauseStatus + " successfully",
+		"message": "tree " + statusMsg + " successfully",
 		"data": fiber.Map{
 			"tree_id":  treeID,
-			"is_pause": req.IsPause,
+			"is_pause": isPause,
 		},
 	})
 }

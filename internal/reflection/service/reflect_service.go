@@ -99,13 +99,13 @@ func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (
 	return ref, nil
 }
 
-func (s *serviceImpl) GetAllReflections(ctx context.Context) ([]model.Reflection, error) {
-	reflections, err := s.refRepo.GetAllReflections(ctx)
-	s.logger.InfoContext(ctx, "fetching all reflections", "count", len(reflections))
-
+func (s *serviceImpl) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
+	s.logger.InfoContext(ctx, "fetching reflections with filters", "tree_node_id", filter.TreeNodeID, "tree_id", filter.TreeID, "album_id", filter.AlbumID, "user_id", filter.UserID, "limit", filter.Limit, "offset", filter.Offset)
+	
+	reflections, err := s.refRepo.GetAllReflections(ctx, filter)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to fetch all reflections", "error", err)
-		return nil, apperror.NewInternal("failed to fetch all reflections: %w", err)
+		s.logger.ErrorContext(ctx, "failed to fetch reflections", "error", err)
+		return nil, apperror.NewInternal("failed to fetch reflections: %w", err)
 	}
 	s.logger.InfoContext(ctx, "successfully fetched reflections", "count", len(reflections))
 	return reflections, nil

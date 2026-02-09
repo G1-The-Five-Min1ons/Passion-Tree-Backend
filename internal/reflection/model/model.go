@@ -51,3 +51,13 @@ type UpdateReflectionRequest struct {
     ProgressScore   int    `json:"progress_score"`
     ChallengeScore  int    `json:"challenge_score"`
 }
+
+// GetReflectionsFilter represents filter parameters for querying reflections
+type GetReflectionsFilter struct {
+    TreeNodeID *string `json:"tree_node_id,omitempty"`
+    TreeID     *string `json:"tree_id,omitempty"`
+    AlbumID    *string `json:"album_id,omitempty"`
+    UserID     *string `json:"user_id,omitempty"`
+    Limit      int     `json:"limit,omitempty"`
+    Offset     int     `json:"offset,omitempty"`
+}

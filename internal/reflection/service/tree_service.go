@@ -179,38 +179,41 @@ func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
 	return nil
 }
 
-func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) error {
-	s.logger.InfoContext(ctx, "request to pause/unpause tree", "tree_id", treeID, "is_pause", req.IsPause)
+func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) (bool, error) {
+	s.logger.InfoContext(ctx, "request to toggle pause/unpause tree", "tree_id", treeID)
 
 	if treeID == "" {
-		return apperror.NewBadRequest("tree_id is required")
+		return false, apperror.NewBadRequest("tree_id is required")
 	}
 	
-	// Check if tree exists
-	_, err := s.refRepo.GetTreeByID(ctx, treeID)
+	// Get current tree state
+	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "tree not found", "tree_id", treeID)
-			return apperror.NewNotFound("tree with id '%s' not found", treeID)
+			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
-		return apperror.NewInternal(err.Error())
+		return false, apperror.NewInternal(err.Error())
 	}
 	
+	// Toggle pause status (pause -> unpause, unpause -> pause)
+	newPauseStatus := !tree.IsPause
+	
 	// Update pause status
-	err = s.refRepo.PauseTree(ctx, treeID, req.IsPause)
+	err = s.refRepo.PauseTree(ctx, treeID, newPauseStatus)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return apperror.NewNotFound("tree with id '%s' not found", treeID)
+			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "failed to pause/unpause tree", "error", err, "tree_id", treeID)
-		return apperror.NewInternal(err.Error())
+		return false, apperror.NewInternal(err.Error())
 	}
 	
 	pauseStatus := "paused"
-	if !req.IsPause {
+	if !newPauseStatus {
 		pauseStatus = "unpaused"
 	}
-	s.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID)
-	return nil
+	s.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID, "previous_status", tree.IsPause, "new_status", newPauseStatus)
+	return newPauseStatus, nil
 }
