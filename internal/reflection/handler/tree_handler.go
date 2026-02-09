@@ -29,9 +29,7 @@ func (h *Handler) CreateTree(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "tree created successfully",
-		"data": fiber.Map{
-			"tree": resp,
-		},
+		"data":    resp,
 	})
 }
 
@@ -48,8 +46,9 @@ func (h *Handler) GetTreeByID(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "tree retrieved successfully",
 		"data": fiber.Map{
 			"tree": tree,
 		},
@@ -59,25 +58,36 @@ func (h *Handler) GetTreeByID(c *fiber.Ctx) error {
 // GetTreesByAlbumID handles retrieving all trees for an album
 func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 	albumID := c.Query("album_id")
-	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	includeNodes := c.QueryBool("include_nodes", false)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 15*time.Second)
 	defer cancel()
 
 	if albumID == "" {
 		return h.handleError(c, apperror.NewBadRequest("album_id is required as query parameter"))
 	}
 
-	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID)
+	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID, includeNodes)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "successfully retrieved trees for album", "album_id", albumID, "count", len(trees))
+	// Count handling based on type
+	var count int
+	switch v := trees.(type) {
+	case []model.Tree:
+		count = len(v)
+	case []model.TreeResponse:
+		count = len(v)
+	}
 
-	return c.JSON(fiber.Map{
+	h.logger.InfoContext(ctx, "successfully retrieved trees for album", "album_id", albumID, "count", count, "include_nodes", includeNodes)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
+		"message": "trees retrieved successfully",
 		"data": fiber.Map{
 			"trees": trees,
-			"count": len(trees),
+			"count": count,
 		},
 	})
 }
@@ -100,9 +110,12 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "tree updated successfully", "tree_id", treeID)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree updated successfully",
+		"data": fiber.Map{
+			"tree_id": treeID,
+		},
 	})
 }
 
@@ -119,8 +132,43 @@ func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "tree deleted successfully", "tree_id", treeID)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "tree deleted successfully",
+		"data": fiber.Map{
+			"tree_id": treeID,
+		},
+	})
+}
+
+// PauseTree handles toggling pause/unpause state of a tree
+func (h *Handler) PauseTree(c *fiber.Ctx) error {
+	treeID := c.Params("tree_id")
+	var req model.PauseTreeRequest
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	// Body is optional since we're toggling
+	_ = c.BodyParser(&req)
+
+	isPause, err := h.reflectSvc.PauseTree(ctx, treeID, req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	statusMsg := "paused"
+	if !isPause {
+		statusMsg = "unpaused"
+	}
+
+	h.logger.InfoContext(ctx, "tree "+statusMsg+" successfully", "tree_id", treeID, "is_pause", isPause)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "tree " + statusMsg + " successfully",
+		"data": fiber.Map{
+			"tree_id":  treeID,
+			"is_pause": isPause,
+		},
 	})
 }

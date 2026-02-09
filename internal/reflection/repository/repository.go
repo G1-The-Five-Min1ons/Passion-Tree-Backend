@@ -8,9 +8,9 @@ import (
 )
 
 type RepositoryReflection interface {
-	CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (string, error)
+	CreateReflection(ctx context.Context, req model.CreateReflectionRequest, summary, sentimentAnalysis string, primaryEmotion *string, strugglePoint string, aiConfidentScore, reflectionScore, weightedReflectionScore float64) (string, error)
 	GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error)
-	GetAllReflections(ctx context.Context) ([]model.Reflection, error)
+	GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error)
 	UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error
 	DeleteReflection(ctx context.Context, reflectID string) error
 	
@@ -25,8 +25,19 @@ type RepositoryReflection interface {
 	CreateTree(ctx context.Context, req model.CreateTreeRequest) (string, error)
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error)
+	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error)
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTree(ctx context.Context, treeID string) error
+	PauseTree(ctx context.Context, treeID string, isPause bool) error
+	
+	// Tree Node methods
+	AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
+	GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error)
+	GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error)
+	UpdateTreeNode(ctx context.Context, treeNodeID string, req model.UpdateTreeNodeRequest) error
+	DeleteTreeNode(ctx context.Context, treeNodeID string) error
+	CreateTreeNodes(ctx context.Context, treeID string, pathID string) error
+	GetNodesByPathID(ctx context.Context, pathID string) ([]model.TreeNode, error)
 }
 
 type repositoryImpl struct {

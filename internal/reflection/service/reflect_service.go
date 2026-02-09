@@ -10,52 +10,48 @@ import (
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
 	
-	if req.Learned == "" {
-		return nil, apperror.NewBadRequest("what have learned is required")
+	if req.LearningReflect == "" {
+		return nil, apperror.NewBadRequest("learning_reflect is required")
 	}
-	if req.Reflect == "" {
-		return nil, apperror.NewBadRequest("reflection is required")
-	}
-	if req.FeelScore == "" {
-		return nil, apperror.NewBadRequest("feel_score is required")
-	}
-	if req.ProgressScore == "" {
-		return nil, apperror.NewBadRequest("progress_score is required")
-	}
-	if req.ChallengeScore == "" {
-		return nil, apperror.NewBadRequest("challenge_score is required")
+	if req.MoodReflect == "" {
+		return nil, apperror.NewBadRequest("mood_reflect is required")
 	}
 	if req.TreeNodeID == "" {
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
 
-	if s.aiClient != nil {
-		s.logger.InfoContext(ctx, "calling AI sentiment analysis service")
-
-		sentimentReq := &aiclient.SentimentRequest{
-			WhatLearned:           req.Learned,
-			FeelingsAfterLearning: req.Reflect,
-		}
-
-		sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
-		if err != nil {
-			s.logger.WarnContext(ctx, "AI sentiment analysis failed, proceeding with defaults", "error", err)
-		} else {
-			req.Mood = sentimentResp.Sentiment
-			if req.Tag == "" {
-				req.Tag = sentimentResp.Advanced.PrimaryEmotion
-			}
-			s.logger.InfoContext(ctx, "AI analysis successful", 
-				"sentiment", sentimentResp.Sentiment, 
-				"reflection_score", sentimentResp.ReflectionScore,
-			)
-		}
+	// AI analysis is required
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "AI client is not available")
+		return nil, apperror.NewInternal("AI analysis service is not configured")
 	}
 
-	id, err := s.refRepo.CreateReflection(ctx, req)
+	s.logger.InfoContext(ctx, "calling AI sentiment analysis service")
+
+	sentimentReq := &aiclient.SentimentRequest{
+		LearningReflect: req.LearningReflect,
+		MoodReflect:     req.MoodReflect,
+		FeelScore:       req.FeelScore,
+		ProgressScore:   req.ProgressScore,
+		ChallengeScore:  req.ChallengeScore,
+	}
+
+	sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to save reflection to database", 
-			"error", err, 
+		s.logger.ErrorContext(ctx, "AI sentiment analysis failed", "error", err)
+		return nil, apperror.NewInternal("failed to analyze reflection: %v", err)
+	}
+
+	s.logger.InfoContext(ctx, "AI analysis successful", 
+		"sentiment", sentimentResp.SentimentAnalysis, 
+		"reflection_score", sentimentResp.ReflectionScore,
+		"weighted_reflection_score", sentimentResp.WeightedReflectionScore,
+	)
+
+	id, err := s.refRepo.CreateReflection(ctx, req, sentimentResp.Summary, sentimentResp.SentimentAnalysis, sentimentResp.PrimaryEmotion, sentimentResp.StrugglePoint, sentimentResp.AIConfidentScore, sentimentResp.ReflectionScore, sentimentResp.WeightedReflectionScore)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to save reflection to database",
+			"error", err,
 			"tree_node_id", req.TreeNodeID,
 		)
 		if apperror.IsDuplicateKeyError(err) {
@@ -70,11 +66,15 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)
 
 	return &model.ReflectionResponse{
-		ID:        id,
-		Score:     req.FeelScore,
-		Mood:      req.Mood,
-		Summary:   req.Learned,
-		CreatedAt: "",
+		ReflectID:               id,
+		Summary:                 sentimentResp.Summary,
+		SentimentAnalysis:       sentimentResp.SentimentAnalysis,
+		PrimaryEmotion:          sentimentResp.PrimaryEmotion,
+		StrugglePoint:           sentimentResp.StrugglePoint,
+		DevelopmentPlan:         sentimentResp.DevelopmentPlan,
+		AIConfidentScore:        sentimentResp.AIConfidentScore,
+		ReflectionScore:         sentimentResp.ReflectionScore,
+		WeightedReflectionScore: sentimentResp.WeightedReflectionScore,
 	}, nil
 }
 
@@ -99,13 +99,13 @@ func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (
 	return ref, nil
 }
 
-func (s *serviceImpl) GetAllReflections(ctx context.Context) ([]model.Reflection, error) {
-	reflections, err := s.refRepo.GetAllReflections(ctx)
-	s.logger.InfoContext(ctx, "fetching all reflections", "count", len(reflections))
-
+func (s *serviceImpl) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
+	s.logger.InfoContext(ctx, "fetching reflections with filters", "tree_node_id", filter.TreeNodeID, "tree_id", filter.TreeID, "album_id", filter.AlbumID, "user_id", filter.UserID, "limit", filter.Limit, "offset", filter.Offset)
+	
+	reflections, err := s.refRepo.GetAllReflections(ctx, filter)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to fetch all reflections", "error", err)
-		return nil, apperror.NewInternal("failed to fetch all reflections: %w", err)
+		s.logger.ErrorContext(ctx, "failed to fetch reflections", "error", err)
+		return nil, apperror.NewInternal("failed to fetch reflections: %w", err)
 	}
 	s.logger.InfoContext(ctx, "successfully fetched reflections", "count", len(reflections))
 	return reflections, nil
@@ -117,21 +117,13 @@ func (s *serviceImpl) UpdateReflection(ctx context.Context, reflectID string, re
 	if reflectID == "" {
 		return apperror.NewBadRequest("reflect_id is required")
 	}
-	if req.Learned == "" {
-		return apperror.NewBadRequest("what have learned is required")
+	if req.LearningReflect == "" {
+		return apperror.NewBadRequest("learning_reflect is required")
 	}
-	if req.Reflect == "" {
-		return apperror.NewBadRequest("reflection is required")
+	if req.MoodReflect == "" {
+		return apperror.NewBadRequest("mood_reflect is required")
 	}
-	if req.FeelScore == "" {
-		return apperror.NewBadRequest("feel_score is required")
-	}
-	if req.ProgressScore == "" {
-		return apperror.NewBadRequest("progress_score is required")
-	}
-	if req.ChallengeScore == "" {
-		return apperror.NewBadRequest("challenge_score is required")
-	}
+
 	if err := s.refRepo.UpdateReflection(ctx, reflectID, req); err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "update failed: reflection not found", "reflect_id", reflectID)
@@ -167,7 +159,7 @@ func (s *serviceImpl) DeleteReflection(ctx context.Context, reflectID string) er
 		s.logger.ErrorContext(ctx, "failed to delete reflection", "error", err, "reflect_id", reflectID)
 		return apperror.NewInternal("failed to delete reflection: %w", err)
 	}
-	
+
 	s.logger.InfoContext(ctx, "reflection deleted successfully", "reflect_id", reflectID)
 	return nil
 }

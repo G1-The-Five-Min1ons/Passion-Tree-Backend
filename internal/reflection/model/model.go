@@ -5,44 +5,59 @@ import (
 )
 
 type Reflection struct {
-    ReflectID        string    `json:"reflect_id"`
-    ReflectScore     string    `json:"reflect_score"`
-    ReflectDescription string  `json:"reflect_description"`
-    Reflect          string    `json:"reflect"`
-    Mood             string    `json:"mood"`
-    Tag              string    `json:"tag"`
-    ProgressScore    string    `json:"progress_score"`
-    ChallengeScore   string    `json:"challenge_score"`
-    CreatedAt        time.Time `json:"created_at"`
-    TreeNodeID       string    `json:"tree_node_id"`
+    ReflectID                string    `json:"reflect_id"`
+    ReflectScore             string    `json:"reflect_score"`
+    ReflectDescription       string    `json:"reflect_description"`
+    Reflect                  string    `json:"reflect"`
+    ProgressScore            string    `json:"progress_score"`
+    ChallengeScore           string    `json:"challenge_score"`
+    Summary                  string    `json:"summary"`
+    SentimentAnalysis        string    `json:"sentiment_analysis"`
+    PrimaryEmotion           *string   `json:"primary_emotion,omitempty"`
+    StrugglePoint            string    `json:"struggle_point"`
+    AIConfidentScore         float64   `json:"ai_confident_score"`
+    ReflectionScore          float64   `json:"reflection_score"`
+    WeightedReflectionScore  float64   `json:"weighted_reflection_score"`
+    CreatedAt                time.Time `json:"created_at"`
+    TreeNodeID               string    `json:"tree_node_id"`
 }
 
 type CreateReflectionRequest struct {
-    Learned        string `json:"learned"`
-    FeelScore      string `json:"feel_score"`
-    Reflect        string `json:"reflect"`
-    ProgressScore  string `json:"progress_score"`
-    ChallengeScore string `json:"challenge_score"`
-    Mood           string `json:"mood"`
-    Tag            string `json:"tag"`
-    TreeNodeID     string `json:"tree_node_id"`
+    LearningReflect string `json:"learning_reflect"`
+    MoodReflect     string `json:"mood_reflect"`
+    FeelScore       int    `json:"feel_score"`
+    ProgressScore   int    `json:"progress_score"`
+    ChallengeScore  int    `json:"challenge_score"`
+    TreeNodeID      string `json:"tree_node_id"`
 }
 
 
 type ReflectionResponse struct {
-    ID        string `json:"id"`
-    Score     string `json:"score"`
-    Mood      string `json:"mood"`
-    Summary   string `json:"summary"`
-    CreatedAt string `json:"created_at"`
+    ReflectID               string   `json:"reflect_id"`
+    Summary                 string   `json:"summary"`
+    SentimentAnalysis       string   `json:"sentiment_analysis"`
+    PrimaryEmotion          *string  `json:"primary_emotion,omitempty"`
+    StrugglePoint           string   `json:"struggle_point"`
+    DevelopmentPlan         []string `json:"development_plan"`
+    AIConfidentScore        float64  `json:"ai_confident_score"`
+    ReflectionScore         float64  `json:"reflection_score"`
+    WeightedReflectionScore float64  `json:"weighted_reflection_score"`
 }
 
 type UpdateReflectionRequest struct {
-    Learned        string `json:"learned"`
-    FeelScore      string `json:"feel_score"`
-    Reflect        string `json:"reflect"`
-    ProgressScore  string `json:"progress_score"`
-    ChallengeScore string `json:"challenge_score"`
-    Mood           string `json:"mood"`
-    Tag            string `json:"tag"`
+    LearningReflect string `json:"learning_reflect"`
+    MoodReflect     string `json:"mood_reflect"`
+    FeelScore       int    `json:"feel_score"`
+    ProgressScore   int    `json:"progress_score"`
+    ChallengeScore  int    `json:"challenge_score"`
+}
+
+// GetReflectionsFilter represents filter parameters for querying reflections
+type GetReflectionsFilter struct {
+    TreeNodeID *string `json:"tree_node_id,omitempty"`
+    TreeID     *string `json:"tree_id,omitempty"`
+    AlbumID    *string `json:"album_id,omitempty"`
+    UserID     *string `json:"user_id,omitempty"`
+    Limit      int     `json:"limit,omitempty"`
+    Offset     int     `json:"offset,omitempty"`
 }

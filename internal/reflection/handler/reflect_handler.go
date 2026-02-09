@@ -29,9 +29,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "reflection created successfully",
-		"data": fiber.Map{
-			"reflect_id": res,
-		},
+		"data":    res,
 	})
 }
 
@@ -103,16 +101,37 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	res, err := h.reflectSvc.GetAllReflections(ctx)
+	// Parse query parameters for filtering
+	filter := model.GetReflectionsFilter{
+		Limit:  c.QueryInt("limit", 50),  // Default limit 50
+		Offset: c.QueryInt("offset", 0),
+	}
+
+	// Optional filters
+	if treeNodeID := c.Query("tree_node_id"); treeNodeID != "" {
+		filter.TreeNodeID = &treeNodeID
+	}
+	if treeID := c.Query("tree_id"); treeID != "" {
+		filter.TreeID = &treeID
+	}
+	if albumID := c.Query("album_id"); albumID != "" {
+		filter.AlbumID = &albumID
+	}
+	if userID := c.Query("user_id"); userID != "" {
+		filter.UserID = &userID
+	}
+
+	res, err := h.reflectSvc.GetAllReflections(ctx, filter)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "all reflections retrieved", "count", len(res))
+	h.logger.InfoContext(ctx, "reflections retrieved", "count", len(res), "filter", filter)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "reflections retrieved successfully",
 		"data":    res,
+		"count":   len(res),
 	})
 }
