@@ -165,3 +165,23 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model
 
 	return node, nil
 }
+
+func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
+	s.logger.InfoContext(ctx, "fetching nodes for learning path", "path_id", pathID)
+
+	if pathID == "" {
+		return nil, apperror.NewBadRequest("path_id is required")
+	}
+
+	nodes, err := s.nodeRepo.GetNodesByPathID(ctx, pathID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "database error fetching nodes by path id", "error", err, "path_id", pathID)
+		return nil, apperror.NewInternal("failed to retrieve nodes for path %s: %w", pathID, err)
+	}
+
+	if nodes == nil {
+		nodes = []model.Node{}
+	}
+
+	return nodes, nil
+}

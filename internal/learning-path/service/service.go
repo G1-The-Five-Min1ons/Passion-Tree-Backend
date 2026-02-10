@@ -36,6 +36,7 @@ type ServiceNode interface {
 	AddMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
 	RemoveMaterial(ctx context.Context, materialID string) error
 	ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error
+	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
 }
 
 type ServiceComment interface {
