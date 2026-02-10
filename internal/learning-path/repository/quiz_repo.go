@@ -24,7 +24,7 @@ func (r *repositoryImpl) createQuestionInternal(ctx context.Context, db DBTX, re
 }
 
 func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string) ([]model.NodeQuestion, error) {
-    queryQ := `SELECT question_id, question_text, type, node_id FROM node_question WHERE node_id = @p1`
+    queryQ := `SELECT CONVERT(VARCHAR(36), question_id) as question_id, question_text, type, CONVERT(VARCHAR(36), node_id) as node_id FROM node_question WHERE node_id = @p1`
     rowsQ, err := r.db.QueryContext(ctx, queryQ, nodeID)
     if err != nil {
         return nil, fmt.Errorf("repo.GetQuestionsByNodeID query questions failed: %w", err)
@@ -50,7 +50,7 @@ func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string
     }
 
     queryC := `
-        SELECT c.choice_id, c.choice_text, c.is_correct, c.reasoning, c.question_id 
+        SELECT CONVERT(VARCHAR(36), c.choice_id) as c.choice_id, c.choice_text, c.is_correct, c.reasoning, CONVERT(VARCHAR(36), c.question_id) as c.question_id 
         FROM question_choice c
         JOIN node_question q ON c.question_id = q.question_id
         WHERE q.node_id = @p1
@@ -112,7 +112,7 @@ func (r *repositoryImpl) createChoiceInternal(ctx context.Context, db DBTX, req 
 }
 
 func (r *repositoryImpl) GetChoicesByQuestionID(ctx context.Context, questionID string) ([]model.QuestionChoice, error) {
-	query := `SELECT choice_id, choice_text, is_correct, reasoning, question_id FROM question_choice WHERE question_id = @p1`
+	query := `SELECT CONVERT(VARCHAR(36), choice_id) as choice_id, choice_text, is_correct, reasoning, CONVERT(VARCHAR(36), question_id) as question_id FROM question_choice WHERE question_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, questionID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetChoicesByQuestionID query failed: %w", err)

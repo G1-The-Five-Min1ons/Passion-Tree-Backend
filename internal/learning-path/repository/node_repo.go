@@ -25,7 +25,7 @@ func (r *repositoryImpl) createNodeInternal(ctx context.Context, db DBTX, req mo
 }
 
 func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
-	query := `SELECT node_id, title, description, path_id, sequence FROM node WHERE path_id = @p1 ORDER BY sequence ASC`
+	query := `SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, description, CONVERT(VARCHAR(36), path_id) as path_id, sequence FROM node WHERE path_id = @p1 ORDER BY sequence ASC`
 	rows, err := r.db.QueryContext(ctx, query, pathID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetNodesByPathID query failed: %w", err)
@@ -90,7 +90,7 @@ func (r *repositoryImpl) createMaterialInternal(ctx context.Context, db DBTX, re
 }
 
 func (r *repositoryImpl) GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error) {
-	query := `SELECT material_id, type, url, node_id FROM node_material WHERE node_id = @p1`
+	query := `SELECT CONVERT(VARCHAR(36), material_id) as material_id, type, url, CONVERT(VARCHAR(36), node_id) as node_id FROM node_material WHERE node_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetMaterialsByNodeID query failed: %w", err)
@@ -127,7 +127,7 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 }
 
 func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error) {
-	query := `SELECT node_id, title, description, path_id FROM node WHERE node_id = @p1`
+	query := `SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, description, CONVERT(VARCHAR(36), path_id) as path_id FROM node WHERE node_id = @p1`
 
 	var n model.Node
 	err := r.db.QueryRowContext(ctx, query, nodeID).Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID)
