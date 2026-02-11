@@ -24,64 +24,69 @@ func (r *repositoryImpl) createQuestionInternal(ctx context.Context, db DBTX, re
 }
 
 func (r *repositoryImpl) GetQuestionsByNodeID(ctx context.Context, nodeID string) ([]model.NodeQuestion, error) {
-    queryQ := `SELECT CONVERT(VARCHAR(36), question_id) as question_id, question_text, type, CONVERT(VARCHAR(36), node_id) as node_id FROM node_question WHERE node_id = @p1`
-    rowsQ, err := r.db.QueryContext(ctx, queryQ, nodeID)
-    if err != nil {
-        return nil, fmt.Errorf("repo.GetQuestionsByNodeID query questions failed: %w", err)
-    }
-    defer rowsQ.Close()
+	queryQ := `SELECT CONVERT(VARCHAR(36), question_id) as question_id, question_text, type, CONVERT(VARCHAR(36), node_id) as node_id FROM node_question WHERE node_id = @p1`
+	rowsQ, err := r.db.QueryContext(ctx, queryQ, nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetQuestionsByNodeID query questions failed: %w", err)
+	}
+	defer rowsQ.Close()
 
-    questions := []model.NodeQuestion{}
-    for rowsQ.Next() {
-        var q model.NodeQuestion
-        if err := rowsQ.Scan(&q.QuestionID, &q.QuestionText, &q.Type, &q.NodeID); err != nil {
-            return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan question failed: %w", err)
-        }
-        q.Choices = []model.QuestionChoice{}
-        questions = append(questions, q)
-    }
+	questions := []model.NodeQuestion{}
+	for rowsQ.Next() {
+		var q model.NodeQuestion
+		if err := rowsQ.Scan(&q.QuestionID, &q.QuestionText, &q.Type, &q.NodeID); err != nil {
+			return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan question failed: %w", err)
+		}
+		q.Choices = []model.QuestionChoice{}
+		questions = append(questions, q)
+	}
 
-    if err := rowsQ.Err(); err != nil {
-        return nil, fmt.Errorf("repo.GetQuestionsByNodeID questions iteration failed: %w", err)
-    }
+	if err := rowsQ.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetQuestionsByNodeID questions iteration failed: %w", err)
+	}
 
-    if len(questions) == 0 {
-        return questions, nil
-    }
+	if len(questions) == 0 {
+		return questions, nil
+	}
 
-    queryC := `
-        SELECT CONVERT(VARCHAR(36), c.choice_id) as c.choice_id, c.choice_text, c.is_correct, c.reasoning, CONVERT(VARCHAR(36), c.question_id) as c.question_id 
-        FROM question_choice c
-        JOIN node_question q ON c.question_id = q.question_id
-        WHERE q.node_id = @p1
-    `
-    rowsC, err := r.db.QueryContext(ctx, queryC, nodeID)
-    if err != nil {
-        return nil, fmt.Errorf("repo.GetQuestionsByNodeID query choices failed: %w", err)
-    }
-    defer rowsC.Close()
+	queryC := `
+		SELECT 
+			CONVERT(VARCHAR(36), c.choice_id) AS choice_id, 
+			c.choice_text, 
+			c.is_correct, 
+			c.reasoning, 
+			CONVERT(VARCHAR(36), c.question_id) AS question_id 
+		FROM question_choice c
+		JOIN node_question q ON c.question_id = q.question_id
+		WHERE q.node_id = @p1
+	`
+	rowsC, err := r.db.QueryContext(ctx, queryC, nodeID)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetQuestionsByNodeID query choices failed: %w", err)
+	}
+	defer rowsC.Close()
 
-    choicesMap := make(map[string][]model.QuestionChoice)
-    
-    for rowsC.Next() {
-        var c model.QuestionChoice
-        if err := rowsC.Scan(&c.ChoiceID, &c.ChoiceText, &c.IsCorrect, &c.Reasoning, &c.QuestionID); err != nil {
-            return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan choice failed: %w", err)
-        }
-        choicesMap[c.QuestionID] = append(choicesMap[c.QuestionID], c)
-    }
+	choicesMap := make(map[string][]model.QuestionChoice)
 
-    if err := rowsC.Err(); err != nil {
-        return nil, fmt.Errorf("repo.GetQuestionsByNodeID choices iteration failed: %w", err)
-    }
+	for rowsC.Next() {
+		var c model.QuestionChoice
+		if err := rowsC.Scan(&c.ChoiceID, &c.ChoiceText, &c.IsCorrect, &c.Reasoning, &c.QuestionID); err != nil {
+			return nil, fmt.Errorf("repo.GetQuestionsByNodeID scan choice failed: %w", err)
+		}
+		choicesMap[c.QuestionID] = append(choicesMap[c.QuestionID], c)
+	}
 
-    for i := range questions {
-        if choices, ok := choicesMap[questions[i].QuestionID]; ok {
-            questions[i].Choices = choices
-        }
-    }
+	if err := rowsC.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetQuestionsByNodeID choices iteration failed: %w", err)
+	}
 
-    return questions, nil
+	for i := range questions {
+		if choices, ok := choicesMap[questions[i].QuestionID]; ok {
+			questions[i].Choices = choices
+		}
+	}
+
+	return questions, nil
 }
 
 func (r *repositoryImpl) DeleteQuestion(ctx context.Context, questionID string) error {
