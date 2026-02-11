@@ -178,3 +178,22 @@ func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 		"message": "Nodes reordered successfully",
 	})
 }
+
+func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
+	pathID := c.Params("path_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	h.logger.InfoContext(ctx, "fetching nodes for path", "path_id", pathID)
+
+	nodes, err := h.nodeSvc.GetNodesByPathID(ctx, pathID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Nodes retrieved successfully",
+		"data":    nodes,
+	})
+}
