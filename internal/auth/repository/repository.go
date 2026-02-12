@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"time"
 	"context"
 	"database/sql"
 	"passiontree/internal/auth/model"
@@ -16,6 +17,9 @@ type UserRepository interface {
 	UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error
 	DeleteUser(ctx context.Context, id string) error
 	UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error
+	UpdateFailedLogin(ctx context.Context, userID string, attempts int, lockedUntil *time.Time) error
+	ResetFailedLogin(ctx context.Context, userID string) error
+
 	GetDB() *sql.DB
 }
 

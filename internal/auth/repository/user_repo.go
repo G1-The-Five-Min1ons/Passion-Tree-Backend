@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"time"
 	"fmt"
 
 	"passiontree/internal/auth/model"
@@ -98,39 +99,81 @@ func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model
 	return &u, &p, nil
 }
 
+func (r *userRepositoryImpl) UpdateFailedLogin(ctx context.Context, userID string, attempts int, lockedUntil *time.Time) error {
+    query := `UPDATE users SET failed_attempts = @p1, locked_until = @p2 WHERE user_id = @p3`
+    _, err := r.db.ExecContext(ctx, query, attempts, lockedUntil, userID)
+    if err != nil {
+        return fmt.Errorf("update failed login failed [user_id=%s]: %w", userID, err)
+    }
+    return nil
+}
+
+func (r *userRepositoryImpl) ResetFailedLogin(ctx context.Context, userID string) error {
+    query := `UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE user_id = @p1`
+    _, err := r.db.ExecContext(ctx, query, userID)
+    if err != nil {
+        return fmt.Errorf("reset failed login failed [user_id=%s]: %w", userID, err)
+    }
+    return nil
+}
+
 // GetUserByEmail fetches a user by email
 func (r *userRepositoryImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count, is_email_verified FROM users WHERE email = @p1`
+	query := `SELECT 
+                CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
+                first_name, last_name, role, heart_count, is_email_verified,
+                failed_attempts, locked_until 
+              FROM users WHERE email = @p1`
+
 	var user model.User
+	var lockedUntil sql.NullTime
+
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.UserID, &user.Username, &user.Email, &user.Password,
 		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
-		&user.IsEmailVerified)
+		&user.IsEmailVerified, &user.FailedAttempts, &lockedUntil)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get user by email failed: %w", err)
 	}
+
+	if lockedUntil.Valid {
+		user.LockedUntil = &lockedUntil.Time
+	}
+
 	return &user, nil
 }
 
 // GetUserByUsername fetches a user by username
 func (r *userRepositoryImpl) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
-	query := `SELECT CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, first_name, last_name, role, heart_count,
-	          is_email_verified
-	          FROM users WHERE username = @p1`
+	query := `SELECT 
+            CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
+            first_name, last_name, role, heart_count, is_email_verified,
+            failed_attempts, locked_until 
+          FROM users WHERE username = @p1`
+
 	var user model.User
+	var lockedUntil sql.NullTime
+
 	err := r.db.QueryRowContext(ctx, query, username).Scan(
 		&user.UserID, &user.Username, &user.Email, &user.Password,
 		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
-		&user.IsEmailVerified)
+		&user.IsEmailVerified, &user.FailedAttempts, &lockedUntil)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get user by username failed: %w", err)
 	}
+
+	if lockedUntil.Valid {
+		user.LockedUntil = &lockedUntil.Time
+	}
+	
 	return &user, nil
 }
 
@@ -161,18 +204,25 @@ func (r *userRepositoryImpl) UpdateProfile(ctx context.Context, userID string, p
 
 // DeleteUser deletes a user by ID (must delete profile first due to FK constraint)
 func (r *userRepositoryImpl) DeleteUser(ctx context.Context, id string) error {
-	// Delete profile first to avoid FK constraint violation
-	_, err := r.db.ExecContext(ctx, "DELETE FROM profile WHERE user_id = @p1", id)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("delete profile failed [id=%s]: %w", id, err)
+		return fmt.Errorf("begin transaction failed: %w", err)
 	}
+	defer tx.Rollback()
+
+	// Delete profile first to avoid FK constraint violation
+	_, err = tx.ExecContext(ctx, "DELETE FROM profile WHERE user_id = @p1", id)
+	if err != nil {
+        return fmt.Errorf("delete profile failed: %w", err)
+    }
 
 	// Then delete user
-	_, err = r.db.ExecContext(ctx, "DELETE FROM users WHERE user_id = @p1", id)
+	_, err = tx.ExecContext(ctx, "DELETE FROM users WHERE user_id = @p1", id)
 	if err != nil {
 		return fmt.Errorf("delete user failed [id=%s]: %w", id, err)
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 // UpdateEmailVerified updates the email verification status for a user

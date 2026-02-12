@@ -30,8 +30,10 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, userID string, prof
 
 	// Update profile in repository
 	if err := s.userRepo.UpdateProfile(ctx, userID, profile); err != nil {
+		s.logger.ErrorContext(ctx, "update profile failed", "err", err, "uid", userID)
 		return apperror.NewInternal("failed to update profile: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "profile updated successfully", "uid", userID)
 	return nil
 }

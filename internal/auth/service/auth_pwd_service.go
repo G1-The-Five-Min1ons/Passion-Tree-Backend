@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"passiontree/internal/auth/model"
@@ -29,7 +28,7 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 
 	// Delete old password reset tokens for this user
 	if err := s.tokenRepo.DeleteTokensByUserAndType(user.UserID, model.TokenTypePasswordReset); err != nil {
-		fmt.Printf("Warning: failed to delete old password reset tokens: %v\n", err)
+		s.logger.WarnContext(ctx, "forgot_password_cleanup_failed", "err", err, "uid", user.UserID)
 	}
 
 	// Generate new password reset code
@@ -53,21 +52,14 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 
 	// Send password reset email
 	if s.emailService != nil {
-		if err := s.emailService.SendPasswordResetEmail(user.Email, resetCode); err != nil {
-			// Rollback: revoke the token we just created
-			if revokeErr := s.tokenRepo.RevokeToken(tokenModel.TokenID); revokeErr != nil {
-				fmt.Printf("Warning: failed to rollback token after email failure: %v\n", revokeErr)
-			}
-			return apperror.NewInternal("failed to send password reset email: %w", err)
-		}
-	} else {
-		// Rollback: revoke the token we just created
-		if revokeErr := s.tokenRepo.RevokeToken(tokenModel.TokenID); revokeErr != nil {
-			fmt.Printf("Warning: failed to rollback token after email service check: %v\n", revokeErr)
-		}
-		return apperror.NewInternal("email service is not configured")
-	}
+        if err := s.emailService.SendPasswordResetEmail(user.Email, resetCode); err != nil {
+            _ = s.tokenRepo.RevokeToken(tokenModel.TokenID) // Rollback
+            s.logger.ErrorContext(ctx, "forgot pwd email failed", "uid", user.UserID, "err", err)
+            return apperror.NewInternal("failed to send reset email")
+        }
+    }
 
+	s.logger.InfoContext(ctx, "forgot password email sent", "uid", user.UserID, "email", user.Email)
 	return nil
 }
 
@@ -86,6 +78,7 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	// Get token from Token table
 	tokenModel, err := s.tokenRepo.GetTokenByValue(code, model.TokenTypePasswordReset)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "reset pwd get token failed", "code", code, "err", err)
 		return apperror.NewInternal("failed to get token by value: %w", err)
 	}
 	if tokenModel == nil {
@@ -100,7 +93,8 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	// Get user
 	user, _, err := s.userRepo.GetUserByID(ctx, tokenModel.UserID)
 	if err != nil {
-		return apperror.NewInternal("failed to get user by ID: %w", err)
+		s.logger.ErrorContext(ctx, "reset pwd get user failed", "uid", tokenModel.UserID, "err", err)
+		return apperror.NewInternal("failed to get user: %w", err)
 	}
 	if user == nil {
 		return apperror.NewNotFound("user not found")
@@ -109,33 +103,39 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	// Hash new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "reset pwd hash failed", "uid", user.UserID, "err", err)
 		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 
 	// Begin transaction to ensure atomicity
 	tx, err := s.userRepo.GetDB().Begin()
 	if err != nil {
+		s.logger.ErrorContext(ctx, "reset pwd begin tx failed", "uid", user.UserID, "err", err)
 		return apperror.NewInternal("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback() // rollback if not committed
+	defer tx.Rollback() 
 
 	// Update password in transaction
 	updateQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
 	if _, err := tx.Exec(updateQuery, string(hashedPassword), user.UserID); err != nil {
+		s.logger.ErrorContext(ctx, "reset pwd update failed", "uid", user.UserID, "err", err)
 		return apperror.NewInternal("failed to update password: %w", err)
 	}
 
 	// Revoke the reset token in transaction
 	revokeQuery := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
 	if _, err := tx.Exec(revokeQuery, tokenModel.TokenID); err != nil {
+		s.logger.ErrorContext(ctx, "reset pwd revoke token failed", "uid", user.UserID, "err", err)
 		return apperror.NewInternal("failed to revoke token: %w", err)
 	}
 
 	// Commit transaction
 	if err := tx.Commit(); err != nil {
+		s.logger.ErrorContext(ctx, "reset pwd commit tx failed", "uid", user.UserID, "err", err)
 		return apperror.NewInternal("failed to commit transaction: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "password reset successful", "uid", user.UserID)
 	return nil
 }
 
@@ -157,6 +157,7 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 	// Get user
 	user, _, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "change pwd get user failed", "uid", userID, "err", err)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
@@ -176,14 +177,17 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 	// Hash new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "change pwd hash failed", "uid", user.UserID, "err", err)	
 		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 
 	// Update password in database
 	updateQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
 	if _, err := s.userRepo.GetDB().Exec(updateQuery, string(hashedPassword), user.UserID); err != nil {
+		s.logger.ErrorContext(ctx, "change pwd update failed", "uid", user.UserID, "err", err)
 		return apperror.NewInternal("failed to update password: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "password change successful", "uid", user.UserID)
 	return nil
 }

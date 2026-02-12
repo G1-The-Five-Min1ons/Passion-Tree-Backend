@@ -70,6 +70,14 @@ func NewForbidden(format string, args ...interface{}) *AppError {
 	}
 }
 
+// 429
+func NewTooManyRequests(format string, args ...interface{}) *AppError {
+    return &AppError{
+        Code:    fiber.StatusTooManyRequests,
+        Message: fmt.Sprintf(format, args...),
+    }
+}
+
 // Helper functions to check database error types
 func IsDuplicateKeyError(err error) bool {
 	if err == nil {
