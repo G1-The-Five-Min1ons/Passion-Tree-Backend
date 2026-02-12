@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 	"fmt"
+	"strings"
 
 	"passiontree/internal/auth/model"
 
@@ -99,13 +100,26 @@ func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model
 	return &u, &p, nil
 }
 
-func (r *userRepositoryImpl) UpdateFailedLogin(ctx context.Context, userID string, attempts int, lockedUntil *time.Time) error {
-    query := `UPDATE users SET failed_attempts = @p1, locked_until = @p2 WHERE user_id = @p3`
-    _, err := r.db.ExecContext(ctx, query, attempts, lockedUntil, userID)
+func (r *userRepositoryImpl) UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error) {
+    query := `
+        UPDATE users 
+        SET failed_attempts = failed_attempts + 1,
+            locked_until = CASE 
+                WHEN failed_attempts + 1 >= 5 THEN @p1 
+                ELSE locked_until 
+            END
+        OUTPUT INSERTED.failed_attempts
+        WHERE user_id = @p2`
+
+    lockTime := time.Now().UTC().Add(lockDuration)
+    var newAttempts int
+
+    err := r.db.QueryRowContext(ctx, query, lockTime, userID).Scan(&newAttempts)
     if err != nil {
-        return fmt.Errorf("update failed login failed [user_id=%s]: %w", userID, err)
+        return 0, fmt.Errorf("atomic update failed_login failed: %w", err)
     }
-    return nil
+
+    return newAttempts, nil
 }
 
 func (r *userRepositoryImpl) ResetFailedLogin(ctx context.Context, userID string) error {
@@ -117,64 +131,59 @@ func (r *userRepositoryImpl) ResetFailedLogin(ctx context.Context, userID string
     return nil
 }
 
+// fetchUser is a private helper to reduce duplication of GetUserByEmail and GetUserByUsername
+func (r *userRepositoryImpl) fetchUser(ctx context.Context, query string, value interface{}) (*model.User, error) {
+    var user model.User
+    var lockedUntil sql.NullTime
+
+    err := r.db.QueryRowContext(ctx, query, value).Scan(
+        &user.UserID, &user.Username, &user.Email, &user.Password,
+        &user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
+        &user.IsEmailVerified, &user.FailedAttempts, &lockedUntil,
+    )
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, nil
+        }
+        return nil, err
+    }
+
+    if lockedUntil.Valid {
+        user.LockedUntil = &lockedUntil.Time
+    }
+
+    return &user, nil
+}
+
 // GetUserByEmail fetches a user by email
 func (r *userRepositoryImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
-	query := `SELECT 
+    query := `SELECT 
                 CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
                 first_name, last_name, role, heart_count, is_email_verified,
                 failed_attempts, locked_until 
               FROM users WHERE email = @p1`
-
-	var user model.User
-	var lockedUntil sql.NullTime
-
-	err := r.db.QueryRowContext(ctx, query, email).Scan(
-		&user.UserID, &user.Username, &user.Email, &user.Password,
-		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
-		&user.IsEmailVerified, &user.FailedAttempts, &lockedUntil)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get user by email failed: %w", err)
-	}
-
-	if lockedUntil.Valid {
-		user.LockedUntil = &lockedUntil.Time
-	}
-
-	return &user, nil
+    
+    user, err := r.fetchUser(ctx, query, email)
+    if err != nil {
+        return nil, fmt.Errorf("get user by email failed: %w", err)
+    }
+    return user, nil
 }
 
 // GetUserByUsername fetches a user by username
 func (r *userRepositoryImpl) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
-	query := `SELECT 
-            CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
-            first_name, last_name, role, heart_count, is_email_verified,
-            failed_attempts, locked_until 
-          FROM users WHERE username = @p1`
+    query := `SELECT 
+                CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
+                first_name, last_name, role, heart_count, is_email_verified,
+                failed_attempts, locked_until 
+              FROM users WHERE username = @p1`
 
-	var user model.User
-	var lockedUntil sql.NullTime
-
-	err := r.db.QueryRowContext(ctx, query, username).Scan(
-		&user.UserID, &user.Username, &user.Email, &user.Password,
-		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
-		&user.IsEmailVerified, &user.FailedAttempts, &lockedUntil)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get user by username failed: %w", err)
-	}
-
-	if lockedUntil.Valid {
-		user.LockedUntil = &lockedUntil.Time
-	}
-	
-	return &user, nil
+    user, err := r.fetchUser(ctx, query, username)
+    if err != nil {
+        return nil, fmt.Errorf("get user by username failed: %w", err)
+    }
+    return user, nil
 }
 
 // UpdateUser updates user info by ID (only first_name and last_name)
@@ -187,19 +196,79 @@ func (r *userRepositoryImpl) UpdateUser(ctx context.Context, id string, firstNam
 	return nil
 }
 
-// UpdateProfile updates profile info by user ID
+// UpdateProfile updates profile info by user ID (Partial Update support)
 func (r *userRepositoryImpl) UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error {
-	query := `UPDATE profile 
-	          SET Avatar_URL=@p1, Rank_Name=@p2, Learning_streak=@p3, Learning_count=@p4, 
-	              Location=@p5, Bio=@p6, Level=@p7, XP=@p8, Hour_learned=@p9
-	          WHERE user_id=@p10`
-	_, err := r.db.ExecContext(ctx, query,
-		profile.AvatarURL, profile.RankName, profile.LearningStreak, profile.LearningCount,
-		profile.Location, profile.Bio, profile.Level, profile.XP, profile.HourLearned, userID)
-	if err != nil {
-		return fmt.Errorf("update profile failed [user_id=%s]: %w", userID, err)
-	}
-	return nil
+    if userID == "" || profile == nil {
+        return fmt.Errorf("userID and profile are required for update")
+    }
+
+    // Create Dynamic Query
+    var updates []string
+    var args []interface{}
+    paramID := 1 // เริ่มต้นที่ @p1
+
+    if profile.AvatarURL != "" {
+        updates = append(updates, fmt.Sprintf("Avatar_URL=@p%d", paramID))
+        args = append(args, profile.AvatarURL)
+        paramID++
+    }
+    if profile.RankName != "" {
+        updates = append(updates, fmt.Sprintf("Rank_Name=@p%d", paramID))
+        args = append(args, profile.RankName)
+        paramID++
+    }
+    if profile.LearningStreak > 0 {
+        updates = append(updates, fmt.Sprintf("Learning_streak=@p%d", paramID))
+        args = append(args, profile.LearningStreak)
+        paramID++
+    }
+    if profile.LearningCount > 0 {
+        updates = append(updates, fmt.Sprintf("Learning_count=@p%d", paramID))
+        args = append(args, profile.LearningCount)
+        paramID++
+    }
+    if profile.Location != "" {
+        updates = append(updates, fmt.Sprintf("Location=@p%d", paramID))
+        args = append(args, profile.Location)
+        paramID++
+    }
+    if profile.Bio != "" {
+        updates = append(updates, fmt.Sprintf("Bio=@p%d", paramID))
+        args = append(args, profile.Bio)
+        paramID++
+    }
+    if profile.Level > 0 {
+        updates = append(updates, fmt.Sprintf("Level=@p%d", paramID))
+        args = append(args, profile.Level)
+        paramID++
+    }
+    if profile.XP > 0 {
+        updates = append(updates, fmt.Sprintf("XP=@p%d", paramID))
+        args = append(args, profile.XP)
+        paramID++
+    }
+    if profile.HourLearned > 0 {
+        updates = append(updates, fmt.Sprintf("Hour_learned=@p%d", paramID))
+        args = append(args, profile.HourLearned)
+        paramID++
+    }
+
+
+    if len(updates) == 0 {
+        return nil
+    }
+
+    // Combine Query หลัก
+    baseQuery := "UPDATE profile SET "
+    finalQuery := baseQuery + strings.Join(updates, ", ") + fmt.Sprintf(" WHERE user_id=@p%d", paramID)
+    args = append(args, userID)
+
+    _, err := r.db.ExecContext(ctx, finalQuery, args...)
+    if err != nil {
+        return fmt.Errorf("partial update profile failed [user_id=%s]: %w", userID, err)
+    }
+
+    return nil
 }
 
 // DeleteUser deletes a user by ID (must delete profile first due to FK constraint)

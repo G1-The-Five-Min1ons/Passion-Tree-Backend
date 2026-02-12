@@ -95,17 +95,17 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
 		// Log error but don't fail registration
-		s.logger.WarnContext(ctx, "failed to save verification token", "err", err, "uid", userID)
+		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
 	}
 
 	// Send verification email (don't fail registration if email sending fails)
 	if s.emailService != nil {
 		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
-			s.logger.WarnContext(ctx, "failed to send verification email", "err", err, "email", user.Email)
+			s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
 		}
 	}
 
-	s.logger.InfoContext(ctx, "user registered successfully", "uid", userID)
+	s.logger.InfoContext(ctx, "user registered successfully", "user_id", userID)
 	return userID, nil
 }
 
@@ -117,7 +117,7 @@ func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.Us
 
 	user, profile, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "get user by ID failed", "err", err, "uid", id)
+		s.logger.ErrorContext(ctx, "get user by ID failed", "error", err, "user_id", id)
 		return nil, nil, apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
@@ -135,7 +135,7 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 
 	user, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "get user by email failed", "err", err, "email", email)
+		s.logger.ErrorContext(ctx, "get user by email failed", "error", err, "email", email)
 		return nil, apperror.NewInternal("failed to get user by email: %w", err)
 	}
 	if user == nil {
@@ -154,7 +154,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 	// Check if user exists
 	existingUser, _, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "update user failed", "err", err, "uid", id)
+		s.logger.ErrorContext(ctx, "update user failed", "error", err, "user_id", id)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if existingUser == nil {
@@ -168,7 +168,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 		return apperror.NewInternal("failed to update user: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "user updated successfully", "uid", id)
+	s.logger.InfoContext(ctx, "user updated successfully", "user_id", id)
 	return nil
 }
 
@@ -192,7 +192,7 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 
 	// Verify password before deletion
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		s.logger.WarnContext(ctx, "account deletion failed: incorrect password", "uid", id)
+		s.logger.WarnContext(ctx, "account deletion failed: incorrect password", "user_id", id)
 		return apperror.NewUnauthorized("incorrect password")
 	}
 
@@ -200,6 +200,6 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 		return apperror.NewInternal("failed to delete user: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "user deleted successfully", "uid", id)
+	s.logger.InfoContext(ctx, "user deleted successfully", "user_id", id)
 	return nil
 }

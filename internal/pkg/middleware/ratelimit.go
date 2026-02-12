@@ -9,19 +9,25 @@ import (
 
 func RateLimitMiddleware() fiber.Handler {
     return limiter.New(limiter.Config{
-        Max:               5,                // Login can only be 5 times
-        Expiration:        5 * time.Minute,  // 5 minutes
+        Max:        5,               
+        Expiration: 5 * time.Minute,
         KeyGenerator: func(c *fiber.Ctx) string {
-            clientIP := c.Get("X-Forwarded-For")
-            if clientIP == "" {
-                clientIP = c.IP()
+            ip := c.IP()
+
+            var body struct {
+                Identifier string `json:"identifier"`
             }
-            return clientIP
+            _ = c.BodyParser(&body)
+
+            if body.Identifier != "" {
+                return "limit:auth:" + ip + ":" + body.Identifier
+            }
+            return "limit:auth:" + ip
         },
         LimitReached: func(c *fiber.Ctx) error {
             return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
                 "success": false,
-                "message": "Too many login attempts from your IP. Please wait 5 minutes.",
+                "error":   "Too many attempts from your IP or account. Please wait 5 minutes.",
             })
         },
     })

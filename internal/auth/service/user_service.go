@@ -60,30 +60,24 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	jwtService := jwt.NewService()
 	token, err := jwtService.GenerateAccessToken(user)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "jwt generation failed", "err", err, "uid", user.UserID)
+		s.logger.ErrorContext(ctx, "jwt generation failed", "error", err, "user_id", user.UserID)
 		return "", apperror.NewInternal("failed to generate token: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "login success", "uid", user.UserID)
+	s.logger.InfoContext(ctx, "login success", "user_id", user.UserID)
 	return token, nil
 }
 
 func (s *userServiceImpl) handleFailedLogin(ctx context.Context, user *model.User) {
-	newAttempts := user.FailedAttempts + 1
-	var lockedUntil *time.Time
+    newAttempts, err := s.userRepo.UpdateFailedLogin(ctx, user.UserID, 15*time.Minute)
+    if err != nil {
+        s.logger.ErrorContext(ctx, "failed_update_attempts", "error", err, "user_id", user.UserID)
+        return
+    }
 
-	// if failed attempts reach 5, lock account for 15 minutes
-	if newAttempts >= 5 {
-		t := time.Now().UTC().Add(15 * time.Minute)
-		lockedUntil = &t
-		s.logger.WarnContext(ctx, "account lockout triggered", "uid", user.UserID)
-	}
-
-	// Update database with new failed login attempts and lock time
-	err := s.userRepo.UpdateFailedLogin(ctx, user.UserID, newAttempts, lockedUntil)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to update login attempts", "error", err, "user_id", user.UserID)
-	}
+    if newAttempts >= 5 {
+        s.logger.WarnContext(ctx, "account_locked", "user_id", user.UserID, "attempts", newAttempts, )
+    }
 }
 
 // ValidateToken validates JWT token and returns user
@@ -102,11 +96,11 @@ func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*mod
 	// Get user from database
 	user, _, err := s.userRepo.GetUserByID(ctx, claims.UserID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "validate_token_db_failed", "err", err, "uid", claims.UserID)
+		s.logger.ErrorContext(ctx, "validate_token_db_failed", "error", err, "user_id", claims.UserID)
 		return nil, apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
-		s.logger.WarnContext(ctx, "token_valid_but_user_missing", "uid", claims.UserID)
+		s.logger.WarnContext(ctx, "token_valid_but_user_missing", "user_id", claims.UserID)
 		return nil, apperror.NewNotFound("user not found")
 	}
 

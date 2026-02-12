@@ -14,8 +14,8 @@ import (
 // SendVerificationEmail sends an email verification link using MailerSend API
 func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 	if s.config.MailerSendAPIKey == "" || s.config.SMTPFromEmail == "" {
-		err := fmt.Errorf("email_config_missing: check API key and sender email")
-		s.logger.Error("verify_email_config_failed", "err", err)
+		err := fmt.Errorf("email config missing: check API key and sender email")
+		s.logger.Error("verify email config failed", "error", err)
 		return err
 	}
 
@@ -94,22 +94,27 @@ func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 
 	res, err := ms.Email.Send(ctx, message)
 	if err != nil {
-		s.logger.Error("send password reset email failed", "err", err, "to", to)
+		s.logger.Error("send password reset email failed", "error", err, "to", to)
 		return apperror.NewInternal("failed to send email via MailerSend: %w", err)
 	}
 
 	// display success information
 	messageID := res.Header.Get("X-Message-Id")
 
-	s.logger.Info("Password reset email sent successfully", "to", to, "messageID", messageID)
+	s.logger.Info("password reset email sent successfully", "to", to, "message_id", messageID)
 	return nil
 }
 
 // SendPasswordResetEmail sends a password reset code email
 func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 	if s.config.MailerSendAPIKey == "" || s.config.SMTPFromEmail == "" {
-		return fmt.Errorf("email_config_missing")
-	}
+		s.logger.Error("email provider configuration error", 
+		"reason", "missing api key or sender email", 
+		"provider", "mailersend",
+    )
+    
+    return apperror.NewInternal("email service configuration error: missing api key or sender email")
+}
 
 	// use API Key from config
 	ms := mailersend.NewMailersend(s.config.MailerSendAPIKey)
@@ -189,12 +194,12 @@ func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 
 	res, err := ms.Email.Send(ctx, message)
 	if err != nil {
-		s.logger.Error("send password reset email failed", "err", err, "to", to)
+		s.logger.Error("send password reset email failed", "error", err, "to", to)
 		return apperror.NewInternal("failed to send password reset email via MailerSend: %w", err)
 	}
 
 	messageID := res.Header.Get("X-Message-Id")
-	s.logger.WarnContext(ctx, "Password reset email sent successfully", "to", to, "messageID", messageID)
+	s.logger.WarnContext(ctx, "password reset email sent successfully", "to", to, "message_id", messageID)
 
 	return nil
 }
