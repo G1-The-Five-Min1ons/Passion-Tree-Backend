@@ -23,17 +23,35 @@ type StartPathRequest struct {
 	UserID string `json:"user_id" binding:"required"`
 }
 
+type LearningPaths struct {
+	PathID        string
+	Title         string
+	Description   string
+	Instructor    string
+	Students      int
+	Modules       int
+	Rating        float64
+	CoverImgURL   string
+	Objective     string
+	PublishStatus string
+	CreatedAt     *time.Time
+	UpdatedAt     *time.Time
+}
+
 type LearningPath struct {
 	PathID         string     `json:"path_id"`
 	Title          string     `json:"title"`
 	CoverImgURL    string     `json:"cover_img_url"`
 	Objective      string     `json:"objective"`
 	Description    string     `json:"description"`
-	AvgRating      float64    `json:"avg_rating"`
+	Rating         float64    `json:"avg_rating"`
 	Publish_status string     `json:"publish_status"`
-	CreatedAt      *time.Time `json:"create_at"`
-	UpdatedAt      *time.Time `json:"update_at"`
+	CreatedAt      *time.Time `json:"created_at"`
+	UpdatedAt      *time.Time `json:"updated_at"`
 	CreatorID      string     `json:"creator_id"`
+	Instructor     string     `json:"instructor"`
+	Modules        int        `json:"modules"`
+	Students       int        `json:"student"`
 }
 
 type PathEnroll struct {
@@ -44,5 +62,5 @@ type PathEnroll struct {
 }
 
 type UpdateImageRequest struct {
-    CoverImgURL string `json:"cover_image_url"`
+	CoverImgURL string `json:"cover_image_url"`
 }

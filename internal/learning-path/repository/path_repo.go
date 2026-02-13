@@ -10,10 +10,34 @@ import (
 	"github.com/google/uuid"
 )
 
-func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
+func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.LearningPaths, error) {
 	query := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
-		FROM learning_path`
+		SELECT 
+   			CONVERT(VARCHAR(36), lp.path_id) as id, 
+    		lp.title, 
+    		lp.description,
+    		u.first_name as instructor,
+    		ISNULL(pe_count.total_students, 0) as student,
+			ISNULL(n_count.total_nodes, 0) as modules,
+			lp.avg_rating,
+    		lp.cover_img_url, 
+    		lp.objective,
+    		lp.publish_status, 
+    		lp.create_at, 
+    		lp.update_at
+		FROM learning_path AS lp 
+		JOIN users AS u ON lp.creator_id = u.user_id
+		LEFT JOIN (
+    		SELECT path_id, COUNT(node_id) as total_nodes 
+    		FROM node 
+    		GROUP BY path_id
+		) AS n_count ON lp.path_id = n_count.path_id
+		LEFT JOIN (
+    		SELECT path_id, COUNT(enroll_id) as total_students 
+    		FROM path_enroll 
+    		GROUP BY path_id
+		) AS pe_count ON lp.path_id = pe_count.path_id
+	`
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -21,10 +45,23 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 	}
 	defer rows.Close()
 
-	var paths []model.LearningPath
+	var paths []model.LearningPaths
 	for rows.Next() {
-		var p model.LearningPath
-		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Publish_status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID); err != nil {
+		var p model.LearningPaths
+		if err := rows.Scan(
+			&p.PathID,
+			&p.Title,
+			&p.Description,
+			&p.Instructor,
+			&p.Students,
+			&p.Modules,
+			&p.Rating,
+			&p.CoverImgURL,
+			&p.Objective,
+			&p.PublishStatus,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+		); err != nil {
 			return nil, fmt.Errorf("repo.GetAllLearningPath scan failed: %w", err)
 		}
 		paths = append(paths, p)
@@ -38,22 +75,60 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 }
 
 func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error) {
-	pathQuery := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
-		FROM learning_path 
-		WHERE path_id = @p1`
+    pathQuery := `
+        SELECT 
+            CONVERT(VARCHAR(36), lp.path_id) as path_id, 
+            lp.title, 
+            lp.cover_img_url, 
+            lp.objective, 
+            lp.description, 
+            lp.avg_rating, 
+            lp.publish_status, 
+            lp.create_at, 
+            lp.update_at, 
+            u.first_name as instructor,
+            CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
+            ISNULL(n_count.total_nodes, 0) as modules,
+            ISNULL(pe_count.total_students, 0) as student
+        FROM learning_path AS lp 
+        JOIN users AS u ON lp.creator_id = u.user_id
+        LEFT JOIN (
+            SELECT path_id, COUNT(node_id) as total_nodes 
+            FROM node 
+            GROUP BY path_id
+        ) AS n_count ON lp.path_id = n_count.path_id
+        LEFT JOIN (
+            SELECT path_id, COUNT(enroll_id) as total_students 
+            FROM path_enroll 
+            GROUP BY path_id
+        ) AS pe_count ON lp.path_id = pe_count.path_id
+        WHERE lp.path_id = @p1` 
 
-	var p model.LearningPath
-	err := r.db.QueryRowContext(ctx, pathQuery, path_id).Scan(
-		&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Publish_status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID,
-	)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, err
-		}
-		return nil, fmt.Errorf("repo.GetLearningPathByID scan failed: %w", err)
-	}
-	return &p, nil
+    var p model.LearningPath
+
+    err := r.db.QueryRowContext(ctx, pathQuery, path_id).Scan(
+        &p.PathID,
+        &p.Title,
+        &p.CoverImgURL,
+        &p.Objective,
+        &p.Description,
+        &p.Rating,
+        &p.Publish_status,
+        &p.CreatedAt,
+        &p.UpdatedAt,
+        &p.Instructor,
+        &p.CreatorID,
+        &p.Modules,
+        &p.Students,
+    )
+
+    if err != nil {
+        if err == sql.ErrNoRows {
+            return nil, err
+        }
+        return nil, fmt.Errorf("repo.GetLearningPathByID scan failed: %w", err)
+    }
+    return &p, nil
 }
 
 func (r *repositoryImpl) CreateLearningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
@@ -118,16 +193,16 @@ func (r *repositoryImpl) GetLearningPathEnrollmentStatus(ctx context.Context, pa
 }
 
 func (r *repositoryImpl) UpdateLearningPathImage(ctx context.Context, pathID string, coverImgURL string) error {
-    query := `UPDATE learning_path SET cover_img_url = @p1, update_at = GETDATE() WHERE path_id = @p2`
-    
-    res, err := r.db.ExecContext(ctx, query, coverImgURL, pathID)
-    if err != nil {
-        return fmt.Errorf("repo.UpdateLearningPathImage failed [id=%s]: %w", pathID, err)
-    }
+	query := `UPDATE learning_path SET cover_img_url = @p1, update_at = GETDATE() WHERE path_id = @p2`
 
-    rows, _ := res.RowsAffected()
-    if rows == 0 {
-        return sql.ErrNoRows
-    }
-    return nil
+	res, err := r.db.ExecContext(ctx, query, coverImgURL, pathID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdateLearningPathImage failed [id=%s]: %w", pathID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }

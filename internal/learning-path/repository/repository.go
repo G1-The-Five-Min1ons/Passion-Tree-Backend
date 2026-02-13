@@ -8,7 +8,7 @@ import (
 )
 
 type RepositoryLearningPath interface {
-	GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error)
+	GetAllLearningPath(ctx context.Context) ([]model.LearningPaths, error)
 	GetLearningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error)
 	CreateLearningPath(ctx context.Context, req model.CreatePathRequest) (string, error)
 	UpdateLearningPath(ctx context.Context, path_id string, req model.UpdatePathRequest) error
