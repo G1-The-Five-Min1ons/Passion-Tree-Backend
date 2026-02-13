@@ -113,7 +113,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 			result.Description = path.Description
 			result.CoverImgURL = path.CoverImgURL
 			result.Objective = path.Objective
-			result.AvgRating = path.AvgRating
+			result.AvgRating = path.Rating
 			result.Publish_status = path.Publish_status
 			result.CreatorID = path.CreatorID
 			result.CreatedAt = path.CreatedAt
@@ -181,7 +181,7 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 		"description":     path.Description,
 		"cover_img_url":   path.CoverImgURL,
 		"objective":       path.Objective,
-		"avg_rating":      path.AvgRating,
+		"avg_rating":      path.Rating,
 		"Publish_status ": path.Publish_status,
 		"creator_id":      path.CreatorID,
 	}
