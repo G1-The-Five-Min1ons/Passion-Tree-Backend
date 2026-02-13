@@ -30,11 +30,11 @@ func (r *repositoryImpl) GetUserPathProgress(ctx context.Context, pathID string,
         if completedNodes == totalNodes {
             status = "Completed"
         } else {
-            status = "In progress"
+            status = "Not Completed"
         }
     } else {
         percentage = 0
-        status = "In progress"
+        status = "Not Completed"
     }
 
     return &model.PathProgressResponse{
