@@ -13,12 +13,13 @@ import (
 type TokenRepository interface {
 	CreateToken(token *model.Token) error
 	GetTokenByValue(tokenValue string, tokenType string) (*model.Token, error)
-	RevokeToken(tokenID string) error
 	RevokeTokenByValue(tokenValue string, tokenType string) error
 	RevokeAllUserTokens(userID string, tokenType string) error
-	IsTokenRevoked(tokenValue string, tokenType string) (bool, error)
 	DeleteExpiredTokens() error
 	DeleteTokensByUserAndType(userID string, tokenType string) error
+	
+	// Token Rotation Methods
+	MarkTokenAsRotated(tokenValue string, tokenType string) error
 }
 
 type tokenRepositoryImpl struct {
@@ -31,7 +32,7 @@ func NewTokenRepository(db *sql.DB) TokenRepository {
 	}
 }
 
-// CreateToken creates a new token
+// CreateToken creates a new token with full session tracking
 func (r *tokenRepositoryImpl) CreateToken(token *model.Token) error {
 	ctx := context.Background()
 
@@ -39,11 +40,15 @@ func (r *tokenRepositoryImpl) CreateToken(token *model.Token) error {
 		token.TokenID = uuid.New().String()
 	}
 
-	query := `INSERT INTO Token (token_id, user_id, token, token_type, is_revoke, expire_at) 
-	          VALUES (@p1, @p2, @p3, @p4, @p5, @p6)`
+	query := `INSERT INTO Token (
+		token_id, user_id, token, token_type, is_revoke, expire_at,
+		device_info, ip_address, user_agent, last_used_at, max_expires_at, parent_token_id, is_rotated
+	) VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13)`
 
 	_, err := r.db.ExecContext(ctx, query,
-		token.TokenID, token.UserID, token.Token, token.TokenType, token.IsRevoked, token.ExpireAt)
+		token.TokenID, token.UserID, token.Token, token.TokenType, token.IsRevoked, token.ExpireAt,
+		token.DeviceInfo, token.IPAddress, token.UserAgent, token.LastUsedAt, token.MaxExpiresAt, 
+		token.ParentTokenID, token.IsRotated)
 	if err != nil {
 		return fmt.Errorf("create token failed: %w", err)
 	}
@@ -51,18 +56,23 @@ func (r *tokenRepositoryImpl) CreateToken(token *model.Token) error {
 	return nil
 }
 
-// GetTokenByValue retrieves a token by its value and type
+// GetTokenByValue retrieves a token by its value and type with all session tracking fields
 func (r *tokenRepositoryImpl) GetTokenByValue(tokenValue string, tokenType string) (*model.Token, error) {
-	query := `SELECT CONVERT(VARCHAR(36), token_id) as token_id, 
-	          CONVERT(VARCHAR(36), user_id) as user_id, 
-	          token, token_type, is_revoke, expire_at
-	          FROM Token 
-	          WHERE token = @p1 AND token_type = @p2 AND is_revoke = 0`
+	query := `SELECT 
+		CONVERT(VARCHAR(36), token_id) as token_id,
+		CONVERT(VARCHAR(36), user_id) as user_id,
+		token, token_type, is_revoke, created_at, expire_at,
+		device_info, ip_address, user_agent, last_used_at, max_expires_at,
+		CONVERT(VARCHAR(36), parent_token_id) as parent_token_id, is_rotated
+		FROM Token 
+		WHERE token = @p1 AND token_type = @p2`
 
 	var token model.Token
 	err := r.db.QueryRow(query, tokenValue, tokenType).Scan(
 		&token.TokenID, &token.UserID, &token.Token, &token.TokenType,
-		&token.IsRevoked, &token.CreatedAt, &token.ExpireAt)
+		&token.IsRevoked, &token.CreatedAt, &token.ExpireAt,
+		&token.DeviceInfo, &token.IPAddress, &token.UserAgent, &token.LastUsedAt, &token.MaxExpiresAt,
+		&token.ParentTokenID, &token.IsRotated)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -71,16 +81,6 @@ func (r *tokenRepositoryImpl) GetTokenByValue(tokenValue string, tokenType strin
 		return nil, fmt.Errorf("get token by value failed: %w", err)
 	}
 	return &token, nil
-}
-
-// RevokeToken marks a token as revoked
-func (r *tokenRepositoryImpl) RevokeToken(tokenID string) error {
-	query := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
-	_, err := r.db.Exec(query, tokenID)
-	if err != nil {
-		return fmt.Errorf("revoke token failed: %w", err)
-	}
-	return nil
 }
 
 // DeleteExpiredTokens removes all expired tokens
@@ -133,20 +133,22 @@ func (r *tokenRepositoryImpl) RevokeAllUserTokens(userID string, tokenType strin
 	return nil
 }
 
-// IsTokenRevoked checks if a token is revoked
-func (r *tokenRepositoryImpl) IsTokenRevoked(tokenValue string, tokenType string) (bool, error) {
-	query := `SELECT is_revoke FROM Token WHERE token = @p1 AND token_type = @p2`
-
-	var isRevoked bool
-	err := r.db.QueryRow(query, tokenValue, tokenType).Scan(&isRevoked)
+// MarkTokenAsRotated marks a token as rotated (replaced by a new token)
+func (r *tokenRepositoryImpl) MarkTokenAsRotated(tokenValue string, tokenType string) error {
+	query := `UPDATE Token SET is_rotated = 1 WHERE token = @p1 AND token_type = @p2`
+	result, err := r.db.Exec(query, tokenValue, tokenType)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			// Token not found in database - consider it as not revoked
-			// (it might be a JWT that was never stored)
-			return false, nil
-		}
-		return false, fmt.Errorf("check token revocation failed: %w", err)
+		return fmt.Errorf("mark token as rotated failed: %w", err)
 	}
 
-	return isRevoked, nil
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected failed: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("token not found")
+	}
+
+	return nil
 }

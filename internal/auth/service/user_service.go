@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 // Login authenticates user and returns access and refresh tokens
 // identifier can be either username or email
-func (s *userServiceImpl) Login(ctx context.Context, identifier string, password string) (string, string, error) {
+func (s *userServiceImpl) Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (string, string, error) {
 	if identifier == "" || password == "" {
 		return "", "", apperror.NewBadRequest("identifier and password are required")
 	}
@@ -64,13 +65,37 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		return "", "", apperror.NewInternal("failed to generate token: %w", err)
 	}
 
-	// Store refresh token in database
+	// Get absolute expiration time from config
+	refreshTTLHours := 168 // 7 days default
+	refreshAbsoluteHours := 720 // 30 days default
+	if s.config.JWTRefreshTTL != "" {
+		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshTTL); parseErr == nil {
+			refreshTTLHours = hours
+		}
+	}
+	if s.config.JWTRefreshAbsolute != "" {
+		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshAbsolute); parseErr == nil {
+			refreshAbsoluteHours = hours
+		}
+	}
+
+	// Store refresh token in database with session tracking
+	now := time.Now()
+	expireAt := now.Add(time.Duration(refreshTTLHours) * time.Hour)
+	maxExpireAt := now.Add(time.Duration(refreshAbsoluteHours) * time.Hour)
+	
 	tokenModel := &model.Token{
-		UserID:    user.UserID,
-		Token:     refreshToken,
-		TokenType: model.TokenTypeRefresh,
-		IsRevoked: false,
-		ExpireAt:  time.Now().Add(7 * 24 * time.Hour), // 7 days
+		UserID:       user.UserID,
+		Token:        refreshToken,
+		TokenType:    model.TokenTypeRefresh,
+		IsRevoked:    false,
+		ExpireAt:     expireAt,
+		DeviceInfo:   &deviceInfo,
+		IPAddress:    &ipAddress,
+		UserAgent:    &userAgent,
+		LastUsedAt:   &now,
+		MaxExpiresAt: &maxExpireAt,
+		IsRotated:    false,
 	}
 	err = s.tokenRepo.CreateToken(tokenModel)
 	if err != nil {
@@ -121,10 +146,11 @@ func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*mod
 	return user, nil
 }
 
-// RefreshAccessToken generates a new access token using a valid refresh token
-func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken string) (string, error) {
+// RefreshAccessToken generates new access and refresh tokens using a valid refresh token
+// This implements token rotation for enhanced security
+func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (string, string, error) {
 	if refreshToken == "" {
-		return "", apperror.NewBadRequest("refresh token is required")
+		return "", "", apperror.NewBadRequest("refresh token is required")
 	}
 
 	// Validate refresh token
@@ -132,37 +158,121 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	claims, err := jwtService.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		s.logger.WarnContext(ctx, "invalid refresh token", "error", err)
-		return "", apperror.NewUnauthorized("invalid or expired refresh token")
+		return "", "", apperror.NewUnauthorized("invalid or expired refresh token")
 	}
 
-	// Check if token is revoked in database
-	isRevoked, err := s.tokenRepo.IsTokenRevoked(refreshToken, model.TokenTypeRefresh)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to check token revocation", "error", err)
-		return "", apperror.NewInternal("failed to validate refresh token")
+	// Get token from database to check rotation status and absolute expiration
+	storedToken, err := s.tokenRepo.GetTokenByValue(refreshToken, model.TokenTypeRefresh)
+	if err != nil || storedToken == nil {
+		s.logger.WarnContext(ctx, "refresh token not found in database", "error", err)
+		return "", "", apperror.NewUnauthorized("invalid refresh token")
 	}
 
-	if isRevoked {
-		s.logger.WarnContext(ctx, "revoked refresh token used", "user_id", claims.UserID)
-		return "", apperror.NewUnauthorized("refresh token has been revoked")
+	// 🚨 Check if token is revoked
+	if storedToken.IsRevoked {
+		// Token was revoked but someone is trying to use it = potential theft!
+		s.logger.ErrorContext(ctx, "revoked token used - potential theft", "user_id", claims.UserID)
+		s.handleTokenTheft(ctx, claims.UserID)
+		return "", "", apperror.NewUnauthorized("token has been revoked - all sessions terminated for security")
+	}
+
+	// 🚨 Check if token was already rotated (reuse detection)
+	if storedToken.IsRotated {
+		// Old token being reused = definitely theft!
+		s.logger.ErrorContext(ctx, "token reuse detected - security breach", "user_id", claims.UserID)
+		s.handleTokenTheft(ctx, claims.UserID)
+		return "", "", apperror.NewUnauthorized("token reuse detected - all sessions terminated for security")
+	}
+
+	// Check absolute expiration
+	if storedToken.MaxExpiresAt != nil && time.Now().After(*storedToken.MaxExpiresAt) {
+		_ = s.tokenRepo.RevokeTokenByValue(refreshToken, model.TokenTypeRefresh)
+		s.logger.WarnContext(ctx, "absolute token lifetime exceeded", "user_id", claims.UserID)
+		return "", "", apperror.NewUnauthorized("session expired - please login again")
 	}
 
 	// Get user from database
 	user, _, err := s.userRepo.GetUserByID(ctx, claims.UserID)
 	if err != nil || user == nil {
 		s.logger.ErrorContext(ctx, "user not found for refresh token", "user_id", claims.UserID)
-		return "", apperror.NewUnauthorized("invalid refresh token")
+		return "", "", apperror.NewUnauthorized("invalid refresh token")
 	}
 
 	// Generate new access token
 	newAccessToken, err := jwtService.GenerateAccessToken(user)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to generate access token", "error", err, "user_id", user.UserID)
-		return "", apperror.NewInternal("failed to generate access token")
+		return "", "", apperror.NewInternal("failed to generate access token")
 	}
 
-	s.logger.InfoContext(ctx, "access token refreshed", "user_id", user.UserID)
-	return newAccessToken, nil
+	// Generate new refresh token (token rotation)
+	newRefreshToken, err := jwtService.GenerateRefreshToken(user)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to generate refresh token", "error", err, "user_id", user.UserID)
+		return "", "", apperror.NewInternal("failed to generate refresh token")
+	}
+
+	// Mark old token as rotated (not revoked yet - for grace period)
+	err = s.tokenRepo.MarkTokenAsRotated(refreshToken, model.TokenTypeRefresh)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to mark token as rotated", "error", err)
+		// Continue anyway
+	}
+
+	// Get refresh TTL from config
+	refreshTTLHours := 168 // 7 days default
+	if s.config.JWTRefreshTTL != "" {
+		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshTTL); parseErr == nil {
+			refreshTTLHours = hours
+		}
+	}
+
+	// Store new refresh token with same absolute expiration as original
+	now := time.Now()
+	expireAt := now.Add(time.Duration(refreshTTLHours) * time.Hour)
+	
+	newTokenModel := &model.Token{
+		UserID:        user.UserID,
+		Token:         newRefreshToken,
+		TokenType:     model.TokenTypeRefresh,
+		IsRevoked:     false,
+		ExpireAt:      expireAt,
+		DeviceInfo:    &deviceInfo,
+		IPAddress:     &ipAddress,
+		UserAgent:     &userAgent,
+		LastUsedAt:    &now,
+		MaxExpiresAt:  storedToken.MaxExpiresAt, // Keep same absolute expiration
+		ParentTokenID: &storedToken.TokenID,     // Track rotation chain
+		IsRotated:     false,
+	}
+	err = s.tokenRepo.CreateToken(newTokenModel)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to store new refresh token", "error", err, "user_id", user.UserID)
+		// Continue anyway - return the tokens
+	}
+
+	// Revoke old token after short grace period (5 minutes) to handle race conditions
+	go func() {
+		time.Sleep(5 * time.Minute)
+		_ = s.tokenRepo.RevokeTokenByValue(refreshToken, model.TokenTypeRefresh)
+	}()
+
+	s.logger.InfoContext(ctx, "tokens refreshed successfully", "user_id", user.UserID)
+	return newAccessToken, newRefreshToken, nil
+}
+
+// handleTokenTheft handles potential token theft by revoking all refresh tokens
+func (s *userServiceImpl) handleTokenTheft(ctx context.Context, userID string) {
+	// Revoke ALL refresh tokens for this user
+	err := s.tokenRepo.RevokeAllUserTokens(userID, model.TokenTypeRefresh)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to revoke tokens after theft detection", "error", err, "user_id", userID)
+	}
+
+	s.logger.WarnContext(ctx, "SECURITY: All sessions revoked due to token theft detection", "user_id", userID)
+
+	// TODO: Send security alert email to user
+	// TODO: Consider requiring 2FA on next login
 }
 
 // Logout revokes all refresh tokens for a user

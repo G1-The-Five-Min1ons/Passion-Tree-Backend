@@ -36,18 +36,11 @@ func getJWTSecret() string {
 
 // getAccessTokenTTL returns access token TTL from environment or default
 func getAccessTokenTTL() time.Duration {
-	if ttlStr string `json:"user_id"`
-	Username  string `json:"username"`
-	Role      string `json:"role"`
-	TokenType string `json:"token_type,omitempty"` // "access" or "refresh"
-	jwt.RegisteredClaims
-}
-
-// TokenType constants
-const (
-	TokenTypeAccess  = "access"
-	TokenTypeRefresh = "refresh"
-)}
+	if ttlStr := os.Getenv("JWT_ACCESS_TTL"); ttlStr != "" {
+		if hours, err := strconv.Atoi(ttlStr); err == nil {
+			return time.Duration(hours) * time.Hour
+		}
+	}
 	return DefaultAccessTokenTTL
 }
 
@@ -61,11 +54,18 @@ func getRefreshTokenTTL() time.Duration {
 	return DefaultRefreshTokenTTL
 }
 
+// TokenType constants
+const (
+	TokenTypeAccess  = "access"
+	TokenTypeRefresh = "refresh"
+)
+
 // CustomClaims represents JWT claims structure
 type CustomClaims struct {
-	UserID   string `json:"user_id"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	TokenType string `json:"token_type,omitempty"` // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
@@ -76,6 +76,13 @@ type Service struct {
 
 // NewService creates a new JWT service
 func NewService() *Service {
+	return &Service{
+		secretKey: []byte(getJWTSecret()),
+	}
+}
+
+// GenerateAccessToken generates a new access token
+func (s *Service) GenerateAccessToken(user *model.User) (string, error) {
 	now := time.Now()
 	claims := CustomClaims{
 		UserID:    user.UserID,
@@ -87,13 +94,16 @@ func NewService() *Service {
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    "passion-tree",
-			Subject:   user.UserID
-		Username: user.Username,
-		Role:     user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(AccessTokenTTL)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
+			Subject:   user.UserID,
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secretKey)
+}
+
+// GenerateRefreshToken generates a new refresh token
+func (s *Service) GenerateRefreshToken(user *model.User) (string, error) {
 	now := time.Now()
 	claims := CustomClaims{
 		UserID:    user.UserID,
@@ -105,24 +115,19 @@ func NewService() *Service {
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    "passion-tree-refresh",
-			Subject:   user.UserIDnew refresh token
-func (s *Service) GenerateRefreshToken(user *model.User) (string, error) {
-	claims := CustomClaims{
-		UserID:   user.UserID,
-		Username: user.Username,
-		Role:     user.Role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(RefreshTokenTTL)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "passion-tree-refresh",
+			Subject:   user.UserID,
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(s.secretKey)
 }
-ErrInvalidSigningMethod
+
+// ValidateToken validates a JWT token and returns claims
+func (s *Service) ValidateToken(tokenString string) (*CustomClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidSigningMethod
 		}
 		return s.secretKey, nil
 	})
@@ -144,8 +149,6 @@ ErrInvalidSigningMethod
 
 	return nil, ErrInvalidToken
 }
-
-/
 
 // GetTokenExpiration returns the expiration time of a token
 func (s *Service) GetTokenExpiration(tokenString string) (time.Time, error) {
@@ -183,7 +186,9 @@ func (s *Service) GenerateTokenPair(user *model.User) (accessToken, refreshToken
 	}
 
 	return accessToken, refreshToken, nil
-}/ ValidateRefreshToken validates refresh token specifically
+}
+
+// ValidateRefreshToken validates refresh token specifically
 func (s *Service) ValidateRefreshToken(tokenString string) (*CustomClaims, error) {
 	claims, err := s.ValidateToken(tokenString)
 	if err != nil {
@@ -221,12 +226,6 @@ func (s *Service) ValidateAccessToken(tokenString string) (*CustomClaims, error)
 	}
 
 	return claims, nil
-
-	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
-		return claims, nil
-	}
-
-	return nil, errors.New("invalid token")
 }
 
 // ExtractUserID extracts user ID from token

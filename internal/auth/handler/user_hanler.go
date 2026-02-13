@@ -45,8 +45,13 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	// Extract device info for token tracking
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
 	// Auto-login หลังจากสมัครสมาชิกสำเร็จ
-	accessToken, refreshToken, _ := h.userSvc.Login(ctx, req.Username, req.Password)
+	accessToken, refreshToken, _ := h.userSvc.Login(ctx, req.Username, req.Password, deviceInfo, ipAddress, userAgent)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -69,7 +74,12 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Identifier, req.Password)
+	// Extract device info for session tracking
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
+	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Identifier, req.Password, deviceInfo, ipAddress, userAgent)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -166,7 +176,7 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 	})
 }
 
-// RefreshToken generates a new access token using a refresh token
+// RefreshToken generates a new access token and refresh token using token rotation
 func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	var req struct {
 		RefreshToken string `json:"refresh_token" binding:"required"`
@@ -178,16 +188,22 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	accessToken, err := h.userSvc.RefreshAccessToken(ctx, req.RefreshToken)
+	// Extract device info for new token
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
+	accessToken, newRefreshToken, err := h.userSvc.RefreshAccessToken(ctx, req.RefreshToken, deviceInfo, ipAddress, userAgent)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Access token refreshed successfully",
+		"message": "Tokens refreshed successfully",
 		"data": fiber.Map{
-			"access_token": accessToken,
+			"access_token":  accessToken,
+			"refresh_token": newRefreshToken,
 		},
 	})
 }

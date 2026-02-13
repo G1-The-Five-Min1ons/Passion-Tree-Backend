@@ -16,8 +16,8 @@ type UserService interface {
 	UpdateUser(ctx context.Context, id string, firstName string, lastName string) error
 	UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error
 	DeleteUser(ctx context.Context, id string, password string) error
-	Login(ctx context.Context, identifier string, password string) (accessToken, refreshToken string, err error)
-	RefreshAccessToken(ctx context.Context, refreshToken string) (string, error)
+	Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (accessToken, refreshToken string, err error)
+	RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (newAccessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, userID string) error
 	ValidateToken(ctx context.Context, token string) (*model.User, error)
 	VerifyEmail(ctx context.Context, token string) error
