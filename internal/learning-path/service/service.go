@@ -10,7 +10,7 @@ import (
 )
 
 type ServiceLearningPath interface {
-	GetPaths(ctx context.Context) ([]model.LearningPath, error)
+	GetPaths(ctx context.Context) ([]model.LearningPaths, error)
 	GetPathDetails(ctx context.Context, id string) (*model.LearningPath, error)
 	CreatePath(ctx context.Context, req model.CreatePathRequest) (string, error)
 	UpdatePath(ctx context.Context, path_id string, req model.UpdatePathRequest) error

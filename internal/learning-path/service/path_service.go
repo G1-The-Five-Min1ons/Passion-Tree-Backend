@@ -15,7 +15,7 @@ const (
 	ContainerLearningPath = "learning-path"
 )
 
-func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
+func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPaths, error) {
 
 	paths, err := s.pathRepo.GetAllLearningPath(ctx)
 	if err != nil {
