@@ -56,11 +56,34 @@ func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 	c.ClearCookie("oauth_state")
 
 	// Process callback
-	user, token, err := h.socialAuthSvc.HandleGoogleCallback(c.UserContext(), code)
+	user, token, linkConfirm, err := h.socialAuthSvc.HandleGoogleCallback(c.UserContext(), code)
 	if err != nil {
 		h.logger.Error("google callback failed", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Authentication failed",
+		})
+	}
+
+	// Check if link confirmation is needed
+	if linkConfirm != nil && linkConfirm.NeedsConfirm {
+		h.logger.Info("google login requires account linking confirmation",
+			"email", linkConfirm.ProviderEmail,
+			"provider", linkConfirm.ProviderName,
+		)
+
+		return c.JSON(fiber.Map{
+			"needs_confirmation": true,
+			"link_token":         linkConfirm.LinkToken,
+			"message":            linkConfirm.Message,
+			"existing_user": fiber.Map{
+				"user_id":       linkConfirm.ExistingUser.UserID,
+				"username":      linkConfirm.ExistingUser.Username,
+				"email":         linkConfirm.ExistingUser.Email,
+				"first_name":    linkConfirm.ExistingUser.FirstName,
+				"last_name":     linkConfirm.ExistingUser.LastName,
+				"auth_provider": linkConfirm.ExistingUser.AuthProvider,
+			},
+			"provider_name": linkConfirm.ProviderName,
 		})
 	}
 
@@ -134,11 +157,34 @@ func (h *Handler) DiscordCallback(c *fiber.Ctx) error {
 	c.ClearCookie("oauth_state")
 
 	// Process callback
-	user, token, err := h.socialAuthSvc.HandleDiscordCallback(c.UserContext(), code)
+	user, token, linkConfirm, err := h.socialAuthSvc.HandleDiscordCallback(c.UserContext(), code)
 	if err != nil {
 		h.logger.Error("discord callback failed", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Authentication failed",
+		})
+	}
+
+	// Check if link confirmation is needed
+	if linkConfirm != nil && linkConfirm.NeedsConfirm {
+		h.logger.Info("discord login requires account linking confirmation",
+			"email", linkConfirm.ProviderEmail,
+			"provider", linkConfirm.ProviderName,
+		)
+
+		return c.JSON(fiber.Map{
+			"needs_confirmation": true,
+			"link_token":         linkConfirm.LinkToken,
+			"message":            linkConfirm.Message,
+			"existing_user": fiber.Map{
+				"user_id":       linkConfirm.ExistingUser.UserID,
+				"username":      linkConfirm.ExistingUser.Username,
+				"email":         linkConfirm.ExistingUser.Email,
+				"first_name":    linkConfirm.ExistingUser.FirstName,
+				"last_name":     linkConfirm.ExistingUser.LastName,
+				"auth_provider": linkConfirm.ExistingUser.AuthProvider,
+			},
+			"provider_name": linkConfirm.ProviderName,
 		})
 	}
 
@@ -198,6 +244,61 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Login successful",
 		"token":   token,
+		"user": fiber.Map{
+			"user_id":    user.UserID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"role":       user.Role,
+		},
+	})
+}
+
+// ConfirmAccountLink handles user's decision to link or reject account linking
+// @route POST /auth/confirm-link
+func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
+	var req struct {
+		LinkToken string `json:"link_token"`
+		Confirm   bool   `json:"confirm"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.Warn("invalid request body", "error", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.LinkToken == "" {
+		h.logger.Warn("missing link_token in confirm request")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Link token is required",
+		})
+	}
+
+	// Process confirmation
+	user, token, err := h.socialAuthSvc.ConfirmAccountLink(c.UserContext(), req.LinkToken, req.Confirm)
+	if err != nil {
+		h.logger.Error("account link confirmation failed", "error", err)
+		return h.handleError(c, err)
+	}
+
+	action := "declined"
+	if req.Confirm {
+		action = "confirmed and linked"
+	}
+
+	h.logger.Info("account link decision processed",
+		"user_id", user.UserID,
+		"action", action,
+	)
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Login successful",
+		"token":   token,
+		"linked":  req.Confirm,
 		"user": fiber.Map{
 			"user_id":    user.UserID,
 			"username":   user.Username,

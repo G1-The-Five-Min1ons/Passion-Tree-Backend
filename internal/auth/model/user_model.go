@@ -35,6 +35,16 @@ const (
 	AuthProviderDiscord = "discord"
 )
 
+// LinkConfirmationNeeded is returned when user needs to confirm account linking
+type LinkConfirmationNeeded struct {
+	LinkToken      string `json:"link_token"`
+	ExistingUser   *User  `json:"existing_user"`
+	ProviderEmail  string `json:"provider_email"`
+	ProviderName   string `json:"provider_name"`
+	Message        string `json:"message"`
+	NeedsConfirm   bool   `json:"needs_confirm"`
+}
+
 type RegisterRequest struct {
 	Username  string `json:"username"`
 	Email     string `json:"email"`

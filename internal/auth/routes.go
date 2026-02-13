@@ -48,7 +48,10 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		auth.Get("/google/callback", h.GoogleCallback)
 		auth.Get("/discord", h.DiscordLogin)
 		auth.Get("/discord/callback", h.DiscordCallback)
-
+		
+		// Account Linking Confirmation
+		auth.Post("/confirm-link", h.ConfirmAccountLink)
+		
 		// Native SSO route (for Android/mobile apps)
 		auth.Post("/native/google", h.NativeGoogleSignIn)
 	}
