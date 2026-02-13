@@ -1,29 +1,13 @@
 package handler
 
 import (
-	"log/slog"
-
-	"passiontree/internal/auth/service"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
-type SocialAuthHandler struct {
-	socialAuthSvc service.SocialAuthService
-	logger        *slog.Logger
-}
-
-func NewSocialAuthHandler(socialAuthSvc service.SocialAuthService, logger *slog.Logger) *SocialAuthHandler {
-	return &SocialAuthHandler{
-		socialAuthSvc: socialAuthSvc,
-		logger:        logger,
-	}
-}
-
 // GoogleLogin initiates Google OAuth2 flow
 // @route GET /auth/google
-func (h *SocialAuthHandler) GoogleLogin(c *fiber.Ctx) error {
+func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
 	
@@ -45,7 +29,7 @@ func (h *SocialAuthHandler) GoogleLogin(c *fiber.Ctx) error {
 
 // GoogleCallback handles Google OAuth2 callback
 // @route GET /auth/google/callback
-func (h *SocialAuthHandler) GoogleCallback(c *fiber.Ctx) error {
+func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	state := c.Query("state")
 	
@@ -101,7 +85,7 @@ func (h *SocialAuthHandler) GoogleCallback(c *fiber.Ctx) error {
 
 // DiscordLogin initiates Discord OAuth2 flow
 // @route GET /auth/discord
-func (h *SocialAuthHandler) DiscordLogin(c *fiber.Ctx) error {
+func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
 	
@@ -123,7 +107,7 @@ func (h *SocialAuthHandler) DiscordLogin(c *fiber.Ctx) error {
 
 // DiscordCallback handles Discord OAuth2 callback
 // @route GET /auth/discord/callback
-func (h *SocialAuthHandler) DiscordCallback(c *fiber.Ctx) error {
+func (h *Handler) DiscordCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	state := c.Query("state")
 	

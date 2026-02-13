@@ -23,6 +23,22 @@ type UserRepository interface {
 	GetDB() *sql.DB
 }
 
+type TokenRepository interface {
+	CreateToken(ctx context.Context, token *model.Token) error
+	GetToken(ctx context.Context, token string, tokenType string) (*model.Token, error)
+	DeleteToken(ctx context.Context, token string) error
+	DeleteExpiredTokens(ctx context.Context) error
+	MarkTokenAsUsed(ctx context.Context, token string) error
+}
+
+type SocialAuthRepository interface {
+	GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error)
+	CreateSocialUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
+	LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error
+	UpdateSocialUserInfo(ctx context.Context, userID string, userInfo *model.OAuthUserInfo) error
+	UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error
+}
+
 type userRepositoryImpl struct {
 	db *sql.DB
 }

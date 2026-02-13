@@ -233,6 +233,10 @@ func (s *socialAuthServiceImpl) fetchDiscordUserInfo(ctx context.Context, token 
 }
 
 // findOrCreateUser finds an existing user or creates a new one from OAuth info
+// This function implements UPSERT logic:
+// - If user exists with provider: Update their info from provider
+// - If user exists with email only: Link social account + Update info
+// - If user doesn't exist: Create new user
 func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, string, error) {
 	// Check if user exists with this provider
 	user, err := s.socialRepo.GetUserByProvider(ctx, userInfo.Provider, userInfo.ProviderUserID)
@@ -240,30 +244,103 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 		return nil, "", apperror.InternalServerError("Failed to check user existence", err)
 	}
 
-	// If user doesn't exist, check by email
-	if user == nil {
-		existingUser, err := s.userRepo.GetUserByEmail(ctx, userInfo.Email)
+	// CASE 1: User exists with this social provider
+	if user != nil {
+		s.logger.Info("user exists with provider, updating info",
+			"user_id", user.UserID,
+			"provider", userInfo.Provider,
+		)
+
+		// Update user info from provider (in case they changed name/email)
+		err = s.socialRepo.UpdateSocialUserInfo(ctx, user.UserID, userInfo)
 		if err != nil {
-			return nil, "", apperror.InternalServerError("Failed to check user by email", err)
+			s.logger.Error("failed to update user info", "error", err)
+			// Continue anyway - update is not critical
 		}
 
-		if existingUser != nil {
-			// User exists with same email but different provider
-			// Link the social account to existing user
-			err = s.socialRepo.LinkSocialAccount(ctx, existingUser.UserID, userInfo.Provider, userInfo.ProviderUserID)
-			if err != nil {
-				return nil, "", apperror.InternalServerError("Failed to link social account", err)
-			}
-			user = existingUser
-			user.AuthProvider = userInfo.Provider
-			user.ProviderUserID = userInfo.ProviderUserID
-		} else {
-			// Create new user
-			user, err = s.createUserFromOAuth(ctx, userInfo)
-			if err != nil {
-				return nil, "", err
-			}
+		// Update profile (avatar)
+		profile := &model.Profile{
+			AvatarURL: userInfo.AvatarURL,
 		}
+		err = s.socialRepo.UpsertSocialUserProfile(ctx, user.UserID, profile)
+		if err != nil {
+			s.logger.Error("failed to update profile", "error", err)
+			// Continue anyway - profile update is not critical
+		}
+
+		// Refresh user data
+		user.FirstName = userInfo.FirstName
+		user.LastName = userInfo.LastName
+		user.Email = userInfo.Email
+
+		// Generate JWT token
+		jwtToken, err := s.generateJWT(user)
+		if err != nil {
+			return nil, "", apperror.InternalServerError("Failed to generate token", err)
+		}
+
+		return user, jwtToken, nil
+	}
+
+	// CASE 2: User doesn't have this provider, check by email
+	existingUser, err := s.userRepo.GetUserByEmail(ctx, userInfo.Email)
+	if err != nil {
+		return nil, "", apperror.InternalServerError("Failed to check user by email", err)
+	}
+
+	if existingUser != nil {
+		// CASE 2A: User exists with same email but different provider (or local account)
+		s.logger.Info("user exists with email, linking social account",
+			"user_id", existingUser.UserID,
+			"email", userInfo.Email,
+			"provider", userInfo.Provider,
+		)
+
+		// Link the social account to existing user
+		err = s.socialRepo.LinkSocialAccount(ctx, existingUser.UserID, userInfo.Provider, userInfo.ProviderUserID)
+		if err != nil {
+			return nil, "", apperror.InternalServerError("Failed to link social account", err)
+		}
+
+		// Update user info from provider
+		err = s.socialRepo.UpdateSocialUserInfo(ctx, existingUser.UserID, userInfo)
+		if err != nil {
+			s.logger.Error("failed to update user info after linking", "error", err)
+		}
+
+		// Update profile (avatar)
+		profile := &model.Profile{
+			AvatarURL: userInfo.AvatarURL,
+		}
+		err = s.socialRepo.UpsertSocialUserProfile(ctx, existingUser.UserID, profile)
+		if err != nil {
+			s.logger.Error("failed to update profile after linking", "error", err)
+		}
+
+		user = existingUser
+		user.AuthProvider = userInfo.Provider
+		user.ProviderUserID = userInfo.ProviderUserID
+		user.FirstName = userInfo.FirstName
+		user.LastName = userInfo.LastName
+
+		// Generate JWT token
+		jwtToken, err := s.generateJWT(user)
+		if err != nil {
+			return nil, "", apperror.InternalServerError("Failed to generate token", err)
+		}
+
+		return user, jwtToken, nil
+	}
+
+	// CASE 3: User doesn't exist at all - Create new user
+	s.logger.Info("creating new user from social auth",
+		"email", userInfo.Email,
+		"provider", userInfo.Provider,
+	)
+
+	user, err = s.createUserFromOAuth(ctx, userInfo)
+	if err != nil {
+		return nil, "", err
 	}
 
 	// Generate JWT token

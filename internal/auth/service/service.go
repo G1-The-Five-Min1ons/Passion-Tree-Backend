@@ -30,6 +30,13 @@ type EmailService interface {
 	SendPasswordResetEmail(to, token string) error
 }
 
+type SocialAuthService interface {
+	GetGoogleAuthURL(state string) string
+	GetDiscordAuthURL(state string) string
+	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, error)
+	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, error)
+}
+
 type userServiceImpl struct {
 	userRepo     repository.UserRepository
 	tokenRepo    repository.TokenRepository

@@ -14,6 +14,8 @@ type SocialAuthRepository interface {
 	GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error)
 	CreateSocialUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error
+	UpdateSocialUserInfo(ctx context.Context, userID string, userInfo *model.OAuthUserInfo) error
+	UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error
 }
 
 type socialAuthRepositoryImpl struct {
@@ -162,6 +164,92 @@ func (r *socialAuthRepositoryImpl) LinkSocialAccount(ctx context.Context, userID
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+// UpdateSocialUserInfo updates user information from OAuth provider
+func (r *socialAuthRepositoryImpl) UpdateSocialUserInfo(ctx context.Context, userID string, userInfo *model.OAuthUserInfo) error {
+	query := `
+		UPDATE users
+		SET 
+			first_name = @p1,
+			last_name = @p2,
+			email = @p3,
+			is_email_verified = 1,
+			updated_at = GETDATE()
+		WHERE user_id = @p4
+	`
+
+	result, err := r.db.ExecContext(ctx, query,
+		userInfo.FirstName,
+		userInfo.LastName,
+		userInfo.Email,
+		userID,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update social user info: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+// UpsertSocialUserProfile creates or updates user profile
+func (r *socialAuthRepositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error {
+	if profile == nil {
+		return nil
+	}
+
+	// Check if profile exists
+	checkQuery := `SELECT COUNT(*) FROM profiles WHERE user_id = @p1`
+	var count int
+	err := r.db.QueryRowContext(ctx, checkQuery, userID).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to check profile existence: %w", err)
+	}
+
+	if count > 0 {
+		// Update existing profile (only update avatar_url from social auth)
+		updateQuery := `
+			UPDATE profiles
+			SET 
+				avatar_url = CASE 
+					WHEN @p1 IS NOT NULL AND @p1 != '' THEN @p1 
+					ELSE avatar_url 
+				END,
+				updated_at = GETDATE()
+			WHERE user_id = @p2
+		`
+		_, err = r.db.ExecContext(ctx, updateQuery, profile.AvatarURL, userID)
+		if err != nil {
+			return fmt.Errorf("failed to update profile: %w", err)
+		}
+	} else {
+		// Create new profile
+		insertQuery := `
+			INSERT INTO profiles (user_id, bio, location, avatar_url)
+			VALUES (@p1, @p2, @p3, @p4)
+		`
+		_, err = r.db.ExecContext(ctx, insertQuery,
+			userID,
+			profile.Bio,
+			profile.Location,
+			profile.AvatarURL,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create profile: %w", err)
+		}
 	}
 
 	return nil

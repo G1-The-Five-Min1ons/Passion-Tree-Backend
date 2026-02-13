@@ -10,14 +10,24 @@ import (
 )
 
 type Handler struct {
-	userSvc service.UserService
-	logger  *slog.Logger
+	userSvc       service.UserService
+	socialAuthSvc service.SocialAuthService
+	logger        *slog.Logger
 }
 
 func NewHandler(userSvc service.UserService, logger *slog.Logger) *Handler {
 	return &Handler{
 		userSvc: userSvc,
 		logger:  logger,
+	}
+}
+
+// NewHandlerWithSocialAuth creates a new Handler with social auth service
+func NewHandlerWithSocialAuth(userSvc service.UserService, socialAuthSvc service.SocialAuthService, logger *slog.Logger) *Handler {
+	return &Handler{
+		userSvc:       userSvc,
+		socialAuthSvc: socialAuthSvc,
+		logger:        logger,
 	}
 }
 
