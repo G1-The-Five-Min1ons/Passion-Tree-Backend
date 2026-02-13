@@ -46,14 +46,15 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	}
 
 	// Auto-login หลังจากสมัครสมาชิกสำเร็จ
-	token, _ := h.userSvc.Login(ctx, req.Username, req.Password)
+	accessToken, refreshToken, _ := h.userSvc.Login(ctx, req.Username, req.Password)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "User registered successfully",
 		"data": fiber.Map{
-			"user_id": userID,
-			"token":   token,
+			"user_id":       userID,
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
 		},
 	})
 }
@@ -68,14 +69,17 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	token, err := h.userSvc.Login(ctx, req.Identifier, req.Password)
+	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Identifier, req.Password)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"data":    fiber.Map{"token": token},
+		"data": fiber.Map{
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+		},
 	})
 }
 
@@ -159,5 +163,51 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"user_id": userID,
 		},
+	})
+}
+
+// RefreshToken generates a new access token using a refresh token
+func (h *Handler) RefreshToken(c *fiber.Ctx) error {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	accessToken, err := h.userSvc.RefreshAccessToken(ctx, req.RefreshToken)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Access token refreshed successfully",
+		"data": fiber.Map{
+			"access_token": accessToken,
+		},
+	})
+}
+
+// Logout revokes all refresh tokens for the authenticated user
+func (h *Handler) Logout(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.userSvc.Logout(ctx, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Logged out successfully",
 	})
 }

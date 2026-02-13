@@ -33,6 +33,9 @@ const (
 	EnvSMTPFromEmail          = "SMTP_FROM_EMAIL"
 	EnvMailerSendAPIKey       = "MAILERSEND_API_KEY"
 	EnvAppURL                 = "APP_URL"
+	EnvJWTSecret              = "JWT_SECRET"
+	EnvJWTAccessTTL           = "JWT_ACCESS_TTL"
+	EnvJWTRefreshTTL          = "JWT_REFRESH_TTL"
 )
 
 type Config struct {
@@ -48,6 +51,9 @@ type Config struct {
 	SMTPFromEmail          string
 	MailerSendAPIKey       string
 	AppURL                 string
+	JWTSecret              string
+	JWTAccessTTL           string // in hours
+	JWTRefreshTTL          string // in hours
 }
 
 // LoadDBConfig loads configuration from environment variables
@@ -64,6 +70,9 @@ func LoadDBConfig() (*Config, error) {
 		SMTPPort:               getEnvOrDefault(EnvSMTPPort, "587"),
 		SMTPUsername:           os.Getenv(EnvSMTPUsername),
 		SMTPPassword:           os.Getenv(EnvSMTPPassword),
+		JWTSecret:              os.Getenv(EnvJWTSecret),
+		JWTAccessTTL:           getEnvOrDefault(EnvJWTAccessTTL, "24"),  // 24 hours default
+		JWTRefreshTTL:          getEnvOrDefault(EnvJWTRefreshTTL, "168"), // 7 days default
 		SMTPFromEmail:          os.Getenv(EnvSMTPFromEmail),
 		MailerSendAPIKey:       os.Getenv(EnvMailerSendAPIKey),
 		AppURL:                 getEnvOrDefault(EnvAppURL, "http://localhost:5000"),

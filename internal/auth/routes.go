@@ -35,6 +35,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		// Public routes - no authentication required
 		auth.Post("/register", h.Register)
 		auth.Post("/login", middleware.RateLimitMiddleware(), h.Login)
+		auth.Post("/refresh", h.RefreshToken) // Refresh access token
 		auth.Post("/verify-email", h.VerifyEmail)
 		auth.Post("/resend-verification", h.ResendVerificationEmail)
 		auth.Post("/forgot-password", h.ForgotPassword)
@@ -44,6 +45,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	// --- Protected Routes (Require JWT) ---
 	protected := auth.Group("/", middleware.JWTMiddleware(logger))
 	{
+		// Authentication
+		protected.Post("/logout", h.Logout) // Logout and revoke tokens
+		
 		// Profile & User Management
 		protected.Get("/profile", h.GetUserProfile)
 		protected.Put("/profile", h.UpdateProfile)

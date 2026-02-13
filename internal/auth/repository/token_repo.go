@@ -14,6 +14,9 @@ type TokenRepository interface {
 	CreateToken(token *model.Token) error
 	GetTokenByValue(tokenValue string, tokenType string) (*model.Token, error)
 	RevokeToken(tokenID string) error
+	RevokeTokenByValue(tokenValue string, tokenType string) error
+	RevokeAllUserTokens(userID string, tokenType string) error
+	IsTokenRevoked(tokenValue string, tokenType string) (bool, error)
 	DeleteExpiredTokens() error
 	DeleteTokensByUserAndType(userID string, tokenType string) error
 }
@@ -98,4 +101,52 @@ func (r *tokenRepositoryImpl) DeleteTokensByUserAndType(userID string, tokenType
 		return fmt.Errorf("delete tokens by user and type failed: %w", err)
 	}
 	return nil
+}
+
+// RevokeTokenByValue revokes a token by its value
+func (r *tokenRepositoryImpl) RevokeTokenByValue(tokenValue string, tokenType string) error {
+	query := `UPDATE Token SET is_revoke = 1 WHERE token = @p1 AND token_type = @p2`
+	result, err := r.db.Exec(query, tokenValue, tokenType)
+	if err != nil {
+		return fmt.Errorf("revoke token by value failed: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected failed: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("token not found or already revoked")
+	}
+
+	return nil
+}
+
+// RevokeAllUserTokens revokes all tokens of a specific type for a user
+func (r *tokenRepositoryImpl) RevokeAllUserTokens(userID string, tokenType string) error {
+	query := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
+	_, err := r.db.Exec(query, userID, tokenType)
+	if err != nil {
+		return fmt.Errorf("revoke all user tokens failed: %w", err)
+	}
+	return nil
+}
+
+// IsTokenRevoked checks if a token is revoked
+func (r *tokenRepositoryImpl) IsTokenRevoked(tokenValue string, tokenType string) (bool, error) {
+	query := `SELECT is_revoke FROM Token WHERE token = @p1 AND token_type = @p2`
+
+	var isRevoked bool
+	err := r.db.QueryRow(query, tokenValue, tokenType).Scan(&isRevoked)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Token not found in database - consider it as not revoked
+			// (it might be a JWT that was never stored)
+			return false, nil
+		}
+		return false, fmt.Errorf("check token revocation failed: %w", err)
+	}
+
+	return isRevoked, nil
 }
