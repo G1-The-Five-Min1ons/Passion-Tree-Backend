@@ -24,11 +24,15 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	tokenRepo := repository.NewTokenRepository(db.GetDB())
+	socialAuthRepo := repository.NewSocialAuthRepository(db.GetDB())
 
 	// Initialize services with email configuration
 	userSvc := service.NewUserServiceWithEmail(userRepo, tokenRepo, cfg, logger)
+	socialAuthSvc := service.NewSocialAuthService(userRepo, socialAuthRepo, cfg, logger)
 
+	// Initialize handlers
 	h := handler.NewHandler(userSvc, logger)
+	socialAuthHandler := handler.NewSocialAuthHandler(socialAuthSvc, logger)
 
 	auth := r.Group("/auth")
 	{
@@ -39,6 +43,12 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		auth.Post("/resend-verification", h.ResendVerificationEmail)
 		auth.Post("/forgot-password", h.ForgotPassword)
 		auth.Post("/reset-password", h.ResetPassword)
+
+		// Social Auth routes
+		auth.Get("/google", socialAuthHandler.GoogleLogin)
+		auth.Get("/google/callback", socialAuthHandler.GoogleCallback)
+		auth.Get("/discord", socialAuthHandler.DiscordLogin)
+		auth.Get("/discord/callback", socialAuthHandler.DiscordCallback)
 	}
 
 	// --- Protected Routes (Require JWT) ---

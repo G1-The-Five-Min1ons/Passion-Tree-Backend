@@ -17,12 +17,22 @@ type User struct {
 
 	FailedAttempts  int        `json:"failed_attempts"`
 	LockedUntil     *time.Time `json:"locked_until"`
+
+	// Social Auth fields
+	AuthProvider    string `json:"auth_provider"`    // "local", "google", "discord"
+	ProviderUserID  string `json:"provider_user_id"` // User ID from OAuth provider
 }
 
 const (
 	RoleStudent = "student"
 	RoleTeacher = "teacher"
 	RoleAdmin   = "admin"
+)
+
+const (
+	AuthProviderLocal   = "local"
+	AuthProviderGoogle  = "google"
+	AuthProviderDiscord = "discord"
 )
 
 type RegisterRequest struct {
@@ -61,7 +71,22 @@ type ForgotPasswordRequest struct {
 
 type ResetPasswordRequest struct {
 	Code        string `json:"code"`
-	NewPassword string `json:"new_password"`
+	
+
+// Social Auth Models
+type SocialAuthCallbackRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
+type OAuthUserInfo struct {
+	ProviderUserID string
+	Email          string
+	FirstName      string
+	LastName       string
+	AvatarURL      string
+	Provider       string
+}NewPassword string `json:"new_password"`
 }
 
 type ChangePasswordRequest struct {
