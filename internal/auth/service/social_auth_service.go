@@ -31,6 +31,8 @@ type SocialAuthService interface {
 	GetDiscordAuthURL(state string) string
 	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, error)
 	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, error)
+	// Native SSO method for Android/mobile apps
+	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
 }
 
 type socialAuthServiceImpl struct {
@@ -408,4 +410,78 @@ func (s *socialAuthServiceImpl) generateJWT(user *model.User) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+// HandleNativeGoogleSignIn processes native Google Sign-In from mobile apps
+// This method verifies the Google ID token and authenticates the user
+func (s *socialAuthServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error) {
+	// Verify the ID token with Google
+	userInfo, err := s.verifyGoogleIDToken(ctx, idToken)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// Find or create user
+	user, jwtToken, err := s.findOrCreateUser(ctx, userInfo)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return user, jwtToken, nil
+}
+
+// verifyGoogleIDToken verifies Google ID token from native apps
+func (s *socialAuthServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken string) (*model.OAuthUserInfo, error) {
+	// Call Google's tokeninfo endpoint to verify the token
+	resp, err := http.Get(fmt.Sprintf("https://oauth2.googleapis.com/tokeninfo?id_token=%s", idToken))
+	if err != nil {
+		s.logger.Error("failed to verify google id token", "error", err)
+		return nil, apperror.InternalServerError("Failed to verify Google ID token", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		s.logger.Warn("invalid google id token", "status", resp.StatusCode)
+		return nil, apperror.NewAppError(fiber.StatusUnauthorized, "Invalid or expired Google ID token", nil)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		s.logger.Error("failed to read token verification response", "error", err)
+		return nil, apperror.InternalServerError("Failed to read verification response", err)
+	}
+
+	var tokenInfo struct {
+		Aud           string `json:"aud"`
+		Sub           string `json:"sub"`
+		Email         string `json:"email"`
+		EmailVerified string `json:"email_verified"`
+		Name          string `json:"name"`
+		Picture       string `json:"picture"`
+		GivenName     string `json:"given_name"`
+		FamilyName    string `json:"family_name"`
+	}
+
+	if err := json.Unmarshal(body, &tokenInfo); err != nil {
+		s.logger.Error("failed to parse token info", "error", err)
+		return nil, apperror.InternalServerError("Failed to parse token information", err)
+	}
+
+	// Verify the audience matches our client ID
+	if tokenInfo.Aud != s.googleConfig.ClientID {
+		s.logger.Warn("token audience mismatch",
+			"expected", s.googleConfig.ClientID,
+			"got", tokenInfo.Aud,
+		)
+		return nil, apperror.NewAppError(fiber.StatusUnauthorized, "Invalid token audience", nil)
+	}
+
+	return &model.OAuthUserInfo{
+		ProviderUserID: tokenInfo.Sub,
+		Email:          tokenInfo.Email,
+		FirstName:      tokenInfo.GivenName,
+		LastName:       tokenInfo.FamilyName,
+		AvatarURL:      tokenInfo.Picture,
+		Provider:       model.AuthProviderGoogle,
+	}, nil
 }

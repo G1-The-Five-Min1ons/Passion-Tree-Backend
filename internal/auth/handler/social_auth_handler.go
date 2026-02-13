@@ -160,3 +160,51 @@ func (h *Handler) DiscordCallback(c *fiber.Ctx) error {
 		},
 	})
 }
+
+// NativeGoogleSignIn handles native Google Sign-In from mobile apps
+// @route POST /auth/native/google
+func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
+	var req struct {
+		IDToken string `json:"id_token"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.Warn("invalid request body", "error", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.IDToken == "" {
+		h.logger.Warn("missing id_token in native google signin")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "ID token is required",
+		})
+	}
+
+	// Verify and authenticate user
+	user, token, err := h.socialAuthSvc.HandleNativeGoogleSignIn(c.UserContext(), req.IDToken)
+	if err != nil {
+		h.logger.Error("native google signin failed", "error", err)
+		return h.handleError(c, err)
+	}
+
+	h.logger.Info("native google signin successful",
+		"user_id", user.UserID,
+		"email", user.Email,
+	)
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Login successful",
+		"token":   token,
+		"user": fiber.Map{
+			"user_id":    user.UserID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"role":       user.Role,
+		},
+	})
+}
