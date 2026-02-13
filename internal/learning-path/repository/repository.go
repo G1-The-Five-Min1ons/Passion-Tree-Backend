@@ -50,6 +50,14 @@ type RepositoryQuiz interface {
 	DeleteChoice(ctx context.Context, choiceID string) error
 }
 
+type RepositoryHistory interface {
+	GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error)
+}
+
+type RepositoryResume interface {
+	GetNextNodeID(ctx context.Context, userID string, pathID string) (string, error)
+}
+
 type DBTX interface {
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
@@ -67,6 +75,8 @@ type Repository interface {
 	RepositoryNode
 	RepositoryComment
 	RepositoryQuiz
+	RepositoryHistory
+	RepositoryResume
 }
 
 type repositoryImpl struct {

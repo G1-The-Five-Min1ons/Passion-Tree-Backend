@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
-	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/pkg/storage"
+	"passiontree/internal/platform/aiclient"
 )
 
 type ServiceLearningPath interface {
@@ -55,12 +55,22 @@ type ServiceQuiz interface {
 	RemoveChoice(ctx context.Context, choiceID string) error
 }
 
+type ServiceHistory interface {
+	GetUserHistory(ctx context.Context, userID string) ([]model.HistoryResponse, error)
+}
+
+type ServiceResume interface {
+	GetResumeNode(ctx context.Context, userID string, pathID string) (*model.ResumeResponse, error)
+}
+
 type Service interface {
 	ServiceLearningPath
 	ServiceSearch
 	ServiceNode
 	ServiceComment
 	ServiceQuiz
+	ServiceHistory
+	ServiceResume
 }
 
 type serviceImpl struct {
@@ -68,23 +78,28 @@ type serviceImpl struct {
 	nodeRepo    repository.RepositoryNode
 	commentRepo repository.RepositoryComment
 	quizRepo    repository.RepositoryQuiz
-	logger  	*slog.Logger
+	historyRepo repository.RepositoryHistory
+	resumeRepo  repository.RepositoryResume
+	logger      *slog.Logger
 	aiClient    *aiclient.AIClient
-	storage    *storage.BlobService
+	storage     *storage.BlobService
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
-    if aiClient == nil {
-        slog.Warn("[DEBUG] Warning: aiClient passed to NewService is NIL!")
-    } else {
-        slog.Info("[DEBUG] aiClient successfully passed to NewService", "aiClient", aiClient)
-    }
+	if aiClient == nil {
+		slog.Warn("[DEBUG] Warning: aiClient passed to NewService is NIL!")
+	} else {
+		slog.Info("[DEBUG] aiClient successfully passed to NewService", "aiClient", aiClient)
+	}
 	return &serviceImpl{
 		pathRepo:    repo,
 		nodeRepo:    repo,
 		commentRepo: repo,
 		quizRepo:    repo,
-		logger:   	 logger,
+		logger:      logger,
 		aiClient:    aiClient,
+		historyRepo: repo,
+		resumeRepo:  repo,
+		storage:     nil,
 	}
 }

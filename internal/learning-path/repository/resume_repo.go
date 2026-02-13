@@ -4,22 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"passiontree/internal/connection"
 )
-
-type ResumeRepository interface {
-	GetNextNodeID(ctx context.Context, userID string, pathID string) (string, error)
-}
-
-type repositoryImpl struct {
-	db *sql.DB
-}
-
-func NewRepository(ds connection.Database) ResumeRepository {
-	return &repositoryImpl{
-		db: ds.GetDB(),
-	}
-}
 
 func (r *repositoryImpl) GetNextNodeID(ctx context.Context, userID string, pathID string) (string, error) {
 	query := `

@@ -14,8 +14,6 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	h.logger.InfoContext(ctx, "fetching all learning paths")
-
 	paths, err := h.pathSvc.GetPaths(ctx)
 	if err != nil {
 		return h.handleError(c, err)
@@ -35,12 +33,12 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	h.logger.InfoContext(ctx, "fetching learning path details", "path_id", id)
-
 	path, err := h.pathSvc.GetPathDetails(ctx, id)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "successfully retrieved learning path details", "path_id", id)
 	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -66,6 +64,8 @@ func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewInternal("failed to generate presigned URL for file %s: %w", filename, err))
 	}
 
+	h.logger.InfoContext(c.UserContext(), "generated presigned URL for learning path cover image", "filename", filename)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Presigned URL generated successfully",
@@ -85,8 +85,6 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
-
-	h.logger.InfoContext(ctx, "creating new learning path", "title", req.Title)
 
 	id, err := h.pathSvc.CreatePath(ctx, req)
 	if err != nil {
@@ -162,13 +160,11 @@ func (h *Handler) Start(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	h.logger.InfoContext(ctx, "user enrolling in learning path", "user_id", req.UserID, "path_id", pathID)
-
 	if err := h.pathSvc.StartPath(ctx, pathID, req.UserID); err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "user enrolled successfully", "user_id", req.UserID, "path_id", pathID)
+	h.logger.InfoContext(ctx, "user enrolled in learning path successfully", "user_id", req.UserID, "path_id", pathID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -190,12 +186,12 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("user_id is required"))
 	}
 
-	h.logger.InfoContext(ctx, "checking enrollment status", "user_id", userID, "path_id", pathID)
-
 	status, err := h.pathSvc.GetEnrollmentStatus(ctx, pathID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "retrieved enrollment status successfully", "user_id", userID, "path_id", pathID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -214,12 +210,12 @@ func (h *Handler) GetPathProgress(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("user_id is required"))
 	}
 
-	h.logger.InfoContext(ctx, "calculating path progress", "user_id", userID, "path_id", pathID)
-
 	progress, err := h.pathSvc.GetPathProgress(ctx, pathID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "calculated path progress successfully", "user_id", userID, "path_id", pathID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -237,14 +233,12 @@ func (h *Handler) Generate(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	h.logger.InfoContext(ctx, "requesting AI learning path generation", "topic", req.Topic)
-
 	result, err := h.pathSvc.GeneratePathWithAI(ctx, req.Topic)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "AI path generation completed", "topic", req.Topic)
+	h.logger.InfoContext(ctx, "AI learning path generated completed", "topic", req.Topic)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -263,11 +257,11 @@ func (h *Handler) UpdateCoverImage(c *fiber.Ctx) error {
         return h.handleError(c, apperror.NewBadRequest("invalid request body"))
     }
 
-    h.logger.InfoContext(ctx, "requesting update cover image", "path_id", pathID)
-
     if err := h.pathSvc.UpdatePathCoverImage(ctx, pathID, req.CoverImgURL); err != nil {
         return h.handleError(c, err)
     }
+
+	h.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
 
     return c.Status(fiber.StatusOK).JSON(fiber.Map{
         "success": true,

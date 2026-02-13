@@ -8,7 +8,6 @@ import (
 )
 
 func (s *serviceImpl) AddQuestion(ctx context.Context, req model.CreateQuestionRequest) (string, error) {
-	s.logger.InfoContext(ctx, "adding quiz question to node", "node_id", req.NodeID)
 
 	if req.QuestionText == "" {
 		return "", apperror.NewBadRequest("question text is required")
@@ -35,7 +34,6 @@ func (s *serviceImpl) AddQuestion(ctx context.Context, req model.CreateQuestionR
 }
 
 func (s *serviceImpl) GetQuestions(ctx context.Context, nodeID string) ([]model.NodeQuestion, error) {
-	s.logger.InfoContext(ctx, "fetching questions for node", "node_id", nodeID)
 	 	
 	if nodeID == "" {
 		return nil, apperror.NewBadRequest("node_id is required")
@@ -52,7 +50,6 @@ func (s *serviceImpl) GetQuestions(ctx context.Context, nodeID string) ([]model.
 }
 
 func (s *serviceImpl) RemoveQuestion(ctx context.Context, questionID string) error {
-	s.logger.InfoContext(ctx, "requesting quiz question removal", "question_id", questionID)
 
 	if questionID == "" {
 		return apperror.NewBadRequest("question_id is required")
@@ -77,7 +74,6 @@ func (s *serviceImpl) RemoveQuestion(ctx context.Context, questionID string) err
 }
 
 func (s *serviceImpl) AddChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error) {
-	s.logger.InfoContext(ctx, "adding choice to question", "question_id", req.QuestionID)
 
 	if req.ChoiceText == "" {
 		return "", apperror.NewBadRequest("choice text is required")
@@ -102,7 +98,6 @@ func (s *serviceImpl) AddChoice(ctx context.Context, req model.CreateChoiceReque
 }
 
 func (s *serviceImpl) RemoveChoice(ctx context.Context, choiceID string) error {
-	s.logger.InfoContext(ctx, "requesting choice removal", "choice_id", choiceID)
 	
 	if choiceID == "" {
 		return apperror.NewBadRequest("choice_id is required")
