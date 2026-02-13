@@ -28,6 +28,8 @@ func (h *Handler) GetResume(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "retrieved resume node successfully", "user_id", userID, "path_id", pathID)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Resume node retrieved successfully",

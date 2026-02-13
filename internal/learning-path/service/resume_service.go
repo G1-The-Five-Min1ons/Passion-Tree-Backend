@@ -29,6 +29,7 @@ func (s *serviceImpl) GetResumeNode(ctx context.Context, userID string, pathID s
 		return nil, apperror.NewInternal("failed to get node detail: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "resume node fetched successfully", "user_id", userID, "path_id", pathID, "node_id", nodeID)
 	return &model.ResumeResponse{
 		CurrentNode: nodeDetail,
 		Message:     "Resuming learning path",
