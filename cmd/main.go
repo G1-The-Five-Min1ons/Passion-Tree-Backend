@@ -108,18 +108,31 @@ func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *storage.B
 
 // createFiberApp creates and configures the Fiber application with middleware
 func createFiberApp(logger *slog.Logger) *fiber.App {
-	app := fiber.New(fiber.Config{
-		AppName: AppName,
-	})
+    app := fiber.New(fiber.Config{
+        AppName:     AppName,
+        ProxyHeader: "X-Forwarded-For",
+        ErrorHandler: func(c *fiber.Ctx, err error) error {
+            logger.ErrorContext(c.UserContext(), "unhandled_framework_error",
+                "err",    err.Error(),
+                "method", c.Method(),
+                "path",   c.Path(),
+                "ip",     c.IP(),
+            )
+            
+            return fiber.DefaultErrorHandler(c, err)
+        },
+    })
 
-	// Apply middleware
-	app.Use(flogger.New())
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}))
+    // Apply middleware
+    app.Use(flogger.New()) // บันทึก HTTP Request ทั่วไป
+    app.Use(cors.New(cors.Config{
+        AllowOrigins: "*",
+        AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+    }))
 
-	return app
+    logger.Info("fiber_application_initialized", "app_name", AppName)
+
+    return app
 }
 
 // getPort returns the server port from environment or default
@@ -140,11 +153,11 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
     })
 
     if err != nil {
-        logger.Warn("Error initializing background jobs: %v", err)
+        logger.Error("error initializing background jobs", "error", err)
         return c
     }
 
     c.Start()
-    logger.Warn("Background jobs started")
+    logger.Info("background jobs started")
     return c
 }

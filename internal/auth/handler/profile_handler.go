@@ -21,21 +21,30 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	var profile model.Profile
-	if err := c.BodyParser(&profile); err != nil {
+	var req model.UpdateProfileRequest
+	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	profile.UserID = userID
-	if err := h.userSvc.UpdateProfile(ctx, userID, &profile); err != nil {
+	profileData := &model.Profile{
+		UserID:    userID,
+		AvatarURL: req.AvatarURL,
+		Location:  req.Location,
+		Bio:       req.Bio,
+	}
+
+	if err := h.userSvc.UpdateProfile(ctx, userID, profileData); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "profile updated successfully", "user_id", userID, "client_ips", c.IP())
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Profile updated successfully",
 		"data": fiber.Map{
 			"user_id": userID,
+			"profile": profileData,
 		},
 	})
 }

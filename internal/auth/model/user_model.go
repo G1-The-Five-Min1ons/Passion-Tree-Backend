@@ -19,6 +19,12 @@ type User struct {
 	LockedUntil     *time.Time `json:"locked_until"`
 }
 
+const (
+	RoleStudent = "student"
+	RoleTeacher = "teacher"
+	RoleAdmin   = "admin"
+)
+
 type RegisterRequest struct {
 	Username  string `json:"username"`
 	Email     string `json:"email"`
@@ -28,6 +34,7 @@ type RegisterRequest struct {
 	Bio       string `json:"bio"`
 	Location  string `json:"location"`
 	AvatarURL string `json:"avatar_url"`
+	Role      string `json:"role"`
 }
 
 type LoginRequest struct {
