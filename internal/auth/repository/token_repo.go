@@ -20,6 +20,10 @@ type TokenRepository interface {
 	
 	// Token Rotation Methods
 	MarkTokenAsRotated(tokenValue string, tokenType string) error
+	
+	// Multi-device Session Management
+	GetActiveUserSessions(userID string, tokenType string) ([]*model.Token, error)
+	RevokeTokenByIDForUser(tokenID string, userID string) error
 }
 
 type tokenRepositoryImpl struct {
@@ -148,6 +152,76 @@ func (r *tokenRepositoryImpl) MarkTokenAsRotated(tokenValue string, tokenType st
 
 	if rows == 0 {
 		return fmt.Errorf("token not found")
+	}
+
+	return nil
+}
+
+// GetActiveUserSessions retrieves all active (non-revoked, non-rotated, non-expired) sessions for a user
+func (r *tokenRepositoryImpl) GetActiveUserSessions(userID string, tokenType string) ([]*model.Token, error) {
+	query := `SELECT 
+		CONVERT(VARCHAR(36), token_id) as token_id,
+		CONVERT(VARCHAR(36), user_id) as user_id,
+		token, token_type, is_revoke, created_at, expire_at,
+		device_info, ip_address, user_agent, last_used_at, max_expires_at,
+		CONVERT(VARCHAR(36), parent_token_id) as parent_token_id, is_rotated
+	FROM Token 
+	WHERE user_id = @p1 
+		AND token_type = @p2 
+		AND is_revoke = 0 
+		AND is_rotated = 0
+		AND expire_at > GETDATE()
+	ORDER BY created_at DESC`
+
+	rows, err := r.db.Query(query, userID, tokenType)
+	if err != nil {
+		return nil, fmt.Errorf("get active user sessions failed: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []*model.Token
+	for rows.Next() {
+		var session model.Token
+		err := rows.Scan(
+			&session.TokenID, &session.UserID, &session.Token, &session.TokenType,
+			&session.IsRevoked, &session.CreatedAt, &session.ExpireAt,
+			&session.DeviceInfo, &session.IPAddress, &session.UserAgent, 
+			&session.LastUsedAt, &session.MaxExpiresAt,
+			&session.ParentTokenID, &session.IsRotated,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan session row failed: %w", err)
+		}
+		sessions = append(sessions, &session)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration failed: %w", err)
+	}
+
+	return sessions, nil
+}
+
+// RevokeTokenByIDForUser revokes a token only if it belongs to the specified user (for security)
+func (r *tokenRepositoryImpl) RevokeTokenByIDForUser(tokenID string, userID string) error {
+	query := `UPDATE Token 
+		SET is_revoke = 1 
+		WHERE token_id = @p1 
+			AND user_id = @p2 
+			AND is_revoke = 0 
+			AND is_rotated = 0`
+	result, err := r.db.Exec(query, tokenID, userID)
+	if err != nil {
+		return fmt.Errorf("revoke token by id for user failed: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected failed: %w", err)
+	}
+
+	if rows == 0 {
+		return fmt.Errorf("token not found or already revoked")
 	}
 
 	return nil

@@ -292,3 +292,66 @@ func (s *userServiceImpl) Logout(ctx context.Context, userID string) error {
 	return nil
 }
 
+// GetActiveSessions retrieves all active sessions/devices for a user
+func (s *userServiceImpl) GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error) {
+	if userID == "" {
+		return nil, apperror.NewBadRequest("user ID is required")
+	}
+
+	// Get all active refresh tokens for the user
+	tokens, err := s.tokenRepo.GetActiveUserSessions(userID, model.TokenTypeRefresh)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get active sessions", "error", err, "user_id", userID)
+		return nil, apperror.NewInternal("failed to retrieve sessions")
+	}
+
+	// Convert tokens to session info
+	sessions := make([]*model.SessionInfo, 0, len(tokens))
+	for _, token := range tokens {
+		session := &model.SessionInfo{
+			SessionID:  token.TokenID,
+			DeviceInfo: getStringValue(token.DeviceInfo),
+			IPAddress:  getStringValue(token.IPAddress),
+			UserAgent:  getStringValue(token.UserAgent),
+			LastUsedAt: token.LastUsedAt,
+			CreatedAt:  token.CreatedAt,
+			ExpiresAt:  token.ExpireAt,
+			IsCurrent:  token.Token == currentRefreshToken,
+		}
+		sessions = append(sessions, session)
+	}
+
+	response := &model.GetActiveSessionsResponse{
+		TotalSessions: len(sessions),
+		Sessions:      sessions,
+	}
+
+	s.logger.InfoContext(ctx, "retrieved active sessions", "user_id", userID, "count", len(sessions))
+	return response, nil
+}
+
+// LogoutSession revokes a specific session by session ID
+func (s *userServiceImpl) LogoutSession(ctx context.Context, userID string, sessionID string) error {
+	if userID == "" || sessionID == "" {
+		return apperror.NewBadRequest("user ID and session ID are required")
+	}
+
+	// Revoke the token only if it belongs to the user (security check in SQL)
+	err := s.tokenRepo.RevokeTokenByIDForUser(sessionID, userID)
+	if err != nil {
+		s.logger.WarnContext(ctx, "failed to revoke session", "error", err, "user_id", userID, "session_id", sessionID)
+		return apperror.NewNotFound("session not found")
+	}
+
+	s.logger.InfoContext(ctx, "session revoked", "user_id", userID, "session_id", sessionID)
+	return nil
+}
+
+// Helper function to safely get string value from pointer
+func getStringValue(s *string) string {
+	if s == nil {
+		return "Unknown"
+	}
+	return *s
+}
+

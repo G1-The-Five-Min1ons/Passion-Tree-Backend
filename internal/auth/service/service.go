@@ -25,6 +25,10 @@ type UserService interface {
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, code string, newPassword string) error
 	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
+	
+	// Multi-device Session Management
+	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
+	LogoutSession(ctx context.Context, userID string, sessionID string) error
 }
 
 type EmailService interface {

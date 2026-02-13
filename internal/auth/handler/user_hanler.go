@@ -227,3 +227,56 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 		"message": "Logged out successfully",
 	})
 }
+
+// GetActiveSessions retrieves all active sessions/devices for the authenticated user
+func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	// Try to get current refresh token from request body (optional)
+	var req struct {
+		CurrentRefreshToken string `json:"current_refresh_token"`
+	}
+	_ = c.BodyParser(&req)
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	sessions, err := h.userSvc.GetActiveSessions(ctx, userID, req.CurrentRefreshToken)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Active sessions retrieved successfully",
+		"data":    sessions,
+	})
+}
+
+// LogoutSession revokes a specific session by session ID
+func (h *Handler) LogoutSession(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	sessionID := c.Params("session_id")
+	if sessionID == "" {
+		return h.handleError(c, apperror.NewBadRequest("session_id is required"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.userSvc.LogoutSession(ctx, userID, sessionID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Session logged out successfully",
+	})
+}
