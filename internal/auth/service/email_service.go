@@ -4,47 +4,29 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"passiontree/internal/config"
 	"time"
+
+	"passiontree/internal/pkg/apperror"
 
 	"github.com/mailersend/mailersend-go"
 )
 
-type EmailService interface {
-	SendVerificationEmail(to, token string) error
-	SendPasswordResetEmail(to, token string) error
-}
-
-type emailServiceImpl struct {
-	config *config.Config
-}
-
-func NewEmailService(cfg *config.Config) EmailService {
-	return &emailServiceImpl{
-		config: cfg,
-	}
-}
-
 // SendVerificationEmail sends an email verification link using MailerSend API
 func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
-	if s.config.MailerSendAPIKey == "" {
-		return fmt.Errorf("MailerSend API key is not set")
+	if s.config.MailerSendAPIKey == "" || s.config.SMTPFromEmail == "" {
+		err := fmt.Errorf("email config missing: check API key and sender email")
+		s.logger.Error("verify email config failed", "error", err)
+		return err
 	}
 
-	if s.config.SMTPFromEmail == "" {
-		return fmt.Errorf("SMTP_FROM_EMAIL is not set; please configure a verified sender address")
-	}
-
-	// ใช้ API Key จาก config
+	// use API Key from config
 	ms := mailersend.NewMailersend(s.config.MailerSendAPIKey)
-
-	// ตั้งค่า timeout context 10 วินาที
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// ตั้งค่าข้อมูลอีเมล
-	subject := "รหัสยืนยันตัวตน - Passiontree"
-	text := fmt.Sprintf("ยินดีต้อนรับสู่ Passiontree!\n\nรหัสยืนยันตัวตนของคุณคือ: %s\n\nกรุณากรอกรหัสนี้ในแอปพลิเคชันเพื่อยืนยันอีเมลของคุณ\n\nรหัสนี้จะหมดอายุใน 15 นาที\n\nหากคุณไม่ได้สร้างบัญชีนี้ กรุณาเพิกเฉยอีเมลนี้", token)
+	// set email content
+	subject := "รหัสยืนยันตัวตน - Passion- Tree"
+	text := fmt.Sprintf("ยินดีต้อนรับสู่ Passion-Tree!\n\nรหัสยืนยันตัวตนของคุณคือ: %s\n\nกรุณากรอกรหัสนี้ในแอปพลิเคชันเพื่อยืนยันอีเมลของคุณ\n\nรหัสนี้จะหมดอายุใน 15 นาที\n\nหากคุณไม่ได้สร้างบัญชีนี้ กรุณาเพิกเฉยอีเมลนี้", token)
 
 	html := fmt.Sprintf(`
 <!DOCTYPE html>
@@ -87,13 +69,13 @@ func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 </html>
 `, token)
 
-	// ตั้งค่าผู้ส่ง (ใช้โดเมนที่จดทะเบียนไว้กับ MailerSend)
+	// set sender (use domain verified with MailerSend)
 	from := mailersend.From{
 		Name:  "Passiontree Team",
-		Email: s.config.SMTPFromEmail, // ต้องเป็นโดเมนที่ verify แล้วใน MailerSend
+		Email: s.config.SMTPFromEmail, // must be a domain verified in MailerSend
 	}
 
-	// ตั้งค่าผู้รับ
+	// set recipients
 	recipients := []mailersend.Recipient{
 		{
 			Name:  "User",
@@ -101,7 +83,7 @@ func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 		},
 	}
 
-	// สร้างและส่งข้อความ
+	// create and send message
 	message := ms.Email.NewMessage()
 
 	message.SetFrom(from)
@@ -112,36 +94,34 @@ func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 
 	res, err := ms.Email.Send(ctx, message)
 	if err != nil {
-		fmt.Printf("Full Error: %+v\n", err)
-		return fmt.Errorf("failed to send email via MailerSend: %w", err)
+		s.logger.Error("send password reset email failed", "error", err, "to", to)
+		return apperror.NewInternal("failed to send email via MailerSend: %w", err)
 	}
 
-	// แสดงข้อมูลการส่งสำเร็จ
+	// display success information
 	messageID := res.Header.Get("X-Message-Id")
-	fmt.Printf("Email sent successfully to %s. Message ID: %s\n", to, messageID)
-	fmt.Printf("MailerSend response: %+v\n", res)
 
+	s.logger.Info("password reset email sent successfully", "to", to, "message_id", messageID)
 	return nil
 }
 
 // SendPasswordResetEmail sends a password reset code email
 func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
-	if s.config.MailerSendAPIKey == "" {
-		return fmt.Errorf("MailerSend API key is not set")
-	}
+	if s.config.MailerSendAPIKey == "" || s.config.SMTPFromEmail == "" {
+		s.logger.Error("email provider configuration error", 
+		"reason", "missing api key or sender email", 
+		"provider", "mailersend",
+    )
+    
+    return apperror.NewInternal("email service configuration error: missing api key or sender email")
+}
 
-	if s.config.SMTPFromEmail == "" {
-		return fmt.Errorf("SMTP_FROM_EMAIL is not set; please configure a verified sender address")
-	}
-
-	// ใช้ API Key จาก config
+	// use API Key from config
 	ms := mailersend.NewMailersend(s.config.MailerSendAPIKey)
-
-	// ตั้งค่า timeout context 10 วินาที
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// ตั้งค่าข้อมูลอีเมล
+	// set email content
 	subject := "รีเซ็ตรหัสผ่าน - Passiontree"
 	text := fmt.Sprintf("คำขอรีเซ็ตรหัสผ่าน\n\nรหัสรีเซ็ตของคุณคือ: %s\n\nกรุณากรอกรหัสนี้ในแอปพลิเคชันเพื่อตั้งรหัสผ่านใหม่\n\nรหัสนี้จะหมดอายุใน 15 นาที\n\nหากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน กรุณาเพิกเฉยอีเมลนี้", token)
 
@@ -189,13 +169,13 @@ func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 </html>
 `, token)
 
-	// ตั้งค่าผู้ส่ง
+	// set sender
 	from := mailersend.From{
 		Name:  "Passiontree Security",
 		Email: s.config.SMTPFromEmail,
 	}
 
-	// ตั้งค่าผู้รับ
+	// set recipients
 	recipients := []mailersend.Recipient{
 		{
 			Name:  "User",
@@ -203,7 +183,7 @@ func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 		},
 	}
 
-	// สร้างและส่งข้อความ
+	// create and send message
 	message := ms.Email.NewMessage()
 
 	message.SetFrom(from)
@@ -214,13 +194,12 @@ func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 
 	res, err := ms.Email.Send(ctx, message)
 	if err != nil {
-		fmt.Printf("Full Error: %+v\n", err)
-		return fmt.Errorf("failed to send password reset email via MailerSend: %w", err)
+		s.logger.Error("send password reset email failed", "error", err, "to", to)
+		return apperror.NewInternal("failed to send password reset email via MailerSend: %w", err)
 	}
 
-	// แสดงข้อมูลการส่งสำเร็จ
 	messageID := res.Header.Get("X-Message-Id")
-	fmt.Printf("Password reset email sent successfully to %s. Message ID: %s\n", to, messageID)
+	s.logger.WarnContext(ctx, "password reset email sent successfully", "to", to, "message_id", messageID)
 
 	return nil
 }

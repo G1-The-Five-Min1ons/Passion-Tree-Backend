@@ -14,7 +14,16 @@ type User struct {
 	IsEmailVerified bool      `json:"is_email_verified"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+
+	FailedAttempts  int        `json:"failed_attempts"`
+	LockedUntil     *time.Time `json:"locked_until"`
 }
+
+const (
+	RoleStudent = "student"
+	RoleTeacher = "teacher"
+	RoleAdmin   = "admin"
+)
 
 type RegisterRequest struct {
 	Username  string `json:"username"`
@@ -25,6 +34,7 @@ type RegisterRequest struct {
 	Bio       string `json:"bio"`
 	Location  string `json:"location"`
 	AvatarURL string `json:"avatar_url"`
+	Role      string `json:"role"`
 }
 
 type LoginRequest struct {

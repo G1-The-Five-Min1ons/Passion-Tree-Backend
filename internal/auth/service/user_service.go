@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"strings"
+	"time"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
@@ -13,11 +15,8 @@ import (
 // Login authenticates user and returns token
 // identifier can be either username or email
 func (s *userServiceImpl) Login(ctx context.Context, identifier string, password string) (string, error) {
-	if identifier == "" {
-		return "", apperror.NewBadRequest("username or email is required")
-	}
-	if password == "" {
-		return "", apperror.NewBadRequest("password is required")
+	if identifier == "" || password == "" {
+		return "", apperror.NewBadRequest("identifier and password are required")
 	}
 
 	// Try to find user by email first, then by username
@@ -25,40 +24,60 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	var err error
 
 	// Check if identifier is email (contains @)
-	if contains := false; len(identifier) > 0 {
-		for _, char := range identifier {
-			if char == '@' {
-				contains = true
-				break
-			}
-		}
-		if contains {
-			user, err = s.userRepo.GetUserByEmail(ctx, identifier)
-		} else {
-			user, err = s.userRepo.GetUserByUsername(ctx, identifier)
-		}
+	if strings.Contains(identifier, "@") {
+		user, err = s.userRepo.GetUserByEmail(ctx, identifier)
+	} else {
+		user, err = s.userRepo.GetUserByUsername(ctx, identifier)
 	}
 
-	if err != nil {
-		return "", apperror.NewInternal("failed to get user: %w", err)
-	}
-	if user == nil {
+	if err != nil || user == nil {
+		s.logger.WarnContext(ctx, "login failed: user not found", "identifier", identifier)
 		return "", apperror.NewUnauthorized("invalid username/email or password")
 	}
+
+	// [Check Lock Account]
+	if user.LockedUntil != nil && user.LockedUntil.After(time.Now()) {
+        timeLeft := time.Until(*user.LockedUntil).Minutes()
+        s.logger.WarnContext(ctx, "login blocked: account locked", 
+            "user_id", user.UserID, 
+            "locked_until", user.LockedUntil)
+        return "", apperror.NewTooManyRequests("account locked. try again in %.0f minutes", timeLeft)
+    }
 
 	// Verify password
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		s.handleFailedLogin(ctx, user)
 		return "", apperror.NewUnauthorized("invalid username/email or password")
+	}
+
+	// Reset failed attempts on successful login
+	if user.FailedAttempts > 0 {
+		_ = s.userRepo.ResetFailedLogin(ctx, user.UserID)
 	}
 
 	// Generate JWT token
 	jwtService := jwt.NewService()
 	token, err := jwtService.GenerateAccessToken(user)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "jwt generation failed", "error", err, "user_id", user.UserID)
 		return "", apperror.NewInternal("failed to generate token: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "login success", "user_id", user.UserID)
 	return token, nil
+}
+
+func (s *userServiceImpl) handleFailedLogin(ctx context.Context, user *model.User) {
+    newAttempts, err := s.userRepo.UpdateFailedLogin(ctx, user.UserID, 15*time.Minute)
+    if err != nil {
+        s.logger.ErrorContext(ctx, "failed_update_attempts", "error", err, "user_id", user.UserID)
+        return
+    }
+
+    if newAttempts >= 5 {
+        s.logger.WarnContext(ctx, "account_locked", "user_id", user.UserID, "attempts", newAttempts, )
+    }
 }
 
 // ValidateToken validates JWT token and returns user
@@ -77,9 +96,11 @@ func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*mod
 	// Get user from database
 	user, _, err := s.userRepo.GetUserByID(ctx, claims.UserID)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "validate_token_db_failed", "error", err, "user_id", claims.UserID)
 		return nil, apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
+		s.logger.WarnContext(ctx, "token_valid_but_user_missing", "user_id", claims.UserID)
 		return nil, apperror.NewNotFound("user not found")
 	}
 

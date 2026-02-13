@@ -17,3 +17,9 @@ type Profile struct {
 	CreatedAt      time.Time `json:"created_at,omitempty"`
 	UpdatedAt      time.Time `json:"updated_at,omitempty"`
 }
+
+type UpdateProfileRequest struct {
+    AvatarURL string `json:"avatar_url"`
+    Location  string `json:"location"`
+    Bio       string `json:"bio"`
+}

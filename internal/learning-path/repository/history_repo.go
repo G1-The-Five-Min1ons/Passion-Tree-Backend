@@ -2,25 +2,9 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
-	"passiontree/internal/connection"
-	"passiontree/internal/history/model"
+	"passiontree/internal/learning-path/model"
 )
-
-type RepositoryHistory interface {
-	GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error)
-}
-
-type repositoryImpl struct {
-	db *sql.DB
-}
-
-func NewRepository(ds connection.Database) RepositoryHistory {
-	return &repositoryImpl{
-		db: ds.GetDB(),
-	}
-}
 
 func (r *repositoryImpl) GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error) {
 	query := `

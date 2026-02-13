@@ -16,7 +16,6 @@ const (
 )
 
 func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
-	s.logger.InfoContext(ctx, "fetching all learning paths from database")
 
 	paths, err := s.pathRepo.GetAllLearningPath(ctx)
 	if err != nil {
@@ -32,8 +31,6 @@ func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*mode
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
 
-	s.logger.InfoContext(ctx, "fetching path details", "path_id", path_id)
-
 	path, err := s.pathRepo.GetLearningPathByID(ctx, path_id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -44,6 +41,8 @@ func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*mode
 		s.logger.ErrorContext(ctx, "database error while fetching path", "error", err, "path_id", path_id)
 		return nil, apperror.NewInternal("failed to fetch path details: %w", err)
 	}
+
+	s.logger.InfoContext(ctx, "learning path details retrieved successfully", "path_id", path_id)
 	return path, nil
 }
 
@@ -63,8 +62,6 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 	if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, ContainerLearningPath); err != nil {
 		return "", apperror.NewBadRequest("image validation failed: %v", err)
 	}
-
-	s.logger.InfoContext(ctx, "creating new learning path", "title", req.Title, "creator_id", req.CreatorID)
 
 	id, err := s.pathRepo.CreateLearningPath(ctx, req)
 	if err != nil {
@@ -97,8 +94,6 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 		req.Publish_status == "" {
 		return apperror.NewBadRequest("request body cannot be empty")
 	}
-
-	s.logger.InfoContext(ctx, "updating learning path", "path_id", path_id)
 
 	if _, err := s.pathRepo.GetLearningPathByID(ctx, path_id); err != nil {
 		if err == sql.ErrNoRows {

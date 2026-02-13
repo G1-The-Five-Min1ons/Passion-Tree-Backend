@@ -12,8 +12,6 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 		return "", apperror.NewBadRequest("node title is required")
 	}
 
-	s.logger.InfoContext(ctx, "adding new node to learning path", "path_id", req.PathID, "title", req.Title)
-
 	id, err := s.nodeRepo.CreateNodeWithContent(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
@@ -59,7 +57,6 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 }
 
 func (s *serviceImpl) RemoveNode(ctx context.Context, nodeID string) error {
-	s.logger.InfoContext(ctx, "requesting node removal", "node_id", nodeID)
 
 	if nodeID == "" {
 		return apperror.NewBadRequest("node_id is required")
@@ -84,7 +81,6 @@ func (s *serviceImpl) RemoveNode(ctx context.Context, nodeID string) error {
 }
 
 func (s *serviceImpl) AddMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error) {
-	s.logger.InfoContext(ctx, "adding material to node", "node_id", req.NodeID, "type", req.Type)
 
 	if req.Type == "" || req.URL == "" {
 		return "", apperror.NewBadRequest("material type and url are required")
@@ -109,7 +105,6 @@ func (s *serviceImpl) AddMaterial(ctx context.Context, req model.CreateMaterialR
 }
 
 func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) error {
-	s.logger.InfoContext(ctx, "requesting material removal", "material_id", materialID)
 
 	if materialID == "" {
 		return apperror.NewBadRequest("material_id is required")
@@ -130,7 +125,6 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 }
 
 func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error {
-	s.logger.InfoContext(ctx, "reordering nodes sequence", "path_id", pathID, "nodes_count", len(req.NodeIDs))
 
 	if len(req.NodeIDs) == 0 {
 		return apperror.NewBadRequest("node_ids list cannot be empty")
@@ -146,7 +140,6 @@ func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model
 }
 
 func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error) {
-	s.logger.InfoContext(ctx, "fetching complete node details", "node_id", nodeID)
 
 	if nodeID == "" {
 		return nil, apperror.NewBadRequest("node_id is required")
@@ -163,11 +156,11 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model
 		return nil, apperror.NewInternal("failed to retrieve details for node %s: %w", nodeID, err)
 	}
 
+	s.logger.InfoContext(ctx, "node details retrieved successfully", "node_id", nodeID)
 	return node, nil
 }
 
 func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
-	s.logger.InfoContext(ctx, "fetching nodes for learning path", "path_id", pathID)
 
 	if pathID == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
@@ -183,5 +176,6 @@ func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]mo
 		nodes = []model.Node{}
 	}
 
+	s.logger.InfoContext(ctx, "nodes retrieved successfully for path", "path_id", pathID, "count", len(nodes))
 	return nodes, nil
 }

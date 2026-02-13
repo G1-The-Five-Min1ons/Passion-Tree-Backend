@@ -4,27 +4,9 @@ import (
 	"context"
 	"database/sql"
 	
-	nodeRepo "passiontree/internal/learning-path/repository" 
+	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
-	"passiontree/internal/resume/model"
-	"passiontree/internal/resume/repository"
 )
-
-type serviceImpl struct {
-	resumeRepo repository.ResumeRepository
-	nodeRepo   nodeRepo.RepositoryNode
-}
-
-func NewService(resumeRepo repository.ResumeRepository, nodeRepo nodeRepo.RepositoryNode) ResumeService {
-	return &serviceImpl{
-		resumeRepo: resumeRepo,
-		nodeRepo:   nodeRepo,
-	}
-}
-
-type ResumeService interface {
-	GetResumeNode(ctx context.Context, userID string, pathID string) (*model.ResumeResponse, error)
-}
 
 func (s *serviceImpl) GetResumeNode(ctx context.Context, userID string, pathID string) (*model.ResumeResponse, error) {
 	if userID == "" {
@@ -47,6 +29,7 @@ func (s *serviceImpl) GetResumeNode(ctx context.Context, userID string, pathID s
 		return nil, apperror.NewInternal("failed to get node detail: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "resume node fetched successfully", "user_id", userID, "path_id", pathID, "node_id", nodeID)
 	return &model.ResumeResponse{
 		CurrentNode: nodeDetail,
 		Message:     "Resuming learning path",

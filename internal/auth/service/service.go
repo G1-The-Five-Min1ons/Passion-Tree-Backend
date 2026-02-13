@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
@@ -25,35 +25,55 @@ type UserService interface {
 	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
 }
 
+type EmailService interface {
+	SendVerificationEmail(to, token string) error
+	SendPasswordResetEmail(to, token string) error
+}
+
 type userServiceImpl struct {
 	userRepo     repository.UserRepository
 	tokenRepo    repository.TokenRepository
 	emailService EmailService
+	logger  	*slog.Logger
 }
 
-func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository) UserService {
+type emailServiceImpl struct {
+	config *config.Config
+	logger *slog.Logger
+}
+
+func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, logger *slog.Logger) UserService {
 	return &userServiceImpl{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
+		logger:    logger,
+	}
+}
+
+func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
+	return &emailServiceImpl{
+		config: cfg,
+		logger: logger,
 	}
 }
 
 // NewUserServiceWithEmail creates a new UserService with email service configured
-func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config) UserService {
+func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config, logger *slog.Logger) UserService {
 	svc := &userServiceImpl{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
+		logger:    logger,
 	}
 
 	// Initialize email service if SMTP or MailerSend is configured
 	if cfg.SMTPHost != "" {
-		svc.emailService = NewEmailService(cfg)
-		log.Println("Email service initialized (SMTP)")
+		svc.emailService = NewEmailService(cfg, logger)
+		svc.logger.Info("Email service initialized (SMTP)")
 	} else if cfg.MailerSendAPIKey != "" {
-		svc.emailService = NewEmailService(cfg)
-		log.Println("Email service initialized (MailerSend API)")
+		svc.emailService = NewEmailService(cfg, logger)
+		svc.logger.Info("Email service initialized (MailerSend API)")
 	} else {
-		log.Println("Warning: Email service NOT initialized - no email configuration found")
+		svc.logger.Warn("Email service NOT initialized - no email configuration found")
 	}
 
 	return svc

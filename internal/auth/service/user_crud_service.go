@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
@@ -24,22 +22,16 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 
 	// Check if email already exists
-	existingUser, err := s.userRepo.GetUserByEmail(ctx, user.Email)
-	if err != nil && err != sql.ErrNoRows {
-		return "", apperror.NewInternal("failed to get user by email: %w", err)
-	}
-	if existingUser != nil {
-		return "", apperror.NewConflict("email already registered")
-	}
+	if existingUser, _ := s.userRepo.GetUserByEmail(ctx, user.Email); existingUser != nil {
+        s.logger.WarnContext(ctx, "register failed email taken", "email", user.Email)
+        return "", apperror.NewConflict("email already registered")
+    }
 
 	// Check if username already exists
-	existingUsername, err := s.userRepo.GetUserByUsername(ctx, user.Username)
-	if err != nil && err != sql.ErrNoRows {
-		return "", apperror.NewInternal("failed to get user by username: %w", err)
-	}
-	if existingUsername != nil {
-		return "", apperror.NewConflict("username already taken")
-	}
+	if existingUser, _ := s.userRepo.GetUserByUsername(ctx, user.Username); existingUser != nil {
+        s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
+        return "", apperror.NewConflict("username already taken")
+    }
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -103,16 +95,17 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
 		// Log error but don't fail registration
-		fmt.Printf("Warning: failed to save verification token: %v\n", err)
+		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
 	}
 
 	// Send verification email (don't fail registration if email sending fails)
 	if s.emailService != nil {
 		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
-			fmt.Printf("Warning: failed to send verification email: %v\n", err)
+			s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
 		}
 	}
 
+	s.logger.InfoContext(ctx, "user registered successfully", "user_id", userID)
 	return userID, nil
 }
 
@@ -124,6 +117,7 @@ func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.Us
 
 	user, profile, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "get user by ID failed", "error", err, "user_id", id)
 		return nil, nil, apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
@@ -141,6 +135,7 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 
 	user, err := s.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "get user by email failed", "error", err, "email", email)
 		return nil, apperror.NewInternal("failed to get user by email: %w", err)
 	}
 	if user == nil {
@@ -159,6 +154,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 	// Check if user exists
 	existingUser, _, err := s.userRepo.GetUserByID(ctx, id)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "update user failed", "error", err, "user_id", id)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if existingUser == nil {
@@ -172,6 +168,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 		return apperror.NewInternal("failed to update user: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "user updated successfully", "user_id", id)
 	return nil
 }
 
@@ -195,6 +192,7 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 
 	// Verify password before deletion
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		s.logger.WarnContext(ctx, "account deletion failed: incorrect password", "user_id", id)
 		return apperror.NewUnauthorized("incorrect password")
 	}
 
@@ -202,5 +200,6 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 		return apperror.NewInternal("failed to delete user: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "user deleted successfully", "user_id", id)
 	return nil
 }

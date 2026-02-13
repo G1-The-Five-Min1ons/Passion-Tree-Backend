@@ -15,12 +15,12 @@ func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	h.logger.InfoContext(ctx, "fetching node details", "node_id", nodeID)
-
 	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "retrieved node details successfully", "node_id", nodeID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

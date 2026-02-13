@@ -6,7 +6,7 @@ import (
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
-	
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -17,14 +17,18 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	// กำหนดค่าเริ่มต้นและป้องกัน Privilege Escalation โดย Hard-code Role เป็น user
+	// Validate Role
+	if req.Role != model.RoleStudent && req.Role != model.RoleTeacher {
+		return h.handleError(c, apperror.NewBadRequest("role must be either 'student' or 'teacher'"))
+	}
+
 	user := &model.User{
 		Username:  req.Username,
 		Email:     req.Email,
 		Password:  req.Password,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
-		Role:      "user",
+		Role:      req.Role,
 	}
 
 	profile := &model.Profile{

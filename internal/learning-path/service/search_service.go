@@ -123,7 +123,8 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		results = append(results, result)
 	}
 
-	s.logger.InfoContext(ctx, "search completed", "total_found", len(results))
+	s.logger.InfoContext(ctx, "search completed", "query", aiResp.Query,  "total_found", len(results))
+	
 	return &model.SearchPathResponse{
 		Query:   aiResp.Query,
 		Total:   len(results),
@@ -133,7 +134,6 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 
 // GetCollectionInfo retrieves debug information about a collection from AI service
 func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.CollectionInfoResponse, error) {
-	s.logger.InfoContext(context.Background(), "fetching collection info", "collection", collectionName)
 
 	if collectionName == "" {
 		return nil, apperror.NewBadRequest("collection name cannot be empty")
@@ -146,6 +146,7 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 		return nil, apperror.NewInternal("failed to get collection info from AI service: %w", err)
 	}
 
+	s.logger.InfoContext(context.Background(), "retrieved collection info successfully", "collection", collectionName)
 	return info, nil
 }
 
@@ -215,7 +216,6 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 	}
 
 	s.logger.InfoContext(ctx, "sync completed successfully", "path_id", pathID, "msg", syncResp.Message)
-	
 	return &model.SyncPathResponse{
 		Success: syncResp.Success,
 		Message: syncResp.Message,

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"passiontree/internal/auth/model"
@@ -18,6 +17,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	// Get token from Token table
 	tokenModel, err := s.tokenRepo.GetTokenByValue(token, model.TokenTypeEmailVerification)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "verify email token failed", "error", err)
 		return apperror.NewInternal("failed to get verification token: %w", err)
 	}
 	if tokenModel == nil {
@@ -32,6 +32,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	// Get user
 	user, _, err := s.userRepo.GetUserByID(ctx, tokenModel.UserID)
 	if err != nil {
+		s.logger.ErrorContext(ctx, "verify email get user id failed", "error", err, "user_id", tokenModel.UserID)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
 	if user == nil {
@@ -45,15 +46,16 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 
 	// Update user email verification status
 	if err := s.userRepo.UpdateEmailVerified(ctx, tokenModel.UserID, true); err != nil {
+		s.logger.ErrorContext(ctx, "verify email update status failed", "error", err, "user_id", tokenModel.UserID)
 		return apperror.NewInternal("failed to update email verification status: %w", err)
 	}
 
 	// Revoke the token
 	if err := s.tokenRepo.RevokeToken(tokenModel.TokenID); err != nil {
-		// Log error but don't fail verification
-		fmt.Printf("Warning: failed to revoke verification token: %v\n", err)
+		s.logger.WarnContext(ctx, "failed to revoke verification token", "error", err, "token_id", tokenModel.TokenID)
 	}
 
+	s.logger.InfoContext(ctx, "email verified successfully", "user_id", tokenModel.UserID)
 	return nil
 }
 
@@ -65,27 +67,23 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 
 	// Get user by email
 	user, err := s.userRepo.GetUserByEmail(ctx, email)
-	if err != nil {
-		return apperror.NewInternal("failed to get user by email: %w", err)
-	}
-	if user == nil {
-		return apperror.NewNotFound("user not found")
-	}
+    if err != nil || user == nil {
+        return apperror.NewNotFound("user not found")
+    }
 
-	// Check if already verified
-	if user.IsEmailVerified {
-		return apperror.NewBadRequest("email already verified")
-	}
+    if user.IsEmailVerified {
+        return apperror.NewBadRequest("email already verified")
+    }
 
 	// Delete old verification tokens for this user
 	if err := s.tokenRepo.DeleteTokensByUserAndType(user.UserID, model.TokenTypeEmailVerification); err != nil {
-		// Log error but continue
-		fmt.Printf("Warning: failed to delete old verification tokens: %v\n", err)
-	}
+        s.logger.WarnContext(ctx, "resend cleanup failed", "error", err, "user_id", user.UserID)
+    }
 
 	// Generate new verification token
 	verificationToken, err := GenerateVerificationToken()
 	if err != nil {
+		s.logger.ErrorContext(ctx, "generate verification token failed", "error", err)
 		return apperror.NewInternal("failed to generate verification token: %w", err)
 	}
 
@@ -99,17 +97,20 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		ExpireAt:  tokenExpiry,
 	}
 	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
+		s.logger.ErrorContext(ctx, "save verification token failed", "error", err, "user_id", user.UserID)
 		return apperror.NewInternal("failed to save verification token: %w", err)
 	}
 
 	// Send verification email
 	if s.emailService != nil {
 		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
+			s.logger.ErrorContext(ctx, "send verification email failed", "error", err, "email", user.Email)
 			return apperror.NewInternal("failed to send verification email: %w", err)
 		}
 	} else {
 		return apperror.NewInternal("email service is not configured")
 	}
 
+	s.logger.InfoContext(ctx, "verification email resent successfully", "user_id", user.UserID)
 	return nil
 }
