@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
-	"strconv"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"passiontree/internal/learning-path/model"
@@ -232,72 +232,101 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 }
 
 func parseAINodes(rawResult string) []model.GeneratedNode {
-    var nodes []model.GeneratedNode
-    segments := strings.Split(rawResult, ",")
-    re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)
+	var nodes []model.GeneratedNode
+	segments := strings.Split(rawResult, ",")
+	re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)
 
-    // ลำดับสำรอง (Fallback) เริ่มที่ 1
-    fallbackSeq := 1
+	// ลำดับสำรอง (Fallback) เริ่มที่ 1
+	fallbackSeq := 1
 
-    for _, seg := range segments {
-        seg = strings.TrimSpace(seg)
-        matches := re.FindStringSubmatch(seg)
-        
-        if len(matches) == 3 {
-            aiSeq, err := strconv.Atoi(matches[1])
-            
-            finalSeq := 0
-            if err == nil {
-                finalSeq = aiSeq
-                fallbackSeq = aiSeq + 1
-            } else {
-                finalSeq = fallbackSeq
-                fallbackSeq++
-            }
+	for _, seg := range segments {
+		seg = strings.TrimSpace(seg)
+		matches := re.FindStringSubmatch(seg)
 
-            nodes = append(nodes, model.GeneratedNode{
-                Sequence: finalSeq,
-                Title:    matches[2],
-            })
-        }
-    }
-    return nodes
+		if len(matches) == 3 {
+			aiSeq, err := strconv.Atoi(matches[1])
+
+			finalSeq := 0
+			if err == nil {
+				finalSeq = aiSeq
+				fallbackSeq = aiSeq + 1
+			} else {
+				finalSeq = fallbackSeq
+				fallbackSeq++
+			}
+
+			nodes = append(nodes, model.GeneratedNode{
+				Sequence: finalSeq,
+				Title:    matches[2],
+			})
+		}
+	}
+	return nodes
 }
 
 func (s *serviceImpl) UpdatePathCoverImage(ctx context.Context, pathID string, coverImgURL string) error {
-    if pathID == "" {
-        return apperror.NewBadRequest("path_id is required")
-    }
-    if coverImgURL == "" {
-        return apperror.NewBadRequest("cover_image_url is required")
-    }
+	if pathID == "" {
+		return apperror.NewBadRequest("path_id is required")
+	}
+	if coverImgURL == "" {
+		return apperror.NewBadRequest("cover_image_url is required")
+	}
 
-    s.logger.InfoContext(ctx, "updating learning path cover image", "path_id", pathID)
+	s.logger.InfoContext(ctx, "updating learning path cover image", "path_id", pathID)
 
-    if !strings.Contains(coverImgURL, "learning-path") {
-        return apperror.NewBadRequest("Invalid image URL source")
-    }
+	if !strings.Contains(coverImgURL, "learning-path") {
+		return apperror.NewBadRequest("Invalid image URL source")
+	}
 
-    err := s.storage.ValidateUploadedFile(ctx, coverImgURL, "learning-path")
-    if err != nil {
-        s.logger.WarnContext(ctx, "image validation failed", "error", err, "url", coverImgURL)
-        return apperror.NewBadRequest("Image validation failed: %v", err)
-    }
+	err := s.storage.ValidateUploadedFile(ctx, coverImgURL, "learning-path")
+	if err != nil {
+		s.logger.WarnContext(ctx, "image validation failed", "error", err, "url", coverImgURL)
+		return apperror.NewBadRequest("Image validation failed: %v", err)
+	}
 
-    if _, err := s.pathRepo.GetLearningPathByID(ctx, pathID); err != nil {
-        if err == sql.ErrNoRows {
-            return apperror.NewNotFound("learning path not found")
-        }
-        return apperror.NewInternal("failed to verify learning path: %w", err)
-    }
+	if _, err := s.pathRepo.GetLearningPathByID(ctx, pathID); err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("learning path not found")
+		}
+		return apperror.NewInternal("failed to verify learning path: %w", err)
+	}
 
-    if err := s.pathRepo.UpdateLearningPathImage(ctx, pathID, coverImgURL); err != nil {
-        if err == sql.ErrNoRows { 
-            return apperror.NewNotFound("learning path not found")
-        }
-        return apperror.NewInternal("failed to update cover image for path %s: %w", pathID, err)
-    }
+	if err := s.pathRepo.UpdateLearningPathImage(ctx, pathID, coverImgURL); err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("learning path not found")
+		}
+		return apperror.NewInternal("failed to update cover image for path %s: %w", pathID, err)
+	}
 
-    s.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
-    return nil
+	s.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
+	return nil
+}
+
+func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) {
+	if userID == "" {
+		return nil, apperror.NewBadRequest("user_id is required")
+	}
+
+	paths, err := s.pathRepo.GetUserEnrolledPaths(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get enrolled paths", "error", err)
+		return nil, apperror.NewInternal("failed to retrieve enrolled paths")
+	}
+
+	for i := range paths {
+		if paths[i].Modules > 0 {
+			paths[i].ProgressPercent = (float64(paths[i].CompletedNodes) / float64(paths[i].Modules)) * 100
+
+			if paths[i].CompletedNodes == paths[i].Modules {
+				paths[i].ProgressStatus = "Completed"
+			} else {
+				paths[i].ProgressStatus = "In Progress"
+			}
+		} else {
+			paths[i].ProgressPercent = 0
+			paths[i].ProgressStatus = "In Progress"
+		}
+	}
+
+	return paths, nil
 }

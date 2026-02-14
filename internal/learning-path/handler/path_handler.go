@@ -39,7 +39,7 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 	}
 
 	h.logger.InfoContext(ctx, "successfully retrieved learning path details", "path_id", id)
-	
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Learning path retrieved successfully",
@@ -53,9 +53,9 @@ func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("filename is required"))
 	}
 
-	if !strings.HasSuffix(strings.ToLower(filename), ".jpg") && 
-	   !strings.HasSuffix(strings.ToLower(filename), ".png") && 
-	   !strings.HasSuffix(strings.ToLower(filename), ".jpeg") {
+	if !strings.HasSuffix(strings.ToLower(filename), ".jpg") &&
+		!strings.HasSuffix(strings.ToLower(filename), ".png") &&
+		!strings.HasSuffix(strings.ToLower(filename), ".jpeg") {
 		return h.handleError(c, apperror.NewBadRequest("Only JPEG and PNG images are allowed"))
 	}
 
@@ -81,7 +81,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreatePathRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
-	
+
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
@@ -248,27 +248,45 @@ func (h *Handler) Generate(c *fiber.Ctx) error {
 }
 
 func (h *Handler) UpdateCoverImage(c *fiber.Ctx) error {
-    pathID := c.Params("path_id")
-    ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
-    defer cancel()
+	pathID := c.Params("path_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
 
-    var req model.UpdateImageRequest
-    if err := c.BodyParser(&req); err != nil {
-        return h.handleError(c, apperror.NewBadRequest("invalid request body"))
-    }
+	var req model.UpdateImageRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
 
-    if err := h.pathSvc.UpdatePathCoverImage(ctx, pathID, req.CoverImgURL); err != nil {
-        return h.handleError(c, err)
-    }
+	if err := h.pathSvc.UpdatePathCoverImage(ctx, pathID, req.CoverImgURL); err != nil {
+		return h.handleError(c, err)
+	}
 
 	h.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
 
-    return c.Status(fiber.StatusOK).JSON(fiber.Map{
-        "success": true,
-        "message": "Learning path cover image updated successfully",
-        "data": fiber.Map{
-            "path_id": pathID,
-            "cover_image_url": req.CoverImgURL,
-        },
-    })
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Learning path cover image updated successfully",
+		"data": fiber.Map{
+			"path_id":         pathID,
+			"cover_image_url": req.CoverImgURL,
+		},
+	})
+}
+
+func (h *Handler) GetMyPaths(c *fiber.Ctx) error {
+	userID := c.Query("user_id")
+	
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	paths, err := h.pathSvc.GetUserEnrolledPaths(ctx, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Retrieved enrolled paths successfully",
+		"data":    paths,
+	})
 }
