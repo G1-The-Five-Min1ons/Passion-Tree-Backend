@@ -64,3 +64,19 @@ type PathEnroll struct {
 type UpdateImageRequest struct {
 	CoverImgURL string `json:"cover_image_url"`
 }
+
+type EnrolledPathResponse struct {
+	PathID           string     `json:"path_id"`
+	Title            string     `json:"title"`
+	Description      string     `json:"description"`
+	Instructor       string     `json:"instructor"`
+	Rating           float64    `json:"rating"`
+	CoverImgURL      string     `json:"cover_img_url"`
+	EnrollID         string     `json:"enroll_id"`
+	EnrollmentStatus string     `json:"enrollment_status"`
+	Modules          int        `json:"modules"`
+	CompletedNodes   int        `json:"completed_nodes"`
+	ProgressPercent  float64    `json:"progress_percent"`
+	ProgressStatus   string     `json:"progress_status"`
+	LastAccessedAt   *time.Time `json:"last_accessed_at"`
+}
