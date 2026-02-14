@@ -105,31 +105,31 @@ func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string
         ) AS pe_count ON lp.path_id = pe_count.path_id
         WHERE lp.path_id = @p1`
 
-    var p model.LearningPath
+	var p model.LearningPath
 
-    err := r.db.QueryRowContext(ctx, pathQuery, path_id).Scan(
-        &p.PathID,
-        &p.Title,
-        &p.CoverImgURL,
-        &p.Objective,
-        &p.Description,
-        &p.Rating,
-        &p.Publish_status,
-        &p.CreatedAt,
-        &p.UpdatedAt,
-        &p.Instructor,
-        &p.CreatorID,
-        &p.Modules,
-        &p.Students,
-    )
+	err := r.db.QueryRowContext(ctx, pathQuery, path_id).Scan(
+		&p.PathID,
+		&p.Title,
+		&p.CoverImgURL,
+		&p.Objective,
+		&p.Description,
+		&p.Rating,
+		&p.Publish_status,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+		&p.Instructor,
+		&p.CreatorID,
+		&p.Modules,
+		&p.Students,
+	)
 
-    if err != nil {
-        if err == sql.ErrNoRows {
-            return nil, err
-        }
-        return nil, fmt.Errorf("repo.GetLearningPathByID scan failed: %w", err)
-    }
-    return &p, nil
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("repo.GetLearningPathByID scan failed: %w", err)
+	}
+	return &p, nil
 }
 
 func (r *repositoryImpl) CreateLearningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
