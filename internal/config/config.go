@@ -72,13 +72,13 @@ func LoadDBConfig() (*Config, error) {
 		SMTPPort:               getEnvOrDefault(EnvSMTPPort, "587"),
 		SMTPUsername:           os.Getenv(EnvSMTPUsername),
 		SMTPPassword:           os.Getenv(EnvSMTPPassword),
-		JWTSecret:              os.Getenv(EnvJWTSecret),   // 24 hours default
-		JWTRefreshTTL:          getEnvOrDefault(EnvJWTRefreshTTL, "168"),   // 7 days default (sliding)
-		JWTRefreshAbsolute:     getEnvOrDefault(EnvJWTRefreshAbsolute, "720"), // 30 days default (absolute)t
-		JWTRefreshTTL:          getEnvOrDefault(EnvJWTRefreshTTL, "168"), // 7 days default
 		SMTPFromEmail:          os.Getenv(EnvSMTPFromEmail),
 		MailerSendAPIKey:       os.Getenv(EnvMailerSendAPIKey),
 		AppURL:                 getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
+		JWTSecret:              os.Getenv(EnvJWTSecret),
+		JWTAccessTTL:           getEnvOrDefault(EnvJWTAccessTTL, "24"),    // 24 hours default
+		JWTRefreshTTL:          getEnvOrDefault(EnvJWTRefreshTTL, "168"),  // 7 days default (sliding)
+		JWTRefreshAbsolute:     getEnvOrDefault(EnvJWTRefreshAbsolute, "720"), // 30 days default (absolute)
 	}
 
 	// Build database connection string

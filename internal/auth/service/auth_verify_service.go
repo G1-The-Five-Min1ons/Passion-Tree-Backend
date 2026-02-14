@@ -51,7 +51,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	}
 
 	// Revoke the token
-	if err := s.tokenRepo.RevokeToken(tokenModel.TokenID); err != nil {
+	if err := s.tokenRepo.RevokeTokenByValue(tokenModel.Token, tokenModel.TokenType); err != nil {
 		s.logger.WarnContext(ctx, "failed to revoke verification token", "error", err, "token_id", tokenModel.TokenID)
 	}
 

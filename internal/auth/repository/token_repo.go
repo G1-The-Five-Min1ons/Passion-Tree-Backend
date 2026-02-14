@@ -10,32 +10,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type TokenRepository interface {
-	CreateToken(token *model.Token) error
-	GetTokenByValue(tokenValue string, tokenType string) (*model.Token, error)
-	RevokeTokenByValue(tokenValue string, tokenType string) error
-	RevokeAllUserTokens(userID string, tokenType string) error
-	DeleteExpiredTokens() error
-	DeleteTokensByUserAndType(userID string, tokenType string) error
-	
-	// Token Rotation Methods
-	MarkTokenAsRotated(tokenValue string, tokenType string) error
-	
-	// Multi-device Session Management
-	GetActiveUserSessions(userID string, tokenType string) ([]*model.Token, error)
-	RevokeTokenByIDForUser(tokenID string, userID string) error
-}
-
-type tokenRepositoryImpl struct {
-	db *sql.DB
-}
-
-func NewTokenRepository(db *sql.DB) TokenRepository {
-	return &tokenRepositoryImpl{
-		db: db,
-	}
-}
-
 // CreateToken creates a new token with full session tracking
 func (r *tokenRepositoryImpl) CreateToken(token *model.Token) error {
 	ctx := context.Background()

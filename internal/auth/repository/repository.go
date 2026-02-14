@@ -23,13 +23,39 @@ type UserRepository interface {
 	GetDB() *sql.DB
 }
 
+type TokenRepository interface {
+	CreateToken(token *model.Token) error
+	GetTokenByValue(tokenValue string, tokenType string) (*model.Token, error)
+	RevokeTokenByValue(tokenValue string, tokenType string) error
+	RevokeAllUserTokens(userID string, tokenType string) error
+	DeleteExpiredTokens() error
+	DeleteTokensByUserAndType(userID string, tokenType string) error
+	
+	// Token Rotation Methods
+	MarkTokenAsRotated(tokenValue string, tokenType string) error
+	
+	// Multi-device Session Management
+	GetActiveUserSessions(userID string, tokenType string) ([]*model.Token, error)
+	RevokeTokenByIDForUser(tokenID string, userID string) error
+}
+
 type userRepositoryImpl struct {
+	db *sql.DB
+}
+
+type tokenRepositoryImpl struct {
 	db *sql.DB
 }
 
 func NewUserRepository(ds connection.Database) UserRepository {
 	return &userRepositoryImpl{
 		db: ds.GetDB(),
+	}
+}
+
+func NewTokenRepository(db *sql.DB) TokenRepository {
+	return &tokenRepositoryImpl{
+		db: db,
 	}
 }
 

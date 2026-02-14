@@ -40,7 +40,8 @@ type userServiceImpl struct {
 	userRepo     repository.UserRepository
 	tokenRepo    repository.TokenRepository
 	emailService EmailService
-	logger  	*slog.Logger
+	config       *config.Config
+	logger       *slog.Logger
 }
 
 type emailServiceImpl struct {
@@ -48,10 +49,11 @@ type emailServiceImpl struct {
 	logger *slog.Logger
 }
 
-func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, logger *slog.Logger) UserService {
+func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config, logger *slog.Logger) UserService {
 	return &userServiceImpl{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
+		config:    cfg,
 		logger:    logger,
 	}
 }
@@ -68,6 +70,7 @@ func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repos
 	svc := &userServiceImpl{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
+		config:    cfg,
 		logger:    logger,
 	}
 
