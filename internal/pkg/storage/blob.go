@@ -3,9 +3,9 @@ package storage
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
-	"path/filepath"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
@@ -13,9 +13,6 @@ import (
 )
 
 const (
-	ContainerTypeLearningPath = "learning-path"
-	ContainerTypeProfile      = "profile"
-
 	MaxFileSizeBytes = 5 * 1024 * 1024 // 5MB
 	MaxFileSizeHuman = "5MB"
 
@@ -27,26 +24,27 @@ const (
 )
 
 type BlobService struct {
-	client                *azblob.Client
-	accountName           string
-	accountKey            string
-	containerLearningPath string
-	containerProfile      string
+	client      *azblob.Client
+	accountName string
+	accountKey  string
+	containers  map[string]string
 }
 
-func NewBlobService(client *azblob.Client, accName, accKey, contLearning, contProfile string) *BlobService {
+func NewBlobService(client *azblob.Client, accName, accKey string, containerMap map[string]string) *BlobService {
 	return &BlobService{
-		client:                client,
-		accountName:           accName,
-		accountKey:            accKey,
-		containerLearningPath: contLearning,
-		containerProfile:      contProfile,
+		client:      client,
+		accountName: accName,
+		accountKey:  accKey,
+		containers:  containerMap,
 	}
 }
 
 // GeneratePresignedURL สร้าง SAS URL สำหรับอัปโหลด
 func (s *BlobService) GeneratePresignedURL(filename string, containerType string, expiresIn time.Duration) (string, string, error) {
-	containerName := s.getContainerName(containerType)
+	containerName, err := s.getContainerName(containerType)
+	if err != nil {
+		return "", "", err
+	}
 	blobName := s.generateBlobName(filename)
 
 	cred, err := azblob.NewSharedKeyCredential(s.accountName, s.accountKey)
@@ -99,7 +97,10 @@ func (s *BlobService) ValidateUploadedFile(ctx context.Context, blobURL string, 
 		return fmt.Errorf("invalid blob URL")
 	}
 	blobName := parts[len(parts)-1]
-	containerName := s.getContainerName(containerType)
+	containerName, err := s.getContainerName(containerType)
+	if err != nil {
+		return err
+	}
 
 	blobClient := s.client.ServiceClient().NewContainerClient(containerName).NewBlobClient(blobName)
 
@@ -125,7 +126,10 @@ func (s *BlobService) ValidateUploadedFile(ctx context.Context, blobURL string, 
 }
 
 func (s *BlobService) ListBlobsOlderThan(ctx context.Context, containerType string, duration time.Duration) ([]string, error) {
-	containerName := s.getContainerName(containerType)
+	containerName, err := s.getContainerName(containerType)
+	if err != nil {
+		return nil, err
+	}
 
 	pager := s.client.NewListBlobsFlatPager(containerName, nil)
 
@@ -149,27 +153,27 @@ func (s *BlobService) ListBlobsOlderThan(ctx context.Context, containerType stri
 }
 
 func (s *BlobService) DeleteBlob(ctx context.Context, blobName string, containerType string) error {
-	containerName := s.getContainerName(containerType)
-	_, err := s.client.DeleteBlob(ctx, containerName, blobName, nil)
+	containerName, err := s.getContainerName(containerType)
+	if err != nil {
+		return err
+	}
+	_, err = s.client.DeleteBlob(ctx, containerName, blobName, nil)
 	return err
 }
 
 // getContainerName เลือก container name ตาม type
-func (s *BlobService) getContainerName(containerType string) string {
-	switch containerType {
-	case ContainerTypeLearningPath:
-		return s.containerLearningPath
-	case ContainerTypeProfile:
-		return s.containerProfile
-	default:
-		return s.containerLearningPath
+func (s *BlobService) getContainerName(containerType string) (string, error) {
+	name, exists := s.containers[containerType]
+	if !exists {
+		return "", fmt.Errorf("invalid container type (folder): %s", containerType)
 	}
+	return name, nil
 }
 
 // generateBlobName สร้างชื่อ blob ที่ unique
 func (s *BlobService) generateBlobName(filename string) string {
-    cleanName := filepath.Base(filename) 
-    
-    ext := filepath.Ext(cleanName)
-    return uuid.New().String() + ext
+	cleanName := filepath.Base(filename)
+
+	ext := filepath.Ext(cleanName)
+	return uuid.New().String() + ext
 }

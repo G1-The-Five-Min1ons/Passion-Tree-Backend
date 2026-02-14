@@ -4,7 +4,6 @@ import (
 	"context"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -44,36 +43,6 @@ func (h *Handler) GetOne(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Learning path retrieved successfully",
 		"data":    path,
-	})
-}
-
-func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
-	filename := c.Query("filename")
-	if filename == "" {
-		return h.handleError(c, apperror.NewBadRequest("filename is required"))
-	}
-
-	if !strings.HasSuffix(strings.ToLower(filename), ".jpg") && 
-	   !strings.HasSuffix(strings.ToLower(filename), ".png") && 
-	   !strings.HasSuffix(strings.ToLower(filename), ".jpeg") {
-		return h.handleError(c, apperror.NewBadRequest("Only JPEG and PNG images are allowed"))
-	}
-
-	uploadURL, publicURL, err := h.storage.GeneratePresignedURL(filename, "learning-path", 15*time.Minute)
-	if err != nil {
-		return h.handleError(c, apperror.NewInternal("failed to generate presigned URL for file %s: %w", filename, err))
-	}
-
-	h.logger.InfoContext(c.UserContext(), "generated presigned URL for learning path cover image", "filename", filename)
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
-		"message": "Presigned URL generated successfully",
-		"data": fiber.Map{
-			"upload_url": uploadURL,
-			"public_url": publicURL,
-			"expires_in": "15m",
-		},
 	})
 }
 

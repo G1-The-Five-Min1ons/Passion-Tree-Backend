@@ -11,13 +11,19 @@ import (
 )
 
 const (
-	CleanupTimeout         = 10 * time.Minute
+	CleanupTimeout         = 30 * time.Minute
 	MaxConcurrentDeletions = 10
 )
 
 type CleanupWorker struct {
 	db      connection.Database
 	storage *storage.BlobService
+}
+
+type CleanupTarget struct {
+	Folder string
+	Table  string
+	Column string
 }
 
 func NewCleanupWorker(db connection.Database, storage *storage.BlobService) *CleanupWorker {
@@ -28,24 +34,44 @@ func NewCleanupWorker(db connection.Database, storage *storage.BlobService) *Cle
 }
 
 func (w *CleanupWorker) RunCleanup() {
-	log.Println("[Cleanup Worker] Starting cleanup task...")
+	log.Println("[Cleanup Worker] Starting global cleanup task...")
 	ctx, cancel := context.WithTimeout(context.Background(), CleanupTimeout)
 	defer cancel()
 
-	query := "SELECT cover_img_url FROM learning_paths WHERE cover_img_url IS NOT NULL AND cover_img_url != ''"
+	targets := []CleanupTarget{
+		{Folder: "learning-path", Table: "learning_paths", Column: "cover_img_url"},
+		{Folder: "profile", Table: "users", Column: "profile_img_url"},
+		// {Folder: "resume", Table: "user_resumes", Column: "file_url"}, // ตัวอย่าง: อนาคต
+	}
+
+	for _, target := range targets {
+		if ctx.Err() != nil {
+			log.Println("[Cleanup Worker] Timeout reached, stopping cleanup.")
+			break
+		}
+		w.processFolderCleanup(ctx, target)
+	}
+
+	log.Println("[Cleanup Worker] Global cleanup task completed.")
+}
+
+func (w *CleanupWorker) processFolderCleanup(ctx context.Context, target CleanupTarget) {
+	log.Printf("[Cleanup Worker] Processing folder: %s (Check DB: %s.%s)\n", target.Folder, target.Table, target.Column)
+
+	query := "SELECT " + target.Column + " FROM " + target.Table +
+		" WHERE " + target.Column + " IS NOT NULL AND " + target.Column + " != ''"
+
 	rows, err := w.db.GetDB().QueryContext(ctx, query)
 	if err != nil {
-		log.Printf("[Cleanup Worker] Error querying DB: %v\n", err)
+		log.Printf("[Cleanup Worker] Error querying DB for %s: %v\n", target.Folder, err)
 		return
 	}
 	defer rows.Close()
 
 	validFiles := make(map[string]struct{})
-
 	for rows.Next() {
 		var fullURL string
 		if err := rows.Scan(&fullURL); err != nil {
-			log.Printf("[Cleanup Worker] Warning: Failed to scan row: %v\n", err)
 			continue
 		}
 		fileName := extractFilenameFromURL(fullURL)
@@ -53,20 +79,14 @@ func (w *CleanupWorker) RunCleanup() {
 			validFiles[fileName] = struct{}{}
 		}
 	}
-
-	if err := rows.Err(); err != nil {
-		log.Printf("[Cleanup Worker] Error iterating DB rows: %v\n", err)
-		return
-	}
-
-	blobs, err := w.storage.ListBlobsOlderThan(ctx, "learning-path", 24*time.Hour)
+	blobs, err := w.storage.ListBlobsOlderThan(ctx, target.Folder, 24*time.Hour)
 	if err != nil {
-		log.Printf("[Cleanup Worker] Error listing blobs from Azure: %v\n", err)
+		log.Printf("[Cleanup Worker] Error listing blobs for %s: %v\n", target.Folder, err)
 		return
 	}
 
 	var (
-		deletedFiles []string
+		deletedCount int
 		errorCount   int
 		mu           sync.Mutex
 		wg           sync.WaitGroup
@@ -76,61 +96,54 @@ func (w *CleanupWorker) RunCleanup() {
 
 	for _, blobName := range blobs {
 		if ctx.Err() != nil {
-			log.Println("[Cleanup Worker] Timeout reached, stopping cleanup.")
 			break
 		}
 
 		if _, exists := validFiles[blobName]; !exists {
-
 			wg.Add(1)
 
 			go func(name string) {
 				defer wg.Done()
 
-				// Acquire Token: ถ้า Channel เต็ม จะ Block รอตรงนี้ (จำกัดความเร็ว)
 				sem <- struct{}{}
-				defer func() { <-sem }() // Release Token เมื่อทำเสร็จ
+				defer func() { <-sem }()
 
-				// Double check context ใน Goroutine เผื่อโดน cancel ระหว่างรอคิว
 				if ctx.Err() != nil {
 					return
 				}
 
-				// ลบไฟล์ (ส่ง ctx ลงไปด้วย ถ้า timeout มันจะยกเลิก request เอง)
-				err := w.storage.DeleteBlob(ctx, name, "learning-path")
+				err := w.storage.DeleteBlob(ctx, name, target.Folder)
 
-				// Update ผลลัพธ์ (ต้อง Lock เพราะเขียนตัวแปร shared)
 				mu.Lock()
+				defer mu.Unlock()
+
 				if err != nil {
-					log.Printf("[Cleanup Worker] Failed to delete blob %s: %v\n", name, err)
+					log.Printf("[Cleanup Worker] Failed to delete %s from %s: %v\n", name, target.Folder, err)
 					errorCount++
 				} else {
-					deletedFiles = append(deletedFiles, name)
+					deletedCount++
 				}
-				mu.Unlock()
-
 			}(blobName)
 		}
 	}
 
-	// รอให้ Goroutines ทั้งหมดทำงานเสร็จ
 	wg.Wait()
 
-	if len(deletedFiles) > 0 {
-		log.Printf("[Cleanup Worker] Cleanup finished. Deleted %d files. Errors: %d. Files: [%s]\n",
-			len(deletedFiles),
-			errorCount,
-			strings.Join(deletedFiles, ", "),
-		)
+	if deletedCount > 0 || errorCount > 0 {
+		log.Printf("[Cleanup Worker] Folder '%s' summary: Deleted %d files, Errors %d.\n", target.Folder, deletedCount, errorCount)
 	} else {
-		log.Println("[Cleanup Worker] Cleanup finished. No orphaned files found.")
+		log.Printf("[Cleanup Worker] Folder '%s' is clean.\n", target.Folder)
 	}
 }
 
 func extractFilenameFromURL(url string) string {
 	parts := strings.Split(url, "/")
 	if len(parts) > 0 {
-		return parts[len(parts)-1]
+		filename := parts[len(parts)-1]
+		if idx := strings.Index(filename, "?"); idx != -1 {
+			filename = filename[:idx]
+		}
+		return filename
 	}
 	return ""
 }
