@@ -56,12 +56,12 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 	}
 
 	// Validate Image Source & Existence
-	if !strings.Contains(req.CoverImgURL, ContainerLearningPath) {
-		return "", apperror.NewBadRequest("invalid image URL source")
-	}
-	if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, ContainerLearningPath); err != nil {
-		return "", apperror.NewBadRequest("image validation failed: %v", err)
-	}
+	// if !strings.Contains(req.CoverImgURL, ContainerLearningPath) {
+	// 	return "", apperror.NewBadRequest("invalid image URL source")
+	// }
+	// if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, ContainerLearningPath); err != nil {
+	// 	return "", apperror.NewBadRequest("image validation failed: %v", err)
+	// }
 
 	id, err := s.pathRepo.CreateLearningPath(ctx, req)
 	if err != nil {
