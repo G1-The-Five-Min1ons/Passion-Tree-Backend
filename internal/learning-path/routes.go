@@ -21,7 +21,6 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
-		paths.Post("/uploadimg", h.GetUploadURL)
 		paths.Put("/uploadimg", h.UpdateCoverImage)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
