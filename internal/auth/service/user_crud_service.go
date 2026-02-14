@@ -93,7 +93,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
+	if err := s.tokenRepo.CreateToken(ctx, tokenModel); err != nil {
 		// Log error but don't fail registration
 		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
 	}

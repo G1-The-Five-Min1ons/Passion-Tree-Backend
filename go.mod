@@ -1,6 +1,6 @@
 module passiontree
 
-go 1.23.4
+go 1.24.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.1
@@ -13,9 +13,11 @@ require (
 	github.com/microsoft/go-mssqldb v1.9.5
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/crypto v0.41.0
+	golang.org/x/oauth2 v0.35.0
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.1 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect

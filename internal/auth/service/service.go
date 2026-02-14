@@ -7,6 +7,9 @@ import (
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/config"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 type UserService interface {
@@ -33,20 +36,32 @@ type EmailService interface {
 type SocialAuthService interface {
 	GetGoogleAuthURL(state string) string
 	GetDiscordAuthURL(state string) string
-	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, error)
-	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, error)
+	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
+	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
+	// Native SSO method for Android/mobile apps
+	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
+	// Confirm account linking
+	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 
 type userServiceImpl struct {
 	userRepo     repository.UserRepository
 	tokenRepo    repository.TokenRepository
 	emailService EmailService
-	logger  	*slog.Logger
+	logger       *slog.Logger
 }
 
 type emailServiceImpl struct {
 	config *config.Config
 	logger *slog.Logger
+}
+
+type socialAuthServiceImpl struct {
+	userRepo      repository.UserRepository
+	socialRepo    repository.SocialAuthRepository
+	googleConfig  *oauth2.Config
+	discordConfig *oauth2.Config
+	logger        *slog.Logger
 }
 
 func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, logger *slog.Logger) UserService {
@@ -89,4 +104,37 @@ func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repos
 // SetEmailService sets the email service (used for dependency injection)
 func (s *userServiceImpl) SetEmailService(emailService EmailService) {
 	s.emailService = emailService
+}
+
+func NewSocialAuthService(
+	userRepo repository.UserRepository,
+	socialRepo repository.SocialAuthRepository,
+	cfg *config.Config,
+	logger *slog.Logger,
+) SocialAuthService {
+	return &socialAuthServiceImpl{
+		userRepo:   userRepo,
+		socialRepo: socialRepo,
+		googleConfig: &oauth2.Config{
+			ClientID:     cfg.GoogleClientID,
+			ClientSecret: cfg.GoogleClientSecret,
+			RedirectURL:  cfg.GoogleRedirectURL,
+			Scopes: []string{
+				"https://www.googleapis.com/auth/userinfo.email",
+				"https://www.googleapis.com/auth/userinfo.profile",
+			},
+			Endpoint: google.Endpoint,
+		},
+		discordConfig: &oauth2.Config{
+			ClientID:     cfg.DiscordClientID,
+			ClientSecret: cfg.DiscordClientSecret,
+			RedirectURL:  cfg.DiscordRedirectURL,
+			Scopes:       []string{"identify", "email"},
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://discord.com/api/oauth2/authorize",
+				TokenURL: "https://discord.com/api/oauth2/token",
+			},
+		},
+		logger: logger,
+	}
 }

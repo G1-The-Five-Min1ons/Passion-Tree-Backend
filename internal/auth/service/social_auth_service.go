@@ -5,78 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"passiontree/internal/auth/model"
-	"passiontree/internal/auth/repository"
-	"passiontree/internal/config"
 	"passiontree/internal/pkg/apperror"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 const (
 	JWTSecret     = "passion-tree-secret-key-2024" // TODO: Move to config
 	JWTExpiration = 24 * 7 * time.Hour
 )
-
-type SocialAuthService interface {
-	GetGoogleAuthURL(state string) string
-	GetDiscordAuthURL(state string) string
-	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
-	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
-	// Native SSO method for Android/mobile apps
-	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
-	// Confirm account linking
-	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
-}
-
-type socialAuthServiceImpl struct {
-	userRepo       repository.UserRepository
-	socialRepo     repository.SocialAuthRepository
-	googleConfig   *oauth2.Config
-	discordConfig  *oauth2.Config
-	logger         *slog.Logger
-}
-
-func NewSocialAuthService(
-	userRepo repository.UserRepository,
-	socialRepo repository.SocialAuthRepository,
-	cfg *config.Config,
-	logger *slog.Logger,
-) SocialAuthService {
-	return &socialAuthServiceImpl{
-		userRepo:   userRepo,
-		socialRepo: socialRepo,
-		googleConfig: &oauth2.Config{
-			ClientID:     cfg.GoogleClientID,
-			ClientSecret: cfg.GoogleClientSecret,
-			RedirectURL:  cfg.GoogleRedirectURL,
-			Scopes: []string{
-				"https://www.googleapis.com/auth/userinfo.email",
-				"https://www.googleapis.com/auth/userinfo.profile",
-			},
-			Endpoint: google.Endpoint,
-		},
-		discordConfig: &oauth2.Config{
-			ClientID:     cfg.DiscordClientID,
-			ClientSecret: cfg.DiscordClientSecret,
-			RedirectURL:  cfg.DiscordRedirectURL,
-			Scopes:       []string{"identify", "email"},
-			Endpoint: oauth2.Endpoint{
-				AuthURL:  "https://discord.com/api/oauth2/authorize",
-				TokenURL: "https://discord.com/api/oauth2/token",
-			},
-		},
-		logger: logger,
-	}
-}
 
 // GetGoogleAuthURL generates the Google OAuth2 authorization URL
 func (s *socialAuthServiceImpl) GetGoogleAuthURL(state string) string {
@@ -94,7 +37,7 @@ func (s *socialAuthServiceImpl) HandleGoogleCallback(ctx context.Context, code s
 	token, err := s.googleConfig.Exchange(ctx, code)
 	if err != nil {
 		s.logger.Error("failed to exchange google code", "error", err)
-		return nil, "", nil, apperror.InternalServerError("Failed to authenticate with Google", err)
+		return nil, "", nil, apperror.NewInternal("failed to authenticate with google: %w", err)
 	}
 
 	// Fetch user info from Google
@@ -118,7 +61,7 @@ func (s *socialAuthServiceImpl) HandleDiscordCallback(ctx context.Context, code 
 	token, err := s.discordConfig.Exchange(ctx, code)
 	if err != nil {
 		s.logger.Error("failed to exchange discord code", "error", err)
-		return nil, "", nil, apperror.InternalServerError("Failed to authenticate with Discord", err)
+		return nil, "", nil, apperror.NewInternal("failed to authenticate with discord: %w", err)
 	}
 
 	// Fetch user info from Discord
@@ -142,14 +85,14 @@ func (s *socialAuthServiceImpl) fetchGoogleUserInfo(ctx context.Context, token *
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		s.logger.Error("failed to get google user info", "error", err)
-		return nil, apperror.InternalServerError("Failed to fetch user info from Google", err)
+		return nil, apperror.NewInternal("failed to fetch user info from google: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		s.logger.Error("failed to read google response", "error", err)
-		return nil, apperror.InternalServerError("Failed to read Google response", err)
+		return nil, apperror.NewInternal("failed to read google response: %w", err)
 	}
 
 	var googleUser struct {
@@ -164,7 +107,7 @@ func (s *socialAuthServiceImpl) fetchGoogleUserInfo(ctx context.Context, token *
 
 	if err := json.Unmarshal(body, &googleUser); err != nil {
 		s.logger.Error("failed to unmarshal google user", "error", err)
-		return nil, apperror.InternalServerError("Failed to parse Google user data", err)
+		return nil, apperror.NewInternal("failed to parse google user data: %w", err)
 	}
 
 	return &model.OAuthUserInfo{
@@ -183,14 +126,14 @@ func (s *socialAuthServiceImpl) fetchDiscordUserInfo(ctx context.Context, token 
 	resp, err := client.Get("https://discord.com/api/users/@me")
 	if err != nil {
 		s.logger.Error("failed to get discord user info", "error", err)
-		return nil, apperror.InternalServerError("Failed to fetch user info from Discord", err)
+		return nil, apperror.NewInternal("failed to fetch user info from discord: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		s.logger.Error("failed to read discord response", "error", err)
-		return nil, apperror.InternalServerError("Failed to read Discord response", err)
+		return nil, apperror.NewInternal("failed to read discord response: %w", err)
 	}
 
 	var discordUser struct {
@@ -205,7 +148,7 @@ func (s *socialAuthServiceImpl) fetchDiscordUserInfo(ctx context.Context, token 
 
 	if err := json.Unmarshal(body, &discordUser); err != nil {
 		s.logger.Error("failed to unmarshal discord user", "error", err)
-		return nil, apperror.InternalServerError("Failed to parse Discord user data", err)
+		return nil, apperror.NewInternal("failed to parse discord user data: %w", err)
 	}
 
 	// Build avatar URL
@@ -245,7 +188,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 	// Check if user exists with this provider
 	user, err := s.socialRepo.GetUserByProvider(ctx, userInfo.Provider, userInfo.ProviderUserID)
 	if err != nil {
-		return nil, "", nil, apperror.InternalServerError("Failed to check user existence", err)
+		return nil, "", nil, apperror.NewInternal("failed to check user existence: %w", err)
 	}
 
 	// CASE 1: User exists with this social provider
@@ -280,7 +223,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 		// Generate JWT token
 		jwtToken, err := s.generateJWT(user)
 		if err != nil {
-			return nil, "", nil, apperror.InternalServerError("Failed to generate token", err)
+			return nil, "", nil, apperror.NewInternal("failed to generate token: %w", err)
 		}
 
 		return user, jwtToken, nil, nil
@@ -289,7 +232,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 	// CASE 2: User doesn't have this provider, check by email
 	existingUser, err := s.userRepo.GetUserByEmail(ctx, userInfo.Email)
 	if err != nil {
-		return nil, "", nil, apperror.InternalServerError("Failed to check user by email", err)
+		return nil, "", nil, apperror.NewInternal("failed to check user by email: %w", err)
 	}
 
 	if existingUser != nil {
@@ -305,24 +248,24 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 		// Create link token with provider info
 		linkToken, err := s.generateLinkToken(existingUser.UserID, userInfo)
 		if err != nil {
-			return nil, "", nil, apperror.InternalServerError("Failed to generate link token", err)
+			return nil, "", nil, apperror.NewInternal("failed to generate link token: %w", err)
 		}
 
 		// Return confirmation needed
 		linkConfirm := &model.LinkConfirmationNeeded{
 			LinkToken: linkToken,
 			ExistingUser: &model.User{
-				UserID:    existingUser.UserID,
-				Username:  existingUser.Username,
-				Email:     existingUser.Email,
-				FirstName: existingUser.FirstName,
-				LastName:  existingUser.LastName,
+				UserID:       existingUser.UserID,
+				Username:     existingUser.Username,
+				Email:        existingUser.Email,
+				FirstName:    existingUser.FirstName,
+				LastName:     existingUser.LastName,
 				AuthProvider: existingUser.AuthProvider,
 			},
 			ProviderEmail: userInfo.Email,
 			ProviderName:  userInfo.Provider,
-			Message: fmt.Sprintf("An account with email %s already exists. Do you want to link your %s account?", userInfo.Email, userInfo.Provider),
-			NeedsConfirm: true,
+			Message:       fmt.Sprintf("An account with email %s already exists. Do you want to link your %s account?", userInfo.Email, userInfo.Provider),
+			NeedsConfirm:  true,
 		}
 
 		return nil, "", linkConfirm, nil
@@ -342,7 +285,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 	// Generate JWT token
 	jwtToken, err := s.generateJWT(user)
 	if err != nil {
-		return nil, "", nil, apperror.InternalServerError("Failed to generate token", err)
+		return nil, "", nil, apperror.NewInternal("failed to generate token: %w", err)
 	}
 
 	return user, jwtToken, nil, nil
@@ -352,7 +295,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 func (s *socialAuthServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, error) {
 	// Generate username from email
 	username := strings.Split(userInfo.Email, "@")[0]
-	
+
 	// Check if username exists, append random number if needed
 	existingUser, _ := s.userRepo.GetUserByUsername(ctx, username)
 	if existingUser != nil {
@@ -380,7 +323,7 @@ func (s *socialAuthServiceImpl) createUserFromOAuth(ctx context.Context, userInf
 	userID, err := s.socialRepo.CreateSocialUser(ctx, user, profile)
 	if err != nil {
 		s.logger.Error("failed to create social user", "error", err)
-		return nil, apperror.InternalServerError("Failed to create user account", err)
+		return nil, apperror.NewInternal("failed to create user account: %w", err)
 	}
 
 	user.UserID = userID
@@ -390,11 +333,11 @@ func (s *socialAuthServiceImpl) createUserFromOAuth(ctx context.Context, userInf
 // generateJWT creates a JWT token for authenticated user
 func (s *socialAuthServiceImpl) generateJWT(user *model.User) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id":  user.UserID,
-		"email":    user.Email,
-		"role":     user.Role,
-		"exp":      time.Now().Add(JWTExpiration).Unix(),
-		"iat":      time.Now().Unix(),
+		"user_id": user.UserID,
+		"email":   user.Email,
+		"role":    user.Role,
+		"exp":     time.Now().Add(JWTExpiration).Unix(),
+		"iat":     time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -442,17 +385,17 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 
 	if err != nil {
 		s.logger.Error("failed to parse link token", "error", err)
-		return nil, "", apperror.NewAppError(fiber.StatusUnauthorized, "Invalid or expired link token", err)
+		return nil, "", apperror.NewUnauthorized("invalid or expired link token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		return nil, "", apperror.NewAppError(fiber.StatusUnauthorized, "Invalid link token", nil)
+		return nil, "", apperror.NewUnauthorized("invalid link token")
 	}
 
 	// Verify token type
 	if claims["type"] != "link_confirmation" {
-		return nil, "", apperror.NewAppError(fiber.StatusUnauthorized, "Invalid token type", nil)
+		return nil, "", apperror.NewUnauthorized("invalid token type")
 	}
 
 	// Extract claims
@@ -463,11 +406,11 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 	// Get existing user
 	existingUser, _, err := s.userRepo.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, "", apperror.InternalServerError("Failed to get user", err)
+		return nil, "", apperror.NewInternal("failed to get user: %w", err)
 	}
 
 	if existingUser == nil {
-		return nil, "", apperror.NewAppError(fiber.StatusNotFound, "User not found", nil)
+		return nil, "", apperror.NewNotFound("user not found")
 	}
 
 	if confirm {
@@ -480,7 +423,7 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 		// Link the social account
 		err = s.socialRepo.LinkSocialAccount(ctx, userID, provider, providerUserID)
 		if err != nil {
-			return nil, "", apperror.InternalServerError("Failed to link account", err)
+			return nil, "", apperror.NewInternal("failed to link account: %w", err)
 		}
 
 		// Update user info from provider
@@ -528,7 +471,7 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 	// Generate JWT token for login
 	jwtToken, err := s.generateJWT(existingUser)
 	if err != nil {
-		return nil, "", apperror.InternalServerError("Failed to generate token", err)
+		return nil, "", apperror.NewInternal("failed to generate token: %w", err)
 	}
 
 	return existingUser, jwtToken, nil
@@ -552,9 +495,14 @@ func (s *socialAuthServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, id
 	}
 
 	// Find or create user
-	user, jwtToken, err := s.findOrCreateUser(ctx, userInfo)
+	user, jwtToken, linkConfirm, err := s.findOrCreateUser(ctx, userInfo)
 	if err != nil {
 		return nil, "", err
+	}
+
+	// Native SSO doesn't support link confirmation - auto-link if user exists
+	if linkConfirm != nil {
+		return nil, "", apperror.NewBadRequest("account with this email already exists, please use web login to link accounts")
 	}
 
 	return user, jwtToken, nil
@@ -566,19 +514,19 @@ func (s *socialAuthServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken
 	resp, err := http.Get(fmt.Sprintf("https://oauth2.googleapis.com/tokeninfo?id_token=%s", idToken))
 	if err != nil {
 		s.logger.Error("failed to verify google id token", "error", err)
-		return nil, apperror.InternalServerError("Failed to verify Google ID token", err)
+		return nil, apperror.NewInternal("failed to verify google id token: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		s.logger.Warn("invalid google id token", "status", resp.StatusCode)
-		return nil, apperror.NewAppError(fiber.StatusUnauthorized, "Invalid or expired Google ID token", nil)
+		return nil, apperror.NewUnauthorized("invalid or expired google id token")
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		s.logger.Error("failed to read token verification response", "error", err)
-		return nil, apperror.InternalServerError("Failed to read verification response", err)
+		return nil, apperror.NewInternal("failed to read verification response: %w", err)
 	}
 
 	var tokenInfo struct {
@@ -594,7 +542,7 @@ func (s *socialAuthServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken
 
 	if err := json.Unmarshal(body, &tokenInfo); err != nil {
 		s.logger.Error("failed to parse token info", "error", err)
-		return nil, apperror.InternalServerError("Failed to parse token information", err)
+		return nil, apperror.NewInternal("failed to parse token information: %w", err)
 	}
 
 	// Verify the audience matches our client ID
@@ -603,7 +551,7 @@ func (s *socialAuthServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken
 			"expected", s.googleConfig.ClientID,
 			"got", tokenInfo.Aud,
 		)
-		return nil, apperror.NewAppError(fiber.StatusUnauthorized, "Invalid token audience", nil)
+		return nil, apperror.NewUnauthorized("invalid token audience")
 	}
 
 	return &model.OAuthUserInfo{

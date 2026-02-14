@@ -15,7 +15,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	}
 
 	// Get token from Token table
-	tokenModel, err := s.tokenRepo.GetTokenByValue(token, model.TokenTypeEmailVerification)
+	tokenModel, err := s.tokenRepo.GetTokenByValue(ctx, token, model.TokenTypeEmailVerification)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "verify email token failed", "error", err)
 		return apperror.NewInternal("failed to get verification token: %w", err)
@@ -51,7 +51,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	}
 
 	// Revoke the token
-	if err := s.tokenRepo.RevokeToken(tokenModel.TokenID); err != nil {
+	if err := s.tokenRepo.RevokeToken(ctx, tokenModel.TokenID); err != nil {
 		s.logger.WarnContext(ctx, "failed to revoke verification token", "error", err, "token_id", tokenModel.TokenID)
 	}
 
@@ -76,7 +76,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
     }
 
 	// Delete old verification tokens for this user
-	if err := s.tokenRepo.DeleteTokensByUserAndType(user.UserID, model.TokenTypeEmailVerification); err != nil {
+	if err := s.tokenRepo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypeEmailVerification); err != nil {
         s.logger.WarnContext(ctx, "resend cleanup failed", "error", err, "user_id", user.UserID)
     }
 
@@ -96,7 +96,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
+	if err := s.tokenRepo.CreateToken(ctx, tokenModel); err != nil {
 		s.logger.ErrorContext(ctx, "save verification token failed", "error", err, "user_id", user.UserID)
 		return apperror.NewInternal("failed to save verification token: %w", err)
 	}

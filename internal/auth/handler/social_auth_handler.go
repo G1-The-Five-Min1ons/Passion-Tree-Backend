@@ -5,8 +5,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// GoogleLogin initiates Google OAuth2 flow
-// @route GET /auth/google
 func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
@@ -255,8 +253,6 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 	})
 }
 
-// ConfirmAccountLink handles user's decision to link or reject account linking
-// @route POST /auth/confirm-link
 func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
 	var req struct {
 		LinkToken string `json:"link_token"`

@@ -10,29 +10,11 @@ import (
 	"github.com/google/uuid"
 )
 
-type SocialAuthRepository interface {
-	GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error)
-	CreateSocialUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
-	LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error
-	UpdateSocialUserInfo(ctx context.Context, userID string, userInfo *model.OAuthUserInfo) error
-	UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error
-}
-
-type socialAuthRepositoryImpl struct {
-	db *sql.DB
-}
-
-func NewSocialAuthRepository(db *sql.DB) SocialAuthRepository {
-	return &socialAuthRepositoryImpl{
-		db: db,
-	}
-}
-
 // GetUserByProvider retrieves a user by their social auth provider and provider user ID
 func (r *socialAuthRepositoryImpl) GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error) {
 	query := `
-		SELECT 
-			user_id, username, email, first_name, last_name, role, 
+		SELECT
+			user_id, username, email, first_name, last_name, role,
 			heart_count, is_email_verified, created_at, updated_at,
 			auth_provider, provider_user_id
 		FROM users

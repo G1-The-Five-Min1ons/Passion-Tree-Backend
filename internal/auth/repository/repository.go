@@ -25,10 +25,10 @@ type UserRepository interface {
 
 type TokenRepository interface {
 	CreateToken(ctx context.Context, token *model.Token) error
-	GetToken(ctx context.Context, token string, tokenType string) (*model.Token, error)
-	DeleteToken(ctx context.Context, token string) error
+	GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error)
+	RevokeToken(ctx context.Context, tokenID string) error
 	DeleteExpiredTokens(ctx context.Context) error
-	MarkTokenAsUsed(ctx context.Context, token string) error
+	DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error
 }
 
 type SocialAuthRepository interface {
@@ -52,4 +52,24 @@ func NewUserRepository(ds connection.Database) UserRepository {
 // GetDB returns the database connection for direct queries when needed
 func (r *userRepositoryImpl) GetDB() *sql.DB {
 	return r.db
+}
+
+type tokenRepositoryImpl struct {
+	db *sql.DB
+}
+
+func NewTokenRepository(ds connection.Database) TokenRepository {
+	return &tokenRepositoryImpl{
+		db: ds.GetDB(),
+	}
+}
+
+type socialAuthRepositoryImpl struct {
+	db *sql.DB
+}
+
+func NewSocialAuthRepository(ds connection.Database) SocialAuthRepository {
+	return &socialAuthRepositoryImpl{
+		db: ds.GetDB(),
+	}
 }
