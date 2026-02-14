@@ -221,7 +221,7 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 		return nil, apperror.NewInternal("AI learning path generation failed for topic '%s': %w", topic, err)
 	}
 
-	nodes := ParseAINodes(rawResponse.Result)
+	nodes := parseAINodes(rawResponse.Result)
 
 	s.logger.InfoContext(ctx, "AI path generation successful", "topic", topic, "nodes_generated", len(nodes))
 
@@ -231,7 +231,7 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 	}, nil
 }
 
-func ParseAINodes(rawResult string) []model.GeneratedNode {
+func parseAINodes(rawResult string) []model.GeneratedNode {
 	var nodes []model.GeneratedNode
 	segments := strings.Split(rawResult, ",")
 	re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)
@@ -300,4 +300,33 @@ func (s *serviceImpl) UpdatePathCoverImage(ctx context.Context, pathID string, c
 
 	s.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
 	return nil
+}
+
+func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) {
+	if userID == "" {
+		return nil, apperror.NewBadRequest("user_id is required")
+	}
+
+	paths, err := s.pathRepo.GetUserEnrolledPaths(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get enrolled paths", "error", err)
+		return nil, apperror.NewInternal("failed to retrieve enrolled paths")
+	}
+
+	for i := range paths {
+		if paths[i].Modules > 0 {
+			paths[i].ProgressPercent = (float64(paths[i].CompletedNodes) / float64(paths[i].Modules)) * 100
+
+			if paths[i].CompletedNodes == paths[i].Modules {
+				paths[i].ProgressStatus = "Completed"
+			} else {
+				paths[i].ProgressStatus = "In Progress"
+			}
+		} else {
+			paths[i].ProgressPercent = 0
+			paths[i].ProgressStatus = "In Progress"
+		}
+	}
+
+	return paths, nil
 }
