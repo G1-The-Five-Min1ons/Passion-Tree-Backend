@@ -16,9 +16,9 @@ type DiscordUserResponse struct {
 	ID            string `json:"id"`
 	Username      string `json:"username"`
 	Discriminator string `json:"discriminator"`
-	Email         string `json:"email"`
+	Email         string `json:"email,omitempty"`
 	Verified      bool   `json:"verified"`
-	Avatar        string `json:"avatar"`
+	Avatar        string `json:"avatar,omitempty"`
 	GlobalName    string `json:"global_name"`
 }
 
