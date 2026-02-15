@@ -9,7 +9,7 @@ import (
 )
 
 // VerifyEmail verifies a user's email using verification token
-func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
+func (s *serviceImpl) VerifyEmail(ctx context.Context, token string) error {
 	if token == "" {
 		return apperror.NewBadRequest("verification token is required")
 	}
@@ -44,15 +44,10 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 		return apperror.NewBadRequest("email already verified")
 	}
 
-	// Update user email verification status
-	if err := s.userRepo.UpdateEmailVerified(ctx, tokenModel.UserID, true); err != nil {
-		s.logger.ErrorContext(ctx, "verify email update status failed", "error", err, "user_id", tokenModel.UserID)
-		return apperror.NewInternal("failed to update email verification status: %w", err)
-	}
-
-	// Revoke the token
-	if err := s.tokenRepo.RevokeToken(ctx, tokenModel.TokenID); err != nil {
-		s.logger.WarnContext(ctx, "failed to revoke verification token", "error", err, "token_id", tokenModel.TokenID)
+	// Verify email and revoke token in transaction
+	if err := s.userRepo.VerifyEmailAndRevokeToken(ctx, tokenModel.UserID, tokenModel.TokenID); err != nil {
+		s.logger.ErrorContext(ctx, "verify email transaction failed", "error", err, "user_id", tokenModel.UserID)
+		return apperror.NewInternal("failed to verify email: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "email verified successfully", "user_id", tokenModel.UserID)
@@ -60,7 +55,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 }
 
 // ResendVerificationEmail resends verification email to user
-func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email string) error {
+func (s *serviceImpl) ResendVerificationEmail(ctx context.Context, email string) error {
 	if email == "" {
 		return apperror.NewBadRequest("email is required")
 	}
@@ -102,13 +97,9 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 	}
 
 	// Send verification email
-	if s.emailService != nil {
-		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
-			s.logger.ErrorContext(ctx, "send verification email failed", "error", err, "email", user.Email)
-			return apperror.NewInternal("failed to send verification email: %w", err)
-		}
-	} else {
-		return apperror.NewInternal("email service is not configured")
+	if err := s.SendVerificationEmail(user.Email, verificationToken); err != nil {
+		s.logger.ErrorContext(ctx, "send verification email failed", "error", err, "email", user.Email)
+		return apperror.NewInternal("failed to send verification email: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "verification email resent successfully", "user_id", user.UserID)

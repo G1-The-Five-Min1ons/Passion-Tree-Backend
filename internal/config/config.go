@@ -41,6 +41,11 @@ const (
 	EnvDiscordClientID      = "DISCORD_CLIENT_ID"
 	EnvDiscordClientSecret  = "DISCORD_CLIENT_SECRET"
 	EnvDiscordRedirectURL   = "DISCORD_REDIRECT_URL"
+	
+	// JWT Environment variables
+	EnvJWTSecret            = "JWT_SECRET"
+	EnvJWTAccessTTL         = "JWT_ACCESS_TTL"
+	EnvJWTRefreshTTL        = "JWT_REFRESH_TTL"
 )
 
 type Config struct {
@@ -64,6 +69,11 @@ type Config struct {
 	DiscordClientID      string
 	DiscordClientSecret  string
 	DiscordRedirectURL   string
+	
+	// JWT settings
+	JWTSecret            string
+	JWTAccessTTL         string
+	JWTRefreshTTL        string
 }
 
 // LoadDBConfig loads configuration from environment variables
@@ -83,6 +93,12 @@ func LoadDBConfig() (*Config, error) {
 		DiscordClientID:      os.Getenv(EnvDiscordClientID),
 		DiscordClientSecret:  os.Getenv(EnvDiscordClientSecret),
 		DiscordRedirectURL:   getEnvOrDefault(EnvDiscordRedirectURL, "http://localhost:5000/auth/discord/callback"),
+		
+		// JWT settings
+		JWTSecret:            getEnvOrDefault(EnvJWTSecret, "passion-tree-secret-key-2024"),
+		JWTAccessTTL:         getEnvOrDefault(EnvJWTAccessTTL, "24"),
+		JWTRefreshTTL:        getEnvOrDefault(EnvJWTRefreshTTL, "168"),
+		
 		ContainerProfile:       getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
 		SMTPHost:               os.Getenv(EnvSMTPHost),
 		SMTPPort:               getEnvOrDefault(EnvSMTPPort, "587"),

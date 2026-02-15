@@ -7,6 +7,7 @@ import (
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/config"
+	"passiontree/internal/pkg/jwt"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -44,55 +45,48 @@ type SocialAuthService interface {
 	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 
-type userServiceImpl struct {
-	userRepo     repository.UserRepository
-	tokenRepo    repository.TokenRepository
-	emailService EmailService
-	logger       *slog.Logger
-}
-
-type emailServiceImpl struct {
-	config *config.Config
-	logger *slog.Logger
-}
-
-type socialAuthServiceImpl struct {
+// serviceImpl implements UserService, EmailService, and SocialAuthService
+type serviceImpl struct {
 	userRepo      repository.UserRepository
+	tokenRepo     repository.TokenRepository
 	socialRepo    repository.SocialAuthRepository
+	emailConfig   *config.Config
 	googleConfig  *oauth2.Config
 	discordConfig *oauth2.Config
+	jwtService    *jwt.Service
 	logger        *slog.Logger
 }
 
+// NewUserService creates a new UserService instance
 func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, logger *slog.Logger) UserService {
-	return &userServiceImpl{
+	return &serviceImpl{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,
 		logger:    logger,
 	}
 }
 
+// NewEmailService creates a new EmailService instance
 func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
-	return &emailServiceImpl{
-		config: cfg,
-		logger: logger,
+	return &serviceImpl{
+		emailConfig: cfg,
+		logger:      logger,
 	}
 }
 
-// NewUserServiceWithEmail creates a new UserService with email service configured
+// NewUserServiceWithEmail creates a UserService with email capabilities
 func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config, logger *slog.Logger) UserService {
-	svc := &userServiceImpl{
-		userRepo:  userRepo,
-		tokenRepo: tokenRepo,
-		logger:    logger,
+	svc := &serviceImpl{
+		userRepo:    userRepo,
+		tokenRepo:   tokenRepo,
+		emailConfig: cfg,
+		logger:      logger,
 	}
 
-	// Initialize email service if SMTP or MailerSend is configured
+	// Log email service initialization status
 	if cfg.SMTPHost != "" {
-		svc.emailService = NewEmailService(cfg, logger)
 		svc.logger.Info("Email service initialized (SMTP)")
 	} else if cfg.MailerSendAPIKey != "" {
-		svc.emailService = NewEmailService(cfg, logger)
 		svc.logger.Info("Email service initialized (MailerSend API)")
 	} else {
 		svc.logger.Warn("Email service NOT initialized - no email configuration found")
@@ -101,20 +95,17 @@ func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repos
 	return svc
 }
 
-// SetEmailService sets the email service (used for dependency injection)
-func (s *userServiceImpl) SetEmailService(emailService EmailService) {
-	s.emailService = emailService
-}
-
+// NewSocialAuthService creates a new SocialAuthService instance
 func NewSocialAuthService(
 	userRepo repository.UserRepository,
 	socialRepo repository.SocialAuthRepository,
 	cfg *config.Config,
 	logger *slog.Logger,
 ) SocialAuthService {
-	return &socialAuthServiceImpl{
+	return &serviceImpl{
 		userRepo:   userRepo,
 		socialRepo: socialRepo,
+		jwtService: jwt.NewService(),
 		googleConfig: &oauth2.Config{
 			ClientID:     cfg.GoogleClientID,
 			ClientSecret: cfg.GoogleClientSecret,

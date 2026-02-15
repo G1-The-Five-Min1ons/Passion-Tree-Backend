@@ -9,7 +9,7 @@ type User struct {
 	Password        string    `json:"-"`
 	FirstName       string    `json:"first_name"`
 	LastName        string    `json:"last_name"`
-	Role            string    `json:"role"`
+	Role            UserRole  `json:"role"`
 	HeartCount      int       `json:"heart_count"`
 	IsEmailVerified bool      `json:"is_email_verified"`
 	CreatedAt       time.Time `json:"created_at"`
@@ -23,10 +23,11 @@ type User struct {
 	ProviderUserID string `json:"provider_user_id"` // User ID from OAuth provider
 }
 
+type UserRole string
 const (
-	RoleStudent = "student"
-	RoleTeacher = "teacher"
-	RoleAdmin   = "admin"
+	RoleStudent UserRole = "student"
+	RoleTeacher UserRole = "teacher"
+	RoleAdmin   UserRole = "admin"
 )
 
 const (
@@ -51,10 +52,10 @@ type RegisterRequest struct {
 	Password  string `json:"password"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
-	Bio       string `json:"bio"`
-	Location  string `json:"location"`
-	AvatarURL string `json:"avatar_url"`
-	Role      string `json:"role"`
+	Bio       string   `json:"bio"`
+	Location  string   `json:"location"`
+	AvatarURL string   `json:"avatar_url"`
+	Role      UserRole `json:"role"`
 }
 
 type LoginRequest struct {

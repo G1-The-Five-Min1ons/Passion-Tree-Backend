@@ -12,15 +12,15 @@ import (
 )
 
 // SendVerificationEmail sends an email verification link using MailerSend API
-func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
-	if s.config.MailerSendAPIKey == "" || s.config.SMTPFromEmail == "" {
+func (s *serviceImpl) SendVerificationEmail(to, token string) error {
+	if s.emailConfig.MailerSendAPIKey == "" || s.emailConfig.SMTPFromEmail == "" {
 		err := fmt.Errorf("email config missing: check API key and sender email")
 		s.logger.Error("verify email config failed", "error", err)
 		return err
 	}
 
 	// use API Key from config
-	ms := mailersend.NewMailersend(s.config.MailerSendAPIKey)
+	ms := mailersend.NewMailersend(s.emailConfig.MailerSendAPIKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -72,7 +72,7 @@ func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 	// set sender (use domain verified with MailerSend)
 	from := mailersend.From{
 		Name:  "Passiontree Team",
-		Email: s.config.SMTPFromEmail, // must be a domain verified in MailerSend
+		Email: s.emailConfig.SMTPFromEmail, // must be a domain verified in MailerSend
 	}
 
 	// set recipients
@@ -106,8 +106,8 @@ func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 }
 
 // SendPasswordResetEmail sends a password reset code email
-func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
-	if s.config.MailerSendAPIKey == "" || s.config.SMTPFromEmail == "" {
+func (s *serviceImpl) SendPasswordResetEmail(to, token string) error {
+	if s.emailConfig.MailerSendAPIKey == "" || s.emailConfig.SMTPFromEmail == "" {
 		s.logger.Error("email provider configuration error", 
 		"reason", "missing api key or sender email", 
 		"provider", "mailersend",
@@ -117,7 +117,7 @@ func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 }
 
 	// use API Key from config
-	ms := mailersend.NewMailersend(s.config.MailerSendAPIKey)
+	ms := mailersend.NewMailersend(s.emailConfig.MailerSendAPIKey)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -172,7 +172,7 @@ func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 	// set sender
 	from := mailersend.From{
 		Name:  "Passiontree Security",
-		Email: s.config.SMTPFromEmail,
+		Email: s.emailConfig.SMTPFromEmail,
 	}
 
 	// set recipients

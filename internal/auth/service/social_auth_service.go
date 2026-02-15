@@ -16,32 +16,33 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const (
-	JWTSecret     = "passion-tree-secret-key-2024" // TODO: Move to config
-	JWTExpiration = 24 * 7 * time.Hour
-)
-
 // GetGoogleAuthURL generates the Google OAuth2 authorization URL
-func (s *socialAuthServiceImpl) GetGoogleAuthURL(state string) string {
+func (s *serviceImpl) GetGoogleAuthURL(state string) string {
 	return s.googleConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 
 // GetDiscordAuthURL generates the Discord OAuth2 authorization URL
-func (s *socialAuthServiceImpl) GetDiscordAuthURL(state string) string {
+func (s *serviceImpl) GetDiscordAuthURL(state string) string {
 	return s.discordConfig.AuthCodeURL(state)
 }
 
-// HandleGoogleCallback processes the Google OAuth2 callback
-func (s *socialAuthServiceImpl) HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+// handleOAuthCallback is a generic handler for OAuth callbacks
+func (s *serviceImpl) handleOAuthCallback(
+	ctx context.Context,
+	code string,
+	config *oauth2.Config,
+	fetchUserInfo func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error),
+	providerName string,
+) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	// Exchange code for token
-	token, err := s.googleConfig.Exchange(ctx, code)
+	token, err := config.Exchange(ctx, code)
 	if err != nil {
-		s.logger.Error("failed to exchange google code", "error", err)
-		return nil, "", nil, apperror.NewInternal("failed to authenticate with google: %w", err)
+		s.logger.ErrorContext(ctx, "failed to exchange oauth code", "provider", providerName, "error", err)
+		return nil, "", nil, apperror.NewInternal("failed to authenticate with %s: %w", providerName, err)
 	}
 
-	// Fetch user info from Google
-	userInfo, err := s.fetchGoogleUserInfo(ctx, token)
+	// Fetch user info from provider
+	userInfo, err := fetchUserInfo(ctx, token)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -53,60 +54,38 @@ func (s *socialAuthServiceImpl) HandleGoogleCallback(ctx context.Context, code s
 	}
 
 	return user, jwtToken, linkConfirm, nil
+}
+
+// HandleGoogleCallback processes the Google OAuth2 callback
+func (s *serviceImpl) HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+	return s.handleOAuthCallback(ctx, code, s.googleConfig, s.fetchGoogleUserInfo, "google")
 }
 
 // HandleDiscordCallback processes the Discord OAuth2 callback
-func (s *socialAuthServiceImpl) HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
-	// Exchange code for token
-	token, err := s.discordConfig.Exchange(ctx, code)
-	if err != nil {
-		s.logger.Error("failed to exchange discord code", "error", err)
-		return nil, "", nil, apperror.NewInternal("failed to authenticate with discord: %w", err)
-	}
-
-	// Fetch user info from Discord
-	userInfo, err := s.fetchDiscordUserInfo(ctx, token)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	// Find or create user
-	user, jwtToken, linkConfirm, err := s.findOrCreateUser(ctx, userInfo)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	return user, jwtToken, linkConfirm, nil
+func (s *serviceImpl) HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+	return s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord")
 }
 
 // fetchGoogleUserInfo retrieves user information from Google API
-func (s *socialAuthServiceImpl) fetchGoogleUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
+func (s *serviceImpl) fetchGoogleUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
 	client := s.googleConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		s.logger.Error("failed to get google user info", "error", err)
+		s.logger.ErrorContext(ctx, "failed to get google user info", "error", err)
 		return nil, apperror.NewInternal("failed to fetch user info from google: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		s.logger.Error("failed to read google response", "error", err)
+		s.logger.ErrorContext(ctx, "failed to read google response", "error", err)
 		return nil, apperror.NewInternal("failed to read google response: %w", err)
 	}
 
-	var googleUser struct {
-		ID            string `json:"id"`
-		Email         string `json:"email"`
-		VerifiedEmail bool   `json:"verified_email"`
-		Name          string `json:"name"`
-		GivenName     string `json:"given_name"`
-		FamilyName    string `json:"family_name"`
-		Picture       string `json:"picture"`
-	}
+	var googleUser model.GoogleUserResponse
 
 	if err := json.Unmarshal(body, &googleUser); err != nil {
-		s.logger.Error("failed to unmarshal google user", "error", err)
+		s.logger.ErrorContext(ctx, "failed to unmarshal google user", "error", err)
 		return nil, apperror.NewInternal("failed to parse google user data: %w", err)
 	}
 
@@ -121,33 +100,25 @@ func (s *socialAuthServiceImpl) fetchGoogleUserInfo(ctx context.Context, token *
 }
 
 // fetchDiscordUserInfo retrieves user information from Discord API
-func (s *socialAuthServiceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
+func (s *serviceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
 	client := s.discordConfig.Client(ctx, token)
 	resp, err := client.Get("https://discord.com/api/users/@me")
 	if err != nil {
-		s.logger.Error("failed to get discord user info", "error", err)
+		s.logger.ErrorContext(ctx, "failed to get discord user info", "error", err)
 		return nil, apperror.NewInternal("failed to fetch user info from discord: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		s.logger.Error("failed to read discord response", "error", err)
+		s.logger.ErrorContext(ctx, "failed to read discord response", "error", err)
 		return nil, apperror.NewInternal("failed to read discord response: %w", err)
 	}
 
-	var discordUser struct {
-		ID            string `json:"id"`
-		Username      string `json:"username"`
-		Discriminator string `json:"discriminator"`
-		Email         string `json:"email"`
-		Verified      bool   `json:"verified"`
-		Avatar        string `json:"avatar"`
-		GlobalName    string `json:"global_name"`
-	}
+	var discordUser model.DiscordUserResponse
 
 	if err := json.Unmarshal(body, &discordUser); err != nil {
-		s.logger.Error("failed to unmarshal discord user", "error", err)
+		s.logger.ErrorContext(ctx, "failed to unmarshal discord user", "error", err)
 		return nil, apperror.NewInternal("failed to parse discord user data: %w", err)
 	}
 
@@ -184,7 +155,7 @@ func (s *socialAuthServiceImpl) fetchDiscordUserInfo(ctx context.Context, token 
 // - If user exists with provider: Update their info from provider
 // - If user exists with email only: Ask user to confirm linking
 // - If user doesn't exist: Create new user
-func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+func (s *serviceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	// Check if user exists with this provider
 	user, err := s.socialRepo.GetUserByProvider(ctx, userInfo.Provider, userInfo.ProviderUserID)
 	if err != nil {
@@ -193,7 +164,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 
 	// CASE 1: User exists with this social provider
 	if user != nil {
-		s.logger.Info("user exists with provider, updating info",
+		s.logger.InfoContext(ctx, "user exists with provider, updating info",
 			"user_id", user.UserID,
 			"provider", userInfo.Provider,
 		)
@@ -201,7 +172,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 		// Update user info from provider (in case they changed name/email)
 		err = s.socialRepo.UpdateSocialUserInfo(ctx, user.UserID, userInfo)
 		if err != nil {
-			s.logger.Error("failed to update user info", "error", err)
+			s.logger.ErrorContext(ctx, "failed to update user info", "error", err)
 			// Continue anyway - update is not critical
 		}
 
@@ -211,7 +182,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 		}
 		err = s.socialRepo.UpsertSocialUserProfile(ctx, user.UserID, profile)
 		if err != nil {
-			s.logger.Error("failed to update profile", "error", err)
+			s.logger.ErrorContext(ctx, "failed to update profile", "error", err)
 			// Continue anyway - profile update is not critical
 		}
 
@@ -238,7 +209,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 	if existingUser != nil {
 		// CASE 2A: User exists with same email but different provider (or local account)
 		// NEED TO ASK USER TO CONFIRM LINKING
-		s.logger.Info("user exists with email, need confirmation to link",
+		s.logger.InfoContext(ctx, "user exists with email, need confirmation to link",
 			"user_id", existingUser.UserID,
 			"email", userInfo.Email,
 			"existing_provider", existingUser.AuthProvider,
@@ -272,7 +243,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 	}
 
 	// CASE 3: User doesn't exist at all - Create new user
-	s.logger.Info("creating new user from social auth",
+	s.logger.InfoContext(ctx, "creating new user from social auth",
 		"email", userInfo.Email,
 		"provider", userInfo.Provider,
 	)
@@ -292,7 +263,7 @@ func (s *socialAuthServiceImpl) findOrCreateUser(ctx context.Context, userInfo *
 }
 
 // createUserFromOAuth creates a new user from OAuth provider information
-func (s *socialAuthServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, error) {
+func (s *serviceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, error) {
 	// Generate username from email
 	username := strings.Split(userInfo.Email, "@")[0]
 
@@ -322,7 +293,7 @@ func (s *socialAuthServiceImpl) createUserFromOAuth(ctx context.Context, userInf
 
 	userID, err := s.socialRepo.CreateSocialUser(ctx, user, profile)
 	if err != nil {
-		s.logger.Error("failed to create social user", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create social user", "error", err)
 		return nil, apperror.NewInternal("failed to create user account: %w", err)
 	}
 
@@ -331,26 +302,12 @@ func (s *socialAuthServiceImpl) createUserFromOAuth(ctx context.Context, userInf
 }
 
 // generateJWT creates a JWT token for authenticated user
-func (s *socialAuthServiceImpl) generateJWT(user *model.User) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id": user.UserID,
-		"email":   user.Email,
-		"role":    user.Role,
-		"exp":     time.Now().Add(JWTExpiration).Unix(),
-		"iat":     time.Now().Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(JWTSecret))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
+func (s *serviceImpl) generateJWT(user *model.User) (string, error) {
+	return s.jwtService.GenerateAccessToken(user)
 }
 
 // generateLinkToken creates a temporary token for account linking confirmation
-func (s *socialAuthServiceImpl) generateLinkToken(userID string, providerInfo *model.OAuthUserInfo) (string, error) {
+func (s *serviceImpl) generateLinkToken(userID string, providerInfo *model.OAuthUserInfo) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":          userID,
 		"provider":         providerInfo.Provider,
@@ -360,37 +317,18 @@ func (s *socialAuthServiceImpl) generateLinkToken(userID string, providerInfo *m
 		"last_name":        providerInfo.LastName,
 		"avatar_url":       providerInfo.AvatarURL,
 		"type":             "link_confirmation",
-		"exp":              time.Now().Add(10 * time.Minute).Unix(), // Short expiration
-		"iat":              time.Now().Unix(),
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(JWTSecret))
-	if err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
+	return s.jwtService.GenerateCustomToken(claims, 10*time.Minute)
 }
 
 // ConfirmAccountLink handles user's decision to link or not link accounts
-func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error) {
+func (s *serviceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error) {
 	// Parse and validate link token
-	token, err := jwt.Parse(linkToken, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
-		}
-		return []byte(JWTSecret), nil
-	})
-
+	claims, err := s.jwtService.ValidateCustomToken(linkToken)
 	if err != nil {
-		s.logger.Error("failed to parse link token", "error", err)
+		s.logger.ErrorContext(ctx, "failed to parse link token", "error", err)
 		return nil, "", apperror.NewUnauthorized("invalid or expired link token")
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		return nil, "", apperror.NewUnauthorized("invalid link token")
 	}
 
 	// Verify token type
@@ -415,7 +353,7 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 
 	if confirm {
 		// User confirmed - Link the accounts
-		s.logger.Info("user confirmed account linking",
+		s.logger.InfoContext(ctx, "user confirmed account linking",
 			"user_id", userID,
 			"provider", provider,
 		)
@@ -438,7 +376,7 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 
 		err = s.socialRepo.UpdateSocialUserInfo(ctx, userID, providerInfo)
 		if err != nil {
-			s.logger.Error("failed to update user info after linking", "error", err)
+			s.logger.ErrorContext(ctx, "failed to update user info after linking", "error", err)
 		}
 
 		// Update profile (avatar)
@@ -448,7 +386,7 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 			}
 			err = s.socialRepo.UpsertSocialUserProfile(ctx, userID, profile)
 			if err != nil {
-				s.logger.Error("failed to update profile after linking", "error", err)
+				s.logger.ErrorContext(ctx, "failed to update profile after linking", "error", err)
 			}
 		}
 
@@ -456,13 +394,13 @@ func (s *socialAuthServiceImpl) ConfirmAccountLink(ctx context.Context, linkToke
 		existingUser.AuthProvider = provider
 		existingUser.ProviderUserID = providerUserID
 
-		s.logger.Info("account linked successfully",
+		s.logger.InfoContext(ctx, "account linked successfully",
 			"user_id", userID,
 			"provider", provider,
 		)
 	} else {
 		// User declined - Just login with existing account
-		s.logger.Info("user declined account linking, using existing account",
+		s.logger.InfoContext(ctx, "user declined account linking, using existing account",
 			"user_id", userID,
 			"provider", provider,
 		)
@@ -487,7 +425,7 @@ func getStringClaim(claims jwt.MapClaims, key string) string {
 
 // HandleNativeGoogleSignIn processes native Google Sign-In from mobile apps
 // This method verifies the Google ID token and authenticates the user
-func (s *socialAuthServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error) {
+func (s *serviceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error) {
 	// Verify the ID token with Google
 	userInfo, err := s.verifyGoogleIDToken(ctx, idToken)
 	if err != nil {
@@ -509,45 +447,42 @@ func (s *socialAuthServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, id
 }
 
 // verifyGoogleIDToken verifies Google ID token from native apps
-func (s *socialAuthServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken string) (*model.OAuthUserInfo, error) {
+func (s *serviceImpl) verifyGoogleIDToken(ctx context.Context, idToken string) (*model.OAuthUserInfo, error) {
 	// Call Google's tokeninfo endpoint to verify the token
-	resp, err := http.Get(fmt.Sprintf("https://oauth2.googleapis.com/tokeninfo?id_token=%s", idToken))
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://oauth2.googleapis.com/tokeninfo?id_token=%s", idToken), nil)
 	if err != nil {
-		s.logger.Error("failed to verify google id token", "error", err)
+		s.logger.ErrorContext(ctx, "failed to create verification request", "error", err)
+		return nil, apperror.NewInternal("failed to create verification request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to verify google id token", "error", err)
 		return nil, apperror.NewInternal("failed to verify google id token: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		s.logger.Warn("invalid google id token", "status", resp.StatusCode)
+		s.logger.WarnContext(ctx, "invalid google id token", "status", resp.StatusCode)
 		return nil, apperror.NewUnauthorized("invalid or expired google id token")
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		s.logger.Error("failed to read token verification response", "error", err)
+		s.logger.ErrorContext(ctx, "failed to read token verification response", "error", err)
 		return nil, apperror.NewInternal("failed to read verification response: %w", err)
 	}
 
-	var tokenInfo struct {
-		Aud           string `json:"aud"`
-		Sub           string `json:"sub"`
-		Email         string `json:"email"`
-		EmailVerified string `json:"email_verified"`
-		Name          string `json:"name"`
-		Picture       string `json:"picture"`
-		GivenName     string `json:"given_name"`
-		FamilyName    string `json:"family_name"`
-	}
+	var tokenInfo model.GoogleTokenInfo
 
 	if err := json.Unmarshal(body, &tokenInfo); err != nil {
-		s.logger.Error("failed to parse token info", "error", err)
+		s.logger.ErrorContext(ctx, "failed to parse token info", "error", err)
 		return nil, apperror.NewInternal("failed to parse token information: %w", err)
 	}
 
 	// Verify the audience matches our client ID
 	if tokenInfo.Aud != s.googleConfig.ClientID {
-		s.logger.Warn("token audience mismatch",
+		s.logger.WarnContext(ctx, "token audience mismatch",
 			"expected", s.googleConfig.ClientID,
 			"got", tokenInfo.Aud,
 		)

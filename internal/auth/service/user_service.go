@@ -14,7 +14,7 @@ import (
 
 // Login authenticates user and returns token
 // identifier can be either username or email
-func (s *userServiceImpl) Login(ctx context.Context, identifier string, password string) (string, error) {
+func (s *serviceImpl) Login(ctx context.Context, identifier string, password string) (string, error) {
 	if identifier == "" || password == "" {
 		return "", apperror.NewBadRequest("identifier and password are required")
 	}
@@ -68,7 +68,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	return token, nil
 }
 
-func (s *userServiceImpl) handleFailedLogin(ctx context.Context, user *model.User) {
+func (s *serviceImpl) handleFailedLogin(ctx context.Context, user *model.User) {
     newAttempts, err := s.userRepo.UpdateFailedLogin(ctx, user.UserID, 15*time.Minute)
     if err != nil {
         s.logger.ErrorContext(ctx, "failed_update_attempts", "error", err, "user_id", user.UserID)
@@ -81,7 +81,7 @@ func (s *userServiceImpl) handleFailedLogin(ctx context.Context, user *model.Use
 }
 
 // ValidateToken validates JWT token and returns user
-func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*model.User, error) {
+func (s *serviceImpl) ValidateToken(ctx context.Context, token string) (*model.User, error) {
 	if token == "" {
 		return nil, apperror.NewBadRequest("token is required")
 	}

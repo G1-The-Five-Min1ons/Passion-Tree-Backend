@@ -61,6 +61,16 @@ func (r *tokenRepositoryImpl) RevokeToken(ctx context.Context, tokenID string) e
 	return nil
 }
 
+// RevokeAllUserRefreshTokens revokes all refresh tokens for a user (invalidates all sessions)
+func (r *tokenRepositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, userID string) error {
+	query := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
+	_, err := r.db.ExecContext(ctx, query, userID, model.TokenTypeRefresh)
+	if err != nil {
+		return fmt.Errorf("revoke all user refresh tokens failed: %w", err)
+	}
+	return nil
+}
+
 // DeleteExpiredTokens removes all expired tokens
 func (r *tokenRepositoryImpl) DeleteExpiredTokens(ctx context.Context) error {
 	query := `DELETE FROM Token WHERE expire_at < GETDATE()`

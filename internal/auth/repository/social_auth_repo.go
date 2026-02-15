@@ -61,7 +61,7 @@ func (r *socialAuthRepositoryImpl) CreateSocialUser(ctx context.Context, user *m
 	user.UserID = userID
 
 	// Set default role if not provided
-	if user.Role == "" {
+	if user.Role == model.UserRole("") {
 		user.Role = model.RoleStudent
 	}
 
@@ -128,6 +128,38 @@ func (r *socialAuthRepositoryImpl) CreateSocialUser(ctx context.Context, user *m
 
 // LinkSocialAccount links a social account to an existing user
 func (r *socialAuthRepositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error {
+	// Check if this social account is already linked to another user
+	existingUser, err := r.GetUserByProvider(ctx, provider, providerUserID)
+	if err != nil {
+		return fmt.Errorf("failed to check existing social account: %w", err)
+	}
+
+	if existingUser != nil && existingUser.UserID != userID {
+		return fmt.Errorf("social account is already linked to another user")
+	}
+
+	// Check if the target user already has a social account linked
+	checkQuery := `
+		SELECT auth_provider, provider_user_id
+		FROM users
+		WHERE user_id = @p1
+	`
+
+	var currentProvider, currentProviderUserID sql.NullString
+	err = r.db.QueryRowContext(ctx, checkQuery, userID).Scan(&currentProvider, &currentProviderUserID)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check user's current social account: %w", err)
+	}
+
+	if currentProvider.Valid && currentProviderUserID.Valid &&
+		(currentProvider.String != provider || currentProviderUserID.String != providerUserID) {
+		return fmt.Errorf("user already has a social account linked (%s)", currentProvider.String)
+	}
+
+	// Link the social account
 	query := `
 		UPDATE users
 		SET auth_provider = @p1, provider_user_id = @p2, updated_at = GETDATE()

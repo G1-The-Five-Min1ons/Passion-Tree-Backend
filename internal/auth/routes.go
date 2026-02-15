@@ -21,17 +21,15 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
         panic("Failed to load configuration: " + err.Error())
     }
 
-	// Initialize repositories
-	userRepo := repository.NewUserRepository(db)
-	tokenRepo := repository.NewTokenRepository(db)
-	socialAuthRepo := repository.NewSocialAuthRepository(db)
+	// Initialize unified repository
+	repo := repository.NewRepository(db)
 
 	// Initialize services with email configuration
-	userSvc := service.NewUserServiceWithEmail(userRepo, tokenRepo, cfg, logger)
-	socialAuthSvc := service.NewSocialAuthService(userRepo, socialAuthRepo, cfg, logger)
+	userSvc := service.NewUserServiceWithEmail(repo, repo, cfg, logger)
+	socialAuthSvc := service.NewSocialAuthService(repo, repo, cfg, logger)
 
-	// Initialize handlers (with social auth support)
-	h := handler.NewHandlerWithSocialAuth(userSvc, socialAuthSvc, logger)
+	// Initialize handler
+	h := handler.NewHandler(userSvc, socialAuthSvc, logger)
 
 	auth := r.Group("/auth")
 	{

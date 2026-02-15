@@ -3,9 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"time"
 	"fmt"
+	"log/slog"
 	"strings"
+	"time"
 
 	"passiontree/internal/auth/model"
 
@@ -68,7 +69,7 @@ func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model
 	var learningStreak, learningCount, level, hourLearned sql.NullInt32
 	var xp sql.NullInt64
 
-	err := r.db.QueryRow(query, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
 		&u.IsEmailVerified,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
@@ -91,8 +92,16 @@ func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model
 		p.LearningCount = int(learningCount.Int32)
 		p.Location = location.String
 		p.Bio = bio.String
-		p.Level = int(level.Int32)
-		p.XP = xp.Int64
+		
+		if level.Valid {
+			levelValue := int(level.Int32)
+			p.Level = &levelValue
+		}
+		if xp.Valid {
+			xpValue := xp.Int64
+			p.XP = &xpValue
+		}
+		
 		p.HourLearned = int(hourLearned.Int32)
 		p.UserID = u.UserID
 	}
@@ -237,14 +246,14 @@ func (r *userRepositoryImpl) UpdateProfile(ctx context.Context, userID string, p
         args = append(args, profile.Bio)
         paramID++
     }
-    if profile.Level > 0 {
+    if profile.Level != nil {
         updates = append(updates, fmt.Sprintf("Level=@p%d", paramID))
-        args = append(args, profile.Level)
+        args = append(args, *profile.Level)
         paramID++
     }
-    if profile.XP > 0 {
+    if profile.XP != nil {
         updates = append(updates, fmt.Sprintf("XP=@p%d", paramID))
-        args = append(args, profile.XP)
+        args = append(args, *profile.XP)
         paramID++
     }
     if profile.HourLearned > 0 {
@@ -255,6 +264,7 @@ func (r *userRepositoryImpl) UpdateProfile(ctx context.Context, userID string, p
 
 
     if len(updates) == 0 {
+        slog.Warn("UpdateProfile called with no fields to update", "userID", userID)
         return nil
     }
 
@@ -301,5 +311,125 @@ func (r *userRepositoryImpl) UpdateEmailVerified(ctx context.Context, userID str
 	if err != nil {
 		return fmt.Errorf("update email verified failed [user_id=%s]: %w", userID, err)
 	}
+	return nil
+}
+
+// VerifyEmailAndRevokeToken verifies email and revokes verification token in a transaction
+func (r *userRepositoryImpl) VerifyEmailAndRevokeToken(ctx context.Context, userID string, tokenID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update email verification status
+	updateEmailQuery := `UPDATE users SET is_email_verified=@p1 WHERE user_id=@p2`
+	if _, err := tx.ExecContext(ctx, updateEmailQuery, true, userID); err != nil {
+		return fmt.Errorf("failed to update email verified: %w", err)
+	}
+
+	// Revoke the verification token
+	revokeTokenQuery := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
+	if _, err := tx.ExecContext(ctx, revokeTokenQuery, tokenID); err != nil {
+		return fmt.Errorf("failed to revoke token: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// UpdatePassword updates user password
+func (r *userRepositoryImpl) UpdatePassword(ctx context.Context, userID string, hashedPassword string) error {
+	query := `UPDATE users SET password = @p1 WHERE user_id = @p2`
+	result, err := r.db.ExecContext(ctx, query, hashedPassword, userID)
+	if err != nil {
+		return fmt.Errorf("update password failed [user_id=%s]: %w", userID, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+// ResetPasswordWithToken resets password and revokes token in a transaction
+func (r *userRepositoryImpl) ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update password
+	updatePasswordQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
+	if _, err := tx.ExecContext(ctx, updatePasswordQuery, hashedPassword, userID); err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	// Revoke the reset token
+	revokeTokenQuery := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
+	if _, err := tx.ExecContext(ctx, revokeTokenQuery, tokenID); err != nil {
+		return fmt.Errorf("failed to revoke token: %w", err)
+	}
+
+	// Revoke all refresh tokens (invalidate all active sessions)
+	revokeRefreshTokensQuery := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
+	if _, err := tx.ExecContext(ctx, revokeRefreshTokensQuery, userID, model.TokenTypeRefresh); err != nil {
+		return fmt.Errorf("failed to revoke refresh tokens: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// ChangePasswordAndRevokeSessions updates password and revokes all refresh tokens in a transaction
+func (r *userRepositoryImpl) ChangePasswordAndRevokeSessions(ctx context.Context, userID string, hashedPassword string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update password
+	updatePasswordQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
+	result, err := tx.ExecContext(ctx, updatePasswordQuery, hashedPassword, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	// Revoke all refresh tokens (invalidate all active sessions)
+	revokeRefreshTokensQuery := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
+	if _, err := tx.ExecContext(ctx, revokeRefreshTokensQuery, userID, model.TokenTypeRefresh); err != nil {
+		return fmt.Errorf("failed to revoke refresh tokens: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return nil
 }

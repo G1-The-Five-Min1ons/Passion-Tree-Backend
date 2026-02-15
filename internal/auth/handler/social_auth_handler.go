@@ -8,18 +8,18 @@ import (
 func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
-	
+
 	// Store state in session/cookie for validation
 	c.Cookie(&fiber.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
 		HTTPOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
-		MaxAge:   300,   // 5 minutes
+		Secure:   h.isSecureCookie(),
+		MaxAge:   300, // 5 minutes
 	})
 
 	authURL := h.socialAuthSvc.GetGoogleAuthURL(state)
-	
+
 	return c.JSON(fiber.Map{
 		"auth_url": authURL,
 	})
@@ -30,7 +30,7 @@ func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	state := c.Query("state")
-	
+
 	if code == "" {
 		h.logger.Warn("google callback missing code")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -109,18 +109,18 @@ func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
-	
+
 	// Store state in session/cookie for validation
 	c.Cookie(&fiber.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
 		HTTPOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
-		MaxAge:   300,   // 5 minutes
+		Secure:   h.isSecureCookie(),
+		MaxAge:   300, // 5 minutes
 	})
 
 	authURL := h.socialAuthSvc.GetDiscordAuthURL(state)
-	
+
 	return c.JSON(fiber.Map{
 		"auth_url": authURL,
 	})
@@ -131,7 +131,7 @@ func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 func (h *Handler) DiscordCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	state := c.Query("state")
-	
+
 	if code == "" {
 		h.logger.Warn("discord callback missing code")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
