@@ -55,7 +55,7 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 	query := `
 		SELECT 
 			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
-			u.is_email_verified,
+			u.is_email_verified, u.require_2fa_next_login,
 			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
 			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
@@ -70,7 +70,7 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
-		&u.IsEmailVerified,
+		&u.IsEmailVerified, &u.Require2FANextLogin,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
 		&location, &bio, &level, &xp, &hourLearned,
 	)
@@ -139,7 +139,7 @@ func (r *repositoryImpl) fetchUser(ctx context.Context, query string, value inte
 	err := r.db.QueryRowContext(ctx, query, value).Scan(
 		&user.UserID, &user.Username, &user.Email, &user.Password,
 		&user.FirstName, &user.LastName, &user.Role, &user.HeartCount,
-		&user.IsEmailVerified, &user.FailedAttempts, &lockedUntil,
+		&user.IsEmailVerified, &user.Require2FANextLogin, &user.FailedAttempts, &lockedUntil,
 	)
 
 	if err != nil {
@@ -160,7 +160,7 @@ func (r *repositoryImpl) fetchUser(ctx context.Context, query string, value inte
 func (r *repositoryImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	query := `SELECT 
                 CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
-                first_name, last_name, role, heart_count, is_email_verified,
+                first_name, last_name, role, heart_count, is_email_verified, require_2fa_next_login,
                 failed_attempts, locked_until 
               FROM users WHERE email = @p1`
 
@@ -175,7 +175,7 @@ func (r *repositoryImpl) GetUserByEmail(ctx context.Context, email string) (*mod
 func (r *repositoryImpl) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
 	query := `SELECT 
                 CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
-                first_name, last_name, role, heart_count, is_email_verified,
+                first_name, last_name, role, heart_count, is_email_verified, require_2fa_next_login,
                 failed_attempts, locked_until 
               FROM users WHERE username = @p1`
 
@@ -340,6 +340,55 @@ func (r *repositoryImpl) ResetPasswordWithToken(ctx context.Context, userID stri
 	return nil
 }
 
+// SetRequire2FANextLogin sets the require_2fa_next_login flag for a user
+// This is typically set to true after token theft detection
+func (r *repositoryImpl) SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error {
+	query := `UPDATE users SET require_2fa_next_login = @p1 WHERE user_id = @p2`
+	_, err := r.db.ExecContext(ctx, query, require2FA, userID)
+	if err != nil {
+		return fmt.Errorf("set require_2fa_next_login failed [user_id=%s]: %w", userID, err)
+	}
+	return nil
+}
+
+// ReplaceVerificationToken deletes old verification tokens and creates a new one in a single transaction
+// This prevents the scenario where old tokens are deleted but new token creation fails
+func (r *repositoryImpl) ReplaceVerificationToken(ctx context.Context, userID string, newToken *model.Token) error {
+	if userID == "" || newToken == nil {
+		return fmt.Errorf("userID and newToken are required")
+	}
+
+	// Validate token type
+	if newToken.TokenType != model.TokenTypeEmailVerification {
+		return fmt.Errorf("token type must be email_verification")
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Delete all existing verification tokens for this user
+	deleteQuery := `DELETE FROM Token WHERE user_id = @p1 AND token_type = @p2`
+	if _, err := tx.ExecContext(ctx, deleteQuery, userID, model.TokenTypeEmailVerification); err != nil {
+		return fmt.Errorf("delete old tokens failed: %w", err)
+	}
+
+	// Create new token
+	insertQuery := `INSERT INTO Token (user_id, token, token_type, is_revoke, expire_at) 
+	                VALUES (@p1, @p2, @p3, @p4, @p5)`
+	if _, err := tx.ExecContext(ctx, insertQuery,
+		newToken.UserID, newToken.Token, newToken.TokenType, newToken.IsRevoked, newToken.ExpireAt); err != nil {
+		return fmt.Errorf("insert new token failed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction failed: %w", err)
+	}
+
+	return nil
+}
 // VerifyEmailWithToken updates email verification status and revokes token in a single transaction
 func (r *repositoryImpl) VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error {
 	tx, err := r.db.BeginTx(ctx, nil)

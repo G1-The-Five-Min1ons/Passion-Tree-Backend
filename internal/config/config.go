@@ -37,6 +37,12 @@ const (
 	EnvJWTAccessTTL           = "JWT_ACCESS_TTL"
 	EnvJWTRefreshTTL          = "JWT_REFRESH_TTL"
 	EnvJWTRefreshAbsolute     = "JWT_REFRESH_ABSOLUTE"
+	EnvGoogleClientID         = "GOOGLE_CLIENT_ID"
+	EnvGoogleClientSecret     = "GOOGLE_CLIENT_SECRET"
+	EnvGoogleRedirectURL      = "GOOGLE_REDIRECT_URL"
+	EnvDiscordClientID        = "DISCORD_CLIENT_ID"
+	EnvDiscordClientSecret    = "DISCORD_CLIENT_SECRET"
+	EnvDiscordRedirectURL     = "DISCORD_REDIRECT_URL"
 )
 
 type Config struct {
@@ -56,6 +62,12 @@ type Config struct {
 	JWTAccessTTL           string // in hours
 	JWTRefreshTTL          string // in hours (sliding window)
 	JWTRefreshAbsolute     string // in hours (absolute maximum)
+	GoogleClientID         string
+	GoogleClientSecret     string
+	GoogleRedirectURL      string
+	DiscordClientID        string
+	DiscordClientSecret    string
+	DiscordRedirectURL     string
 }
 
 // LoadDBConfig loads configuration from environment variables
@@ -76,9 +88,15 @@ func LoadDBConfig() (*Config, error) {
 		MailerSendAPIKey:       os.Getenv(EnvMailerSendAPIKey),
 		AppURL:                 getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
 		JWTSecret:              os.Getenv(EnvJWTSecret),
-		JWTAccessTTL:           getEnvOrDefault(EnvJWTAccessTTL, "24"),    // 24 hours default
-		JWTRefreshTTL:          getEnvOrDefault(EnvJWTRefreshTTL, "168"),  // 7 days default (sliding)
+		JWTAccessTTL:           getEnvOrDefault(EnvJWTAccessTTL, "24"),        // 24 hours default
+		JWTRefreshTTL:          getEnvOrDefault(EnvJWTRefreshTTL, "168"),      // 7 days default (sliding)
 		JWTRefreshAbsolute:     getEnvOrDefault(EnvJWTRefreshAbsolute, "720"), // 30 days default (absolute)
+		GoogleClientID:         os.Getenv(EnvGoogleClientID),
+		GoogleClientSecret:     os.Getenv(EnvGoogleClientSecret),
+		GoogleRedirectURL:      os.Getenv(EnvGoogleRedirectURL),
+		DiscordClientID:        os.Getenv(EnvDiscordClientID),
+		DiscordClientSecret:    os.Getenv(EnvDiscordClientSecret),
+		DiscordRedirectURL:     os.Getenv(EnvDiscordRedirectURL),
 	}
 
 	// Build database connection string
@@ -87,6 +105,11 @@ func LoadDBConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to build database connection string: %w", err)
 	}
 	config.DBConnString = connString
+
+	// Validate required JWT secret
+	if config.JWTSecret == "" {
+		return nil, fmt.Errorf("JWT_SECRET is required in environment variables")
+	}
 
 	return config, nil
 }

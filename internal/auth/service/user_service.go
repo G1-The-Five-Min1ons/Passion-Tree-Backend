@@ -51,6 +51,14 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		return "", "", apperror.NewUnauthorized("invalid username/email or password")
 	}
 
+	// Check if 2FA is required (security flag set after token theft)
+	if user.Require2FANextLogin {
+		s.logger.WarnContext(ctx, "2FA verification required", "user_id", user.UserID)
+		// TODO: Implement actual 2FA verification flow
+		// For now, block login and inform user to contact support
+		return "", "", apperror.NewForbidden("additional security verification required. please contact support or use account recovery")
+	}
+
 	// Reset failed attempts on successful login
 	if user.FailedAttempts > 0 {
 		_ = s.repo.ResetFailedLogin(ctx, user.UserID)
@@ -244,7 +252,7 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	err = s.repo.CreateToken(ctx, newTokenModel)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to store new refresh token", "error", err, "user_id", user.UserID)
-		// Continue anyway - return the tokens
+		return "", "", apperror.NewInternal("failed to store refresh token: %w", err)
 	}
 
 	// Revoke old token after short grace period (5 minutes) to handle race conditions
@@ -267,6 +275,14 @@ func (s *userServiceImpl) handleTokenTheft(ctx context.Context, userID string) {
 
 	s.logger.WarnContext(ctx, "SECURITY: All sessions revoked due to token theft detection", "user_id", userID)
 
+	// Set require_2fa_next_login flag to true
+	err = s.repo.SetRequire2FANextLogin(ctx, userID, true)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to set 2FA requirement flag", "error", err, "user_id", userID)
+	} else {
+		s.logger.InfoContext(ctx, "2FA required on next login", "user_id", userID)
+	}
+
 	// Send security alert email to user
 	user, _, err := s.repo.GetUserByID(ctx, userID)
 	if err == nil && user != nil && s.emailService != nil {
@@ -279,14 +295,7 @@ func (s *userServiceImpl) handleTokenTheft(ctx context.Context, userID string) {
 		s.logger.WarnContext(ctx, "security alert email not sent", "user_id", userID, "reason", "user not found or email service not configured")
 	}
 
-	// TODO: Consider requiring 2FA on next login
-	// To implement this, you would need to:
-	// 1. Add a 'require_2fa_next_login' flag to the users table
-	// 2. Set this flag to true here
-	// 3. Check this flag in the Login handler
-	// 4. Prompt user for 2FA if flag is true
-	// 5. Clear the flag after successful 2FA verification
-	s.logger.InfoContext(ctx, "SECURITY RECOMMENDATION: Enable 2FA for this account", "user_id", userID)
+	s.logger.InfoContext(ctx, "SECURITY: User must verify identity (2FA) on next login", "user_id", userID)
 }
 
 // Logout revokes all refresh tokens for a user

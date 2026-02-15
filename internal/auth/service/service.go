@@ -2,12 +2,25 @@ package service
 
 import (
 	"context"
+	_ "embed"
+	"html/template"
 	"log/slog"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/config"
 	"passiontree/internal/pkg/jwt"
+
+	"github.com/mailersend/mailersend-go"
+)
+
+var (
+	// go:embed templates/verification.html
+	verificationTemplate string
+	// go:embed templates/password_reset.html
+	passwordResetTemplate string
+	// go:embed templates/security_alert.html
+	securityAlertTemplate string
 )
 
 type UserService interface {
@@ -47,8 +60,16 @@ type userServiceImpl struct {
 }
 
 type emailServiceImpl struct {
-	config *config.Config
-	logger *slog.Logger
+	mailersendClient *mailersend.Mailersend
+	templates        *emailTemplates
+	config           *config.Config
+	logger           *slog.Logger
+}
+
+type emailTemplates struct {
+	verification  *template.Template
+	passwordReset *template.Template
+	securityAlert *template.Template
 }
 
 func NewUserService(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
@@ -60,7 +81,18 @@ func NewUserService(repo repository.Repository, cfg *config.Config, logger *slog
 }
 
 func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
+	// Parse templates once at initialization
+	verificationTmpl := template.Must(template.New("verification").Parse(verificationTemplate))
+	passwordResetTmpl := template.Must(template.New("passwordReset").Parse(passwordResetTemplate))
+	securityAlertTmpl := template.Must(template.New("securityAlert").Parse(securityAlertTemplate))
+
 	return &emailServiceImpl{
+		mailersendClient: mailersend.NewMailersend(cfg.MailerSendAPIKey),
+		templates: &emailTemplates{
+			verification:  verificationTmpl,
+			passwordReset: passwordResetTmpl,
+			securityAlert: securityAlertTmpl,
+		},
 		config: cfg,
 		logger: logger,
 	}

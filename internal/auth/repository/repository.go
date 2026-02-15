@@ -20,6 +20,7 @@ type Repository interface {
 	UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error
 	UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
+	SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error
 
 	// Token Repository Methods
 	CreateToken(ctx context.Context, token *model.Token) error
@@ -31,6 +32,7 @@ type Repository interface {
 	MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error
 	GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error)
 	RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error
+	ReplaceVerificationToken(ctx context.Context, userID string, newToken *model.Token) error
 
 	// Password Management Methods
 	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error

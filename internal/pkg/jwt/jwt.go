@@ -43,30 +43,20 @@ type Service struct {
 
 // NewService creates a new JWT service from config
 func NewService(cfg *config.Config) *Service {
-	// Parse JWT secret
-	secretKey := cfg.JWTSecret
-	if secretKey == "" {
-		secretKey = "your-secret-key-change-this-in-production" // fallback default
+	// Parse access token TTL from config (hours)
+	accessTTL := 24 * time.Hour
+	if hours, err := strconv.Atoi(cfg.JWTAccessTTL); err == nil {
+		accessTTL = time.Duration(hours) * time.Hour
 	}
 
-	// Parse access token TTL
-	accessTTL := 24 * time.Hour // default 24 hours
-	if cfg.JWTAccessTTL != "" {
-		if hours, err := strconv.Atoi(cfg.JWTAccessTTL); err == nil {
-			accessTTL = time.Duration(hours) * time.Hour
-		}
-	}
-
-	// Parse refresh token TTL
-	refreshTTL := 7 * 24 * time.Hour // default 7 days
-	if cfg.JWTRefreshTTL != "" {
-		if hours, err := strconv.Atoi(cfg.JWTRefreshTTL); err == nil {
-			refreshTTL = time.Duration(hours) * time.Hour
-		}
+	// Parse refresh token TTL from config (hours)
+	refreshTTL := 168 * time.Hour // 7 days
+	if hours, err := strconv.Atoi(cfg.JWTRefreshTTL); err == nil {
+		refreshTTL = time.Duration(hours) * time.Hour
 	}
 
 	return &Service{
-		secretKey:       []byte(secretKey),
+		secretKey:       []byte(cfg.JWTSecret),
 		accessTokenTTL:  accessTTL,
 		refreshTokenTTL: refreshTTL,
 	}
