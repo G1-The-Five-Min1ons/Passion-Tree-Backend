@@ -71,6 +71,7 @@ func (s *Service) GenerateAccessToken(user *model.User) (string, error) {
 		Role:      string(user.Role),
 		TokenType: TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "passion-tree",
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenTTL)),
 			Subject:   user.UserID,
 		},
@@ -146,12 +147,15 @@ func (s *Service) GetTokenExpiration(tokenString string) (time.Time, error) {
 }
 
 // IsTokenExpired checks if a token is expired without validating the signature
+// This is useful for checking token expiration status even when the token might be invalid
 func (s *Service) IsTokenExpired(tokenString string) bool {
-	expTime, err := s.GetTokenExpiration(tokenString)
-	if err != nil {
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := &CustomClaims{}
+	_, _, err := parser.ParseUnverified(tokenString, claims)
+	if err != nil || claims.ExpiresAt == nil {
 		return true
 	}
-	return time.Now().After(expTime)
+	return time.Now().After(claims.ExpiresAt.Time)
 }
 
 // GenerateTokenPair generates both access and refresh tokens
