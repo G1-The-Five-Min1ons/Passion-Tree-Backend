@@ -74,7 +74,7 @@ func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile 
 	}
 
 	// Create user and profile
-	userID, err := s.userRepo.CreateUser(ctx, user, profile)
+	userID, err := s.repo.CreateUser(ctx, user, profile)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("user already exists")
@@ -91,7 +91,7 @@ func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile 
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.tokenRepo.CreateToken(ctx, tokenModel); err != nil {
+	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
 		// Log error but don't fail registration
 		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
 	}
@@ -111,7 +111,7 @@ func (s *serviceImpl) GetUserByID(ctx context.Context, id string) (*model.User, 
 		return nil, nil, apperror.NewBadRequest("user_id is required")
 	}
 
-	user, profile, err := s.userRepo.GetUserByID(ctx, id)
+	user, profile, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "get user by ID failed", "error", err, "user_id", id)
 		return nil, nil, apperror.NewInternal("failed to get user by ID: %w", err)
@@ -129,7 +129,7 @@ func (s *serviceImpl) GetUserByEmail(ctx context.Context, email string) (*model.
 		return nil, apperror.NewBadRequest("email is required")
 	}
 
-	user, err := s.userRepo.GetUserByEmail(ctx, email)
+	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "get user by email failed", "error", err, "email", email)
 		return nil, apperror.NewInternal("failed to get user by email: %w", err)
@@ -148,7 +148,7 @@ func (s *serviceImpl) UpdateUser(ctx context.Context, id string, firstName strin
 	}
 
 	// Check if user exists
-	existingUser, _, err := s.userRepo.GetUserByID(ctx, id)
+	existingUser, _, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "update user failed", "error", err, "user_id", id)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
@@ -157,7 +157,7 @@ func (s *serviceImpl) UpdateUser(ctx context.Context, id string, firstName strin
 		return apperror.NewNotFound("user with id '%s' not found", id)
 	}
 
-	if err := s.userRepo.UpdateUser(ctx, id, firstName, lastName); err != nil {
+	if err := s.repo.UpdateUser(ctx, id, firstName, lastName); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("username already taken")
 		}
@@ -178,7 +178,7 @@ func (s *serviceImpl) DeleteUser(ctx context.Context, id string, password string
 	}
 
 	// Get user and verify password
-	user, _, err := s.userRepo.GetUserByID(ctx, id)
+	user, _, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
@@ -192,7 +192,7 @@ func (s *serviceImpl) DeleteUser(ctx context.Context, id string, password string
 		return apperror.NewUnauthorized("incorrect password")
 	}
 
-	if err := s.userRepo.DeleteUser(ctx, id); err != nil {
+	if err := s.repo.DeleteUser(ctx, id); err != nil {
 		return apperror.NewInternal("failed to delete user: %w", err)
 	}
 

@@ -25,8 +25,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	repo := repository.NewRepository(db)
 
 	// Initialize services with email configuration
-	userSvc := service.NewUserServiceWithEmail(repo, repo, cfg, logger)
-	socialAuthSvc := service.NewSocialAuthService(repo, repo, cfg, logger)
+	userSvc := service.NewUserServiceWithEmail(repo, cfg, logger)
+	socialAuthSvc := service.NewSocialAuthService(repo, cfg, logger)
 
 	// Initialize handler
 	h := handler.NewHandler(userSvc, socialAuthSvc, logger)

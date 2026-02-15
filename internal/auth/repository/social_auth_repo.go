@@ -11,7 +11,7 @@ import (
 )
 
 // GetUserByProvider retrieves a user by their social auth provider and provider user ID
-func (r *socialAuthRepositoryImpl) GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error) {
+func (r *repositoryImpl) GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error) {
 	query := `
 		SELECT
 			user_id, username, email, first_name, last_name, role,
@@ -49,7 +49,7 @@ func (r *socialAuthRepositoryImpl) GetUserByProvider(ctx context.Context, provid
 }
 
 // CreateSocialUser creates a new user from social auth provider
-func (r *socialAuthRepositoryImpl) CreateSocialUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
+func (r *repositoryImpl) CreateSocialUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to begin transaction: %w", err)
@@ -127,7 +127,7 @@ func (r *socialAuthRepositoryImpl) CreateSocialUser(ctx context.Context, user *m
 }
 
 // LinkSocialAccount links a social account to an existing user
-func (r *socialAuthRepositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error {
+func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error {
 	// Check if this social account is already linked to another user
 	existingUser, err := r.GetUserByProvider(ctx, provider, providerUserID)
 	if err != nil {
@@ -184,7 +184,7 @@ func (r *socialAuthRepositoryImpl) LinkSocialAccount(ctx context.Context, userID
 }
 
 // UpdateSocialUserInfo updates user information from OAuth provider
-func (r *socialAuthRepositoryImpl) UpdateSocialUserInfo(ctx context.Context, userID string, userInfo *model.OAuthUserInfo) error {
+func (r *repositoryImpl) UpdateSocialUserInfo(ctx context.Context, userID string, userInfo *model.OAuthUserInfo) error {
 	query := `
 		UPDATE users
 		SET 
@@ -220,7 +220,7 @@ func (r *socialAuthRepositoryImpl) UpdateSocialUserInfo(ctx context.Context, use
 }
 
 // UpsertSocialUserProfile creates or updates user profile
-func (r *socialAuthRepositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error {
+func (r *repositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error {
 	if profile == nil {
 		return nil
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 // CreateToken creates a new token
-func (r *tokenRepositoryImpl) CreateToken(ctx context.Context, token *model.Token) error {
+func (r *repositoryImpl) CreateToken(ctx context.Context, token *model.Token) error {
 
 	if token.TokenID == "" {
 		token.TokenID = uuid.New().String()
@@ -30,7 +30,7 @@ func (r *tokenRepositoryImpl) CreateToken(ctx context.Context, token *model.Toke
 }
 
 // GetTokenByValue retrieves a token by its value and type
-func (r *tokenRepositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error) {
+func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error) {
 	query := `SELECT CONVERT(VARCHAR(36), token_id) as token_id, 
 	          CONVERT(VARCHAR(36), user_id) as user_id, 
 	          token, token_type, is_revoke, expire_at
@@ -52,7 +52,7 @@ func (r *tokenRepositoryImpl) GetTokenByValue(ctx context.Context, tokenValue st
 }
 
 // RevokeToken marks a token as revoked
-func (r *tokenRepositoryImpl) RevokeToken(ctx context.Context, tokenID string) error {
+func (r *repositoryImpl) RevokeToken(ctx context.Context, tokenID string) error {
 	query := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
 	_, err := r.db.ExecContext(ctx, query, tokenID)
 	if err != nil {
@@ -62,7 +62,7 @@ func (r *tokenRepositoryImpl) RevokeToken(ctx context.Context, tokenID string) e
 }
 
 // RevokeAllUserRefreshTokens revokes all refresh tokens for a user (invalidates all sessions)
-func (r *tokenRepositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, userID string) error {
+func (r *repositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, userID string) error {
 	query := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
 	_, err := r.db.ExecContext(ctx, query, userID, model.TokenTypeRefresh)
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *tokenRepositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, us
 }
 
 // DeleteExpiredTokens removes all expired tokens
-func (r *tokenRepositoryImpl) DeleteExpiredTokens(ctx context.Context) error {
+func (r *repositoryImpl) DeleteExpiredTokens(ctx context.Context) error {
 	query := `DELETE FROM Token WHERE expire_at < GETDATE()`
 	_, err := r.db.ExecContext(ctx, query)
 	if err != nil {
@@ -82,7 +82,7 @@ func (r *tokenRepositoryImpl) DeleteExpiredTokens(ctx context.Context) error {
 }
 
 // DeleteTokensByUserAndType deletes all tokens of a specific type for a user
-func (r *tokenRepositoryImpl) DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error {
+func (r *repositoryImpl) DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error {
 	query := `DELETE FROM Token WHERE user_id = @p1 AND token_type = @p2`
 	_, err := r.db.ExecContext(ctx, query, userID, tokenType)
 	if err != nil {

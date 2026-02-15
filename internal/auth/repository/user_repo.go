@@ -14,7 +14,7 @@ import (
 )
 
 // CreateUser creates a new user with transaction support
-func (r *userRepositoryImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
+func (r *repositoryImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return "", fmt.Errorf("begin transaction failed: %w", err)
@@ -52,7 +52,7 @@ func (r *userRepositoryImpl) CreateUser(ctx context.Context, user *model.User, p
 }
 
 // GetUserByID fetches a user and profile by ID
-func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 	query := `
 		SELECT 
 			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
@@ -109,7 +109,7 @@ func (r *userRepositoryImpl) GetUserByID(ctx context.Context, id string) (*model
 	return &u, &p, nil
 }
 
-func (r *userRepositoryImpl) UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error) {
+func (r *repositoryImpl) UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error) {
     query := `
         UPDATE users 
         SET failed_attempts = failed_attempts + 1,
@@ -131,7 +131,7 @@ func (r *userRepositoryImpl) UpdateFailedLogin(ctx context.Context, userID strin
     return newAttempts, nil
 }
 
-func (r *userRepositoryImpl) ResetFailedLogin(ctx context.Context, userID string) error {
+func (r *repositoryImpl) ResetFailedLogin(ctx context.Context, userID string) error {
     query := `UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE user_id = @p1`
     _, err := r.db.ExecContext(ctx, query, userID)
     if err != nil {
@@ -141,7 +141,7 @@ func (r *userRepositoryImpl) ResetFailedLogin(ctx context.Context, userID string
 }
 
 // fetchUser is a private helper to reduce duplication of GetUserByEmail and GetUserByUsername
-func (r *userRepositoryImpl) fetchUser(ctx context.Context, query string, value interface{}) (*model.User, error) {
+func (r *repositoryImpl) fetchUser(ctx context.Context, query string, value interface{}) (*model.User, error) {
     var user model.User
     var lockedUntil sql.NullTime
 
@@ -166,7 +166,7 @@ func (r *userRepositoryImpl) fetchUser(ctx context.Context, query string, value 
 }
 
 // GetUserByEmail fetches a user by email
-func (r *userRepositoryImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+func (r *repositoryImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
     query := `SELECT 
                 CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
                 first_name, last_name, role, heart_count, is_email_verified,
@@ -181,7 +181,7 @@ func (r *userRepositoryImpl) GetUserByEmail(ctx context.Context, email string) (
 }
 
 // GetUserByUsername fetches a user by username
-func (r *userRepositoryImpl) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
+func (r *repositoryImpl) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
     query := `SELECT 
                 CONVERT(VARCHAR(36), user_id) as user_id, username, email, password, 
                 first_name, last_name, role, heart_count, is_email_verified,
@@ -196,7 +196,7 @@ func (r *userRepositoryImpl) GetUserByUsername(ctx context.Context, username str
 }
 
 // UpdateUser updates user info by ID (only first_name and last_name)
-func (r *userRepositoryImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
+func (r *repositoryImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
 	query := `UPDATE users SET first_name=@p1, last_name=@p2 WHERE user_id=@p3`
 	_, err := r.db.ExecContext(ctx, query, firstName, lastName, id)
 	if err != nil {
@@ -206,7 +206,7 @@ func (r *userRepositoryImpl) UpdateUser(ctx context.Context, id string, firstNam
 }
 
 // UpdateProfile updates profile info by user ID (Partial Update support)
-func (r *userRepositoryImpl) UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error {
+func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error {
     if userID == "" || profile == nil {
         return fmt.Errorf("userID and profile are required for update")
     }
@@ -282,7 +282,7 @@ func (r *userRepositoryImpl) UpdateProfile(ctx context.Context, userID string, p
 }
 
 // DeleteUser deletes a user by ID (must delete profile first due to FK constraint)
-func (r *userRepositoryImpl) DeleteUser(ctx context.Context, id string) error {
+func (r *repositoryImpl) DeleteUser(ctx context.Context, id string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction failed: %w", err)
@@ -305,7 +305,7 @@ func (r *userRepositoryImpl) DeleteUser(ctx context.Context, id string) error {
 }
 
 // UpdateEmailVerified updates the email verification status for a user
-func (r *userRepositoryImpl) UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error {
+func (r *repositoryImpl) UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error {
 	query := `UPDATE users SET is_email_verified=@p1 WHERE user_id=@p2`
 	_, err := r.db.ExecContext(ctx, query, isVerified, userID)
 	if err != nil {
@@ -315,7 +315,7 @@ func (r *userRepositoryImpl) UpdateEmailVerified(ctx context.Context, userID str
 }
 
 // VerifyEmailAndRevokeToken verifies email and revokes verification token in a transaction
-func (r *userRepositoryImpl) VerifyEmailAndRevokeToken(ctx context.Context, userID string, tokenID string) error {
+func (r *repositoryImpl) VerifyEmailAndRevokeToken(ctx context.Context, userID string, tokenID string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -343,7 +343,7 @@ func (r *userRepositoryImpl) VerifyEmailAndRevokeToken(ctx context.Context, user
 }
 
 // UpdatePassword updates user password
-func (r *userRepositoryImpl) UpdatePassword(ctx context.Context, userID string, hashedPassword string) error {
+func (r *repositoryImpl) UpdatePassword(ctx context.Context, userID string, hashedPassword string) error {
 	query := `UPDATE users SET password = @p1 WHERE user_id = @p2`
 	result, err := r.db.ExecContext(ctx, query, hashedPassword, userID)
 	if err != nil {
@@ -363,7 +363,7 @@ func (r *userRepositoryImpl) UpdatePassword(ctx context.Context, userID string, 
 }
 
 // ResetPasswordWithToken resets password and revokes token in a transaction
-func (r *userRepositoryImpl) ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error {
+func (r *repositoryImpl) ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -397,7 +397,7 @@ func (r *userRepositoryImpl) ResetPasswordWithToken(ctx context.Context, userID 
 }
 
 // ChangePasswordAndRevokeSessions updates password and revokes all refresh tokens in a transaction
-func (r *userRepositoryImpl) ChangePasswordAndRevokeSessions(ctx context.Context, userID string, hashedPassword string) error {
+func (r *repositoryImpl) ChangePasswordAndRevokeSessions(ctx context.Context, userID string, hashedPassword string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)

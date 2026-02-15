@@ -157,7 +157,7 @@ func (s *serviceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth2.To
 // - If user doesn't exist: Create new user
 func (s *serviceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	// Check if user exists with this provider
-	user, err := s.socialRepo.GetUserByProvider(ctx, userInfo.Provider, userInfo.ProviderUserID)
+	user, err := s.repo.GetUserByProvider(ctx, userInfo.Provider, userInfo.ProviderUserID)
 	if err != nil {
 		return nil, "", nil, apperror.NewInternal("failed to check user existence: %w", err)
 	}
@@ -170,7 +170,7 @@ func (s *serviceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAut
 		)
 
 		// Update user info from provider (in case they changed name/email)
-		err = s.socialRepo.UpdateSocialUserInfo(ctx, user.UserID, userInfo)
+		err = s.repo.UpdateSocialUserInfo(ctx, user.UserID, userInfo)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to update user info", "error", err)
 			// Continue anyway - update is not critical
@@ -180,7 +180,7 @@ func (s *serviceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAut
 		profile := &model.Profile{
 			AvatarURL: userInfo.AvatarURL,
 		}
-		err = s.socialRepo.UpsertSocialUserProfile(ctx, user.UserID, profile)
+		err = s.repo.UpsertSocialUserProfile(ctx, user.UserID, profile)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to update profile", "error", err)
 			// Continue anyway - profile update is not critical
@@ -201,7 +201,7 @@ func (s *serviceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAut
 	}
 
 	// CASE 2: User doesn't have this provider, check by email
-	existingUser, err := s.userRepo.GetUserByEmail(ctx, userInfo.Email)
+	existingUser, err := s.repo.GetUserByEmail(ctx, userInfo.Email)
 	if err != nil {
 		return nil, "", nil, apperror.NewInternal("failed to check user by email: %w", err)
 	}
@@ -268,7 +268,7 @@ func (s *serviceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.O
 	username := strings.Split(userInfo.Email, "@")[0]
 
 	// Check if username exists, append random number if needed
-	existingUser, _ := s.userRepo.GetUserByUsername(ctx, username)
+	existingUser, _ := s.repo.GetUserByUsername(ctx, username)
 	if existingUser != nil {
 		username = fmt.Sprintf("%s_%d", username, time.Now().Unix()%10000)
 	}
@@ -291,7 +291,7 @@ func (s *serviceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.O
 		Location:  "",
 	}
 
-	userID, err := s.socialRepo.CreateSocialUser(ctx, user, profile)
+	userID, err := s.repo.CreateSocialUser(ctx, user, profile)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to create social user", "error", err)
 		return nil, apperror.NewInternal("failed to create user account: %w", err)
@@ -342,7 +342,7 @@ func (s *serviceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, 
 	providerUserID := claims["provider_user_id"].(string)
 
 	// Get existing user
-	existingUser, _, err := s.userRepo.GetUserByID(ctx, userID)
+	existingUser, _, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, "", apperror.NewInternal("failed to get user: %w", err)
 	}
@@ -359,7 +359,7 @@ func (s *serviceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, 
 		)
 
 		// Link the social account
-		err = s.socialRepo.LinkSocialAccount(ctx, userID, provider, providerUserID)
+		err = s.repo.LinkSocialAccount(ctx, userID, provider, providerUserID)
 		if err != nil {
 			return nil, "", apperror.NewInternal("failed to link account: %w", err)
 		}
@@ -374,7 +374,7 @@ func (s *serviceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, 
 			AvatarURL:      getStringClaim(claims, "avatar_url"),
 		}
 
-		err = s.socialRepo.UpdateSocialUserInfo(ctx, userID, providerInfo)
+		err = s.repo.UpdateSocialUserInfo(ctx, userID, providerInfo)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to update user info after linking", "error", err)
 		}
@@ -384,7 +384,7 @@ func (s *serviceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, 
 			profile := &model.Profile{
 				AvatarURL: providerInfo.AvatarURL,
 			}
-			err = s.socialRepo.UpsertSocialUserProfile(ctx, userID, profile)
+			err = s.repo.UpsertSocialUserProfile(ctx, userID, profile)
 			if err != nil {
 				s.logger.ErrorContext(ctx, "failed to update profile after linking", "error", err)
 			}

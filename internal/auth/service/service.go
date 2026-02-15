@@ -47,9 +47,7 @@ type SocialAuthService interface {
 
 // serviceImpl implements UserService, EmailService, and SocialAuthService
 type serviceImpl struct {
-	userRepo      repository.UserRepository
-	tokenRepo     repository.TokenRepository
-	socialRepo    repository.SocialAuthRepository
+	repo          repository.Repository
 	emailConfig   *config.Config
 	googleConfig  *oauth2.Config
 	discordConfig *oauth2.Config
@@ -58,11 +56,10 @@ type serviceImpl struct {
 }
 
 // NewUserService creates a new UserService instance
-func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, logger *slog.Logger) UserService {
+func NewUserService(repo repository.Repository, logger *slog.Logger) UserService {
 	return &serviceImpl{
-		userRepo:  userRepo,
-		tokenRepo: tokenRepo,
-		logger:    logger,
+		repo:   repo,
+		logger: logger,
 	}
 }
 
@@ -75,10 +72,9 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 }
 
 // NewUserServiceWithEmail creates a UserService with email capabilities
-func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config, logger *slog.Logger) UserService {
+func NewUserServiceWithEmail(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
 	svc := &serviceImpl{
-		userRepo:    userRepo,
-		tokenRepo:   tokenRepo,
+		repo:        repo,
 		emailConfig: cfg,
 		logger:      logger,
 	}
@@ -97,14 +93,12 @@ func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repos
 
 // NewSocialAuthService creates a new SocialAuthService instance
 func NewSocialAuthService(
-	userRepo repository.UserRepository,
-	socialRepo repository.SocialAuthRepository,
+	repo repository.Repository,
 	cfg *config.Config,
 	logger *slog.Logger,
 ) SocialAuthService {
 	return &serviceImpl{
-		userRepo:   userRepo,
-		socialRepo: socialRepo,
+		repo:       repo,
 		jwtService: jwt.NewService(),
 		googleConfig: &oauth2.Config{
 			ClientID:     cfg.GoogleClientID,

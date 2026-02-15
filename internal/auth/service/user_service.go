@@ -25,9 +25,9 @@ func (s *serviceImpl) Login(ctx context.Context, identifier string, password str
 
 	// Check if identifier is email (contains @)
 	if strings.Contains(identifier, "@") {
-		user, err = s.userRepo.GetUserByEmail(ctx, identifier)
+		user, err = s.repo.GetUserByEmail(ctx, identifier)
 	} else {
-		user, err = s.userRepo.GetUserByUsername(ctx, identifier)
+		user, err = s.repo.GetUserByUsername(ctx, identifier)
 	}
 
 	if err != nil || user == nil {
@@ -53,7 +53,7 @@ func (s *serviceImpl) Login(ctx context.Context, identifier string, password str
 
 	// Reset failed attempts on successful login
 	if user.FailedAttempts > 0 {
-		_ = s.userRepo.ResetFailedLogin(ctx, user.UserID)
+		_ = s.repo.ResetFailedLogin(ctx, user.UserID)
 	}
 
 	// Generate JWT token
@@ -69,7 +69,7 @@ func (s *serviceImpl) Login(ctx context.Context, identifier string, password str
 }
 
 func (s *serviceImpl) handleFailedLogin(ctx context.Context, user *model.User) {
-    newAttempts, err := s.userRepo.UpdateFailedLogin(ctx, user.UserID, 15*time.Minute)
+    newAttempts, err := s.repo.UpdateFailedLogin(ctx, user.UserID, 15*time.Minute)
     if err != nil {
         s.logger.ErrorContext(ctx, "failed_update_attempts", "error", err, "user_id", user.UserID)
         return
@@ -94,7 +94,7 @@ func (s *serviceImpl) ValidateToken(ctx context.Context, token string) (*model.U
 	}
 
 	// Get user from database
-	user, _, err := s.userRepo.GetUserByID(ctx, claims.UserID)
+	user, _, err := s.repo.GetUserByID(ctx, claims.UserID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "validate_token_db_failed", "error", err, "user_id", claims.UserID)
 		return nil, apperror.NewInternal("failed to get user by ID: %w", err)
