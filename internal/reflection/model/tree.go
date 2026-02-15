@@ -9,7 +9,7 @@ type Tree struct {
 	Status       string    `json:"status"`
 	IsPause      bool      `json:"is_pause"`
 	NodeCount    int       `json:"node_count"`
-	CreatedAt    time.Time `json:"create_at"`
+	CreatedAt    time.Time `json:"created_at"`
 	LastUpdate   time.Time `json:"last_update"`
 	AlbumID      string    `json:"album_id"`
 	PathID       string    `json:"path_id"`
@@ -38,7 +38,7 @@ type TreeResponse struct {
 	Status       string                   `json:"status"`
 	IsPause      bool                     `json:"is_pause"`
 	NodeCount    int                      `json:"node_count"`
-	CreatedAt    time.Time                `json:"create_at"`
+	CreatedAt    time.Time                `json:"created_at"`
 	LastUpdate   time.Time                `json:"last_update"`
 	AlbumID      string                   `json:"album_id"`
 	PathID       string                   `json:"path_id"`

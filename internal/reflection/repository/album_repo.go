@@ -18,7 +18,7 @@ func (r *repositoryImpl) CreateAlbum(ctx context.Context, req model.CreateAlbumR
 		VALUES (@p1, @p2, 0, @p3, GETDATE(), GETDATE(), @p4)
 	`
 	
-	_, err := r.db.ExecContext(ctx, query, albumID, req.AlbumName, req.CoverImgURL, req.UserID)
+	_, err := r.db.ExecContext(ctx, query, albumID, req.AlbumName, req.CoverImageURL, req.UserID)
 	if err != nil {
 		return "", fmt.Errorf("failed to create album: %w", err)
 	}
