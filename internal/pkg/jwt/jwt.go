@@ -71,8 +71,10 @@ func (s *Service) GenerateAccessToken(user *model.User) (string, error) {
 		Role:      string(user.Role),
 		TokenType: TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    "passion-tree",
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenTTL)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			Issuer:    "passion-tree",
 			Subject:   user.UserID,
 		},
 	}
