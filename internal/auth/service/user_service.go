@@ -8,7 +8,6 @@ import (
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
-	"passiontree/internal/pkg/jwt"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -58,8 +57,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	}
 
 	// Generate JWT token pair
-	jwtService := jwt.NewService()
-	accessToken, refreshToken, err := jwtService.GenerateTokenPair(user)
+	accessToken, refreshToken, err := s.jwtService.GenerateTokenPair(user)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "jwt generation failed", "error", err, "user_id", user.UserID)
 		return "", "", apperror.NewInternal("failed to generate token: %w", err)
@@ -126,8 +124,7 @@ func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*mod
 	}
 
 	// Validate JWT token
-	jwtService := jwt.NewService()
-	claims, err := jwtService.ValidateToken(token)
+	claims, err := s.jwtService.ValidateToken(token)
 	if err != nil {
 		return nil, apperror.NewUnauthorized("invalid token")
 	}
@@ -154,8 +151,7 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	}
 
 	// Validate refresh token
-	jwtService := jwt.NewService()
-	claims, err := jwtService.ValidateRefreshToken(refreshToken)
+	claims, err := s.jwtService.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		s.logger.WarnContext(ctx, "invalid refresh token", "error", err)
 		return "", "", apperror.NewUnauthorized("invalid or expired refresh token")
@@ -199,14 +195,14 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	}
 
 	// Generate new access token
-	newAccessToken, err := jwtService.GenerateAccessToken(user)
+	newAccessToken, err := s.jwtService.GenerateAccessToken(user)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to generate access token", "error", err, "user_id", user.UserID)
 		return "", "", apperror.NewInternal("failed to generate access token")
 	}
 
 	// Generate new refresh token (token rotation)
-	newRefreshToken, err := jwtService.GenerateRefreshToken(user)
+	newRefreshToken, err := s.jwtService.GenerateRefreshToken(user)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to generate refresh token", "error", err, "user_id", user.UserID)
 		return "", "", apperror.NewInternal("failed to generate refresh token")

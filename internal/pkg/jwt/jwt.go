@@ -2,20 +2,13 @@ package jwt
 
 import (
 	"errors"
-	"os"
 	"strconv"
 	"time"
 
 	"passiontree/internal/auth/model"
+	"passiontree/internal/config"
 
 	"github.com/golang-jwt/jwt/v5"
-)
-
-// JWT configuration constants
-const (
-	DefaultJWTSecret       = "your-secret-key-change-this-in-production"
-	DefaultAccessTokenTTL  = 24 * time.Hour     // 24 hours
-	DefaultRefreshTokenTTL = 7 * 24 * time.Hour // 7 days
 )
 
 // Common JWT errors
@@ -25,34 +18,6 @@ var (
 	ErrInvalidSigningMethod = errors.New("invalid signing method")
 	ErrTokenNotValid        = errors.New("token is not valid yet")
 )
-
-// getJWTSecret returns JWT secret from environment or default
-func getJWTSecret() string {
-	if secret := os.Getenv("JWT_SECRET"); secret != "" {
-		return secret
-	}
-	return DefaultJWTSecret
-}
-
-// getAccessTokenTTL returns access token TTL from environment or default
-func getAccessTokenTTL() time.Duration {
-	if ttlStr := os.Getenv("JWT_ACCESS_TTL"); ttlStr != "" {
-		if hours, err := strconv.Atoi(ttlStr); err == nil {
-			return time.Duration(hours) * time.Hour
-		}
-	}
-	return DefaultAccessTokenTTL
-}
-
-// getRefreshTokenTTL returns refresh token TTL from environment or default
-func getRefreshTokenTTL() time.Duration {
-	if ttlStr := os.Getenv("JWT_REFRESH_TTL"); ttlStr != "" {
-		if hours, err := strconv.Atoi(ttlStr); err == nil {
-			return time.Duration(hours) * time.Hour
-		}
-	}
-	return DefaultRefreshTokenTTL
-}
 
 // TokenType constants
 const (
@@ -71,13 +36,39 @@ type CustomClaims struct {
 
 // Service handles JWT operations
 type Service struct {
-	secretKey []byte
+	secretKey       []byte
+	accessTokenTTL  time.Duration
+	refreshTokenTTL time.Duration
 }
 
-// NewService creates a new JWT service
-func NewService() *Service {
+// NewService creates a new JWT service from config
+func NewService(cfg *config.Config) *Service {
+	// Parse JWT secret
+	secretKey := cfg.JWTSecret
+	if secretKey == "" {
+		secretKey = "your-secret-key-change-this-in-production" // fallback default
+	}
+
+	// Parse access token TTL
+	accessTTL := 24 * time.Hour // default 24 hours
+	if cfg.JWTAccessTTL != "" {
+		if hours, err := strconv.Atoi(cfg.JWTAccessTTL); err == nil {
+			accessTTL = time.Duration(hours) * time.Hour
+		}
+	}
+
+	// Parse refresh token TTL
+	refreshTTL := 7 * 24 * time.Hour // default 7 days
+	if cfg.JWTRefreshTTL != "" {
+		if hours, err := strconv.Atoi(cfg.JWTRefreshTTL); err == nil {
+			refreshTTL = time.Duration(hours) * time.Hour
+		}
+	}
+
 	return &Service{
-		secretKey: []byte(getJWTSecret()),
+		secretKey:       []byte(secretKey),
+		accessTokenTTL:  accessTTL,
+		refreshTokenTTL: refreshTTL,
 	}
 }
 
@@ -87,13 +78,10 @@ func (s *Service) GenerateAccessToken(user *model.User) (string, error) {
 	claims := CustomClaims{
 		UserID:    user.UserID,
 		Username:  user.Username,
-		Role:      user.Role,
+		Role:      string(user.Role),
 		TokenType: TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(getAccessTokenTTL())),
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			Issuer:    "passion-tree",
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenTTL)),
 			Subject:   user.UserID,
 		},
 	}
@@ -108,10 +96,10 @@ func (s *Service) GenerateRefreshToken(user *model.User) (string, error) {
 	claims := CustomClaims{
 		UserID:    user.UserID,
 		Username:  user.Username,
-		Role:      user.Role,
+		Role:      string(user.Role),
 		TokenType: TokenTypeRefresh,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(getRefreshTokenTTL())),
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.refreshTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			Issuer:    "passion-tree-refresh",

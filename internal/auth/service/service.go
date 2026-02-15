@@ -7,6 +7,7 @@ import (
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/config"
+	"passiontree/internal/pkg/jwt"
 )
 
 type UserService interface {
@@ -40,6 +41,7 @@ type EmailService interface {
 type userServiceImpl struct {
 	repo         repository.Repository
 	emailService EmailService
+	jwtService   *jwt.Service
 	config       *config.Config
 	logger       *slog.Logger
 }
@@ -67,9 +69,10 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 // NewUserServiceWithEmail creates a new UserService with email service configured
 func NewUserServiceWithEmail(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
 	svc := &userServiceImpl{
-		repo:   repo,
-		config: cfg,
-		logger: logger,
+		repo:       repo,
+		config:     cfg,
+		logger:     logger,
+		jwtService: jwt.NewService(cfg),
 	}
 
 	// Initialize email service if SMTP or MailerSend is configured
