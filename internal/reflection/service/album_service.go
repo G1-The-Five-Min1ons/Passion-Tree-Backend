@@ -39,6 +39,9 @@ func (s *serviceImpl) CreateAlbum(ctx context.Context, req model.CreateAlbumRequ
 		AlbumName:     album.AlbumName,
 		TreeCount:     album.TreeCount,
 		CoverImageURL: album.CoverImageURL,
+		UserID:        album.UserID,
+		CreatedAt:     album.CreatedAt,
+		LastEdit:      album.LastEdit,
 	}, nil
 }
 

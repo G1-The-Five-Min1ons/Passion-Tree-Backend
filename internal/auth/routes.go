@@ -21,12 +21,11 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
         panic("Failed to load configuration: " + err.Error())
     }
 
-	// Initialize repositories
-	userRepo := repository.NewUserRepository(db)
-	tokenRepo := repository.NewTokenRepository(db.GetDB())
+	// Initialize repository
+	repo := repository.NewRepository(db)
 
 	// Initialize services with email configuration
-	userSvc := service.NewUserServiceWithEmail(userRepo, tokenRepo, cfg, logger)
+	userSvc := service.NewUserServiceWithEmail(repo, cfg, logger)
 
 	h := handler.NewHandler(userSvc, logger)
 

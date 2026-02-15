@@ -2,10 +2,10 @@ package handler
 
 import (
 	"context"
-	"time"
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -51,7 +51,10 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	userAgent := c.Get("User-Agent", "Unknown")
 
 	// Auto-login หลังจากสมัครสมาชิกสำเร็จ
-	accessToken, refreshToken, _ := h.userSvc.Login(ctx, req.Username, req.Password, deviceInfo, ipAddress, userAgent)
+	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Username, req.Password, deviceInfo, ipAddress, userAgent)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -178,11 +181,13 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 
 // RefreshToken generates a new access token and refresh token using token rotation
 func (h *Handler) RefreshToken(c *fiber.Ctx) error {
-	var req struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
-	}
+	var req model.RefreshTokenRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if req.RefreshToken == "" {
+		return h.handleError(c, apperror.NewBadRequest("refresh_token is required"))
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)

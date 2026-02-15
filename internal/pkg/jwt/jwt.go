@@ -13,17 +13,17 @@ import (
 
 // JWT configuration constants
 const (
-	DefaultJWTSecret     = "your-secret-key-change-this-in-production"
+	DefaultJWTSecret       = "your-secret-key-change-this-in-production"
 	DefaultAccessTokenTTL  = 24 * time.Hour     // 24 hours
 	DefaultRefreshTokenTTL = 7 * 24 * time.Hour // 7 days
 )
 
 // Common JWT errors
 var (
-	ErrInvalidToken      = errors.New("invalid token")
-	ErrExpiredToken      = errors.New("token has expired")
+	ErrInvalidToken         = errors.New("invalid token")
+	ErrExpiredToken         = errors.New("token has expired")
 	ErrInvalidSigningMethod = errors.New("invalid signing method")
-	ErrTokenNotValid     = errors.New("token is not valid yet")
+	ErrTokenNotValid        = errors.New("token is not valid yet")
 )
 
 // getJWTSecret returns JWT secret from environment or default
@@ -139,6 +139,9 @@ func (s *Service) ValidateToken(tokenString string) (*CustomClaims, error) {
 		}
 		if errors.Is(err, jwt.ErrTokenNotValidYet) {
 			return nil, ErrTokenNotValid
+		}
+		if errors.Is(err, jwt.ErrTokenMalformed) {
+			return nil, ErrInvalidToken
 		}
 		return nil, err
 	}

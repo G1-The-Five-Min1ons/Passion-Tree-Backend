@@ -11,9 +11,7 @@ import (
 )
 
 // CreateToken creates a new token with full session tracking
-func (r *tokenRepositoryImpl) CreateToken(token *model.Token) error {
-	ctx := context.Background()
-
+func (r *repositoryImpl) CreateToken(ctx context.Context, token *model.Token) error {
 	if token.TokenID == "" {
 		token.TokenID = uuid.New().String()
 	}
@@ -35,7 +33,7 @@ func (r *tokenRepositoryImpl) CreateToken(token *model.Token) error {
 }
 
 // GetTokenByValue retrieves a token by its value and type with all session tracking fields
-func (r *tokenRepositoryImpl) GetTokenByValue(tokenValue string, tokenType string) (*model.Token, error) {
+func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error) {
 	query := `SELECT 
 		CONVERT(VARCHAR(36), token_id) as token_id,
 		CONVERT(VARCHAR(36), user_id) as user_id,
@@ -46,7 +44,7 @@ func (r *tokenRepositoryImpl) GetTokenByValue(tokenValue string, tokenType strin
 		WHERE token = @p1 AND token_type = @p2`
 
 	var token model.Token
-	err := r.db.QueryRow(query, tokenValue, tokenType).Scan(
+	err := r.db.QueryRowContext(ctx, query, tokenValue, tokenType).Scan(
 		&token.TokenID, &token.UserID, &token.Token, &token.TokenType,
 		&token.IsRevoked, &token.CreatedAt, &token.ExpireAt,
 		&token.DeviceInfo, &token.IPAddress, &token.UserAgent, &token.LastUsedAt, &token.MaxExpiresAt,
@@ -62,9 +60,9 @@ func (r *tokenRepositoryImpl) GetTokenByValue(tokenValue string, tokenType strin
 }
 
 // DeleteExpiredTokens removes all expired tokens
-func (r *tokenRepositoryImpl) DeleteExpiredTokens() error {
+func (r *repositoryImpl) DeleteExpiredTokens(ctx context.Context) error {
 	query := `DELETE FROM Token WHERE expire_at < GETDATE()`
-	_, err := r.db.Exec(query)
+	_, err := r.db.ExecContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("delete expired tokens failed: %w", err)
 	}
@@ -72,9 +70,9 @@ func (r *tokenRepositoryImpl) DeleteExpiredTokens() error {
 }
 
 // DeleteTokensByUserAndType deletes all tokens of a specific type for a user
-func (r *tokenRepositoryImpl) DeleteTokensByUserAndType(userID string, tokenType string) error {
+func (r *repositoryImpl) DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error {
 	query := `DELETE FROM Token WHERE user_id = @p1 AND token_type = @p2`
-	_, err := r.db.Exec(query, userID, tokenType)
+	_, err := r.db.ExecContext(ctx, query, userID, tokenType)
 	if err != nil {
 		return fmt.Errorf("delete tokens by user and type failed: %w", err)
 	}
@@ -82,9 +80,9 @@ func (r *tokenRepositoryImpl) DeleteTokensByUserAndType(userID string, tokenType
 }
 
 // RevokeTokenByValue revokes a token by its value
-func (r *tokenRepositoryImpl) RevokeTokenByValue(tokenValue string, tokenType string) error {
+func (r *repositoryImpl) RevokeTokenByValue(ctx context.Context, tokenValue string, tokenType string) error {
 	query := `UPDATE Token SET is_revoke = 1 WHERE token = @p1 AND token_type = @p2`
-	result, err := r.db.Exec(query, tokenValue, tokenType)
+	result, err := r.db.ExecContext(ctx, query, tokenValue, tokenType)
 	if err != nil {
 		return fmt.Errorf("revoke token by value failed: %w", err)
 	}
@@ -102,9 +100,9 @@ func (r *tokenRepositoryImpl) RevokeTokenByValue(tokenValue string, tokenType st
 }
 
 // RevokeAllUserTokens revokes all tokens of a specific type for a user
-func (r *tokenRepositoryImpl) RevokeAllUserTokens(userID string, tokenType string) error {
+func (r *repositoryImpl) RevokeAllUserTokens(ctx context.Context, userID string, tokenType string) error {
 	query := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
-	_, err := r.db.Exec(query, userID, tokenType)
+	_, err := r.db.ExecContext(ctx, query, userID, tokenType)
 	if err != nil {
 		return fmt.Errorf("revoke all user tokens failed: %w", err)
 	}
@@ -112,9 +110,9 @@ func (r *tokenRepositoryImpl) RevokeAllUserTokens(userID string, tokenType strin
 }
 
 // MarkTokenAsRotated marks a token as rotated (replaced by a new token)
-func (r *tokenRepositoryImpl) MarkTokenAsRotated(tokenValue string, tokenType string) error {
+func (r *repositoryImpl) MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error {
 	query := `UPDATE Token SET is_rotated = 1 WHERE token = @p1 AND token_type = @p2`
-	result, err := r.db.Exec(query, tokenValue, tokenType)
+	result, err := r.db.ExecContext(ctx, query, tokenValue, tokenType)
 	if err != nil {
 		return fmt.Errorf("mark token as rotated failed: %w", err)
 	}
@@ -132,7 +130,7 @@ func (r *tokenRepositoryImpl) MarkTokenAsRotated(tokenValue string, tokenType st
 }
 
 // GetActiveUserSessions retrieves all active (non-revoked, non-rotated, non-expired) sessions for a user
-func (r *tokenRepositoryImpl) GetActiveUserSessions(userID string, tokenType string) ([]*model.Token, error) {
+func (r *repositoryImpl) GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error) {
 	query := `SELECT 
 		CONVERT(VARCHAR(36), token_id) as token_id,
 		CONVERT(VARCHAR(36), user_id) as user_id,
@@ -147,7 +145,7 @@ func (r *tokenRepositoryImpl) GetActiveUserSessions(userID string, tokenType str
 		AND expire_at > GETDATE()
 	ORDER BY created_at DESC`
 
-	rows, err := r.db.Query(query, userID, tokenType)
+	rows, err := r.db.QueryContext(ctx, query, userID, tokenType)
 	if err != nil {
 		return nil, fmt.Errorf("get active user sessions failed: %w", err)
 	}
@@ -177,14 +175,14 @@ func (r *tokenRepositoryImpl) GetActiveUserSessions(userID string, tokenType str
 }
 
 // RevokeTokenByIDForUser revokes a token only if it belongs to the specified user (for security)
-func (r *tokenRepositoryImpl) RevokeTokenByIDForUser(tokenID string, userID string) error {
+func (r *repositoryImpl) RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error {
 	query := `UPDATE Token 
 		SET is_revoke = 1 
 		WHERE token_id = @p1 
 			AND user_id = @p2 
 			AND is_revoke = 0 
 			AND is_rotated = 0`
-	result, err := r.db.Exec(query, tokenID, userID)
+	result, err := r.db.ExecContext(ctx, query, tokenID, userID)
 	if err != nil {
 		return fmt.Errorf("revoke token by id for user failed: %w", err)
 	}
@@ -200,3 +198,4 @@ func (r *tokenRepositoryImpl) RevokeTokenByIDForUser(tokenID string, userID stri
 
 	return nil
 }
+

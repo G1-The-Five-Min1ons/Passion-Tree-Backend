@@ -25,7 +25,7 @@ type UserService interface {
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, code string, newPassword string) error
 	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
-	
+
 	// Multi-device Session Management
 	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
 	LogoutSession(ctx context.Context, userID string, sessionID string) error
@@ -34,11 +34,11 @@ type UserService interface {
 type EmailService interface {
 	SendVerificationEmail(to, token string) error
 	SendPasswordResetEmail(to, token string) error
+	SendSecurityAlertEmail(to, userID string) error
 }
 
 type userServiceImpl struct {
-	userRepo     repository.UserRepository
-	tokenRepo    repository.TokenRepository
+	repo         repository.Repository
 	emailService EmailService
 	config       *config.Config
 	logger       *slog.Logger
@@ -49,12 +49,11 @@ type emailServiceImpl struct {
 	logger *slog.Logger
 }
 
-func NewUserService(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config, logger *slog.Logger) UserService {
+func NewUserService(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
 	return &userServiceImpl{
-		userRepo:  userRepo,
-		tokenRepo: tokenRepo,
-		config:    cfg,
-		logger:    logger,
+		repo:   repo,
+		config: cfg,
+		logger: logger,
 	}
 }
 
@@ -66,12 +65,11 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 }
 
 // NewUserServiceWithEmail creates a new UserService with email service configured
-func NewUserServiceWithEmail(userRepo repository.UserRepository, tokenRepo repository.TokenRepository, cfg *config.Config, logger *slog.Logger) UserService {
+func NewUserServiceWithEmail(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
 	svc := &userServiceImpl{
-		userRepo:  userRepo,
-		tokenRepo: tokenRepo,
-		config:    cfg,
-		logger:    logger,
+		repo:   repo,
+		config: cfg,
+		logger: logger,
 	}
 
 	// Initialize email service if SMTP or MailerSend is configured

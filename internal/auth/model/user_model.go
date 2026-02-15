@@ -15,8 +15,8 @@ type User struct {
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 
-	FailedAttempts  int        `json:"failed_attempts"`
-	LockedUntil     *time.Time `json:"locked_until"`
+	FailedAttempts int        `json:"failed_attempts"`
+	LockedUntil    *time.Time `json:"locked_until"`
 }
 
 const (
@@ -67,4 +67,8 @@ type ResetPasswordRequest struct {
 type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password"`
 	NewPassword string `json:"new_password"`
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
 }
