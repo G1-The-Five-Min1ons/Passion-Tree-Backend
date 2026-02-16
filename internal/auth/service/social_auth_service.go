@@ -17,17 +17,17 @@ import (
 )
 
 // GetGoogleAuthURL generates the Google OAuth2 authorization URL
-func (s *serviceImpl) GetGoogleAuthURL(state string) string {
+func (s *userServiceImpl) GetGoogleAuthURL(state string) string {
 	return s.googleConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 
 // GetDiscordAuthURL generates the Discord OAuth2 authorization URL
-func (s *serviceImpl) GetDiscordAuthURL(state string) string {
+func (s *userServiceImpl) GetDiscordAuthURL(state string) string {
 	return s.discordConfig.AuthCodeURL(state)
 }
 
 // handleOAuthCallback is a generic handler for OAuth callbacks
-func (s *serviceImpl) handleOAuthCallback(
+func (s *userServiceImpl) handleOAuthCallback(
 	ctx context.Context,
 	code string,
 	config *oauth2.Config,
@@ -57,17 +57,17 @@ func (s *serviceImpl) handleOAuthCallback(
 }
 
 // HandleGoogleCallback processes the Google OAuth2 callback
-func (s *serviceImpl) HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+func (s *userServiceImpl) HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	return s.handleOAuthCallback(ctx, code, s.googleConfig, s.fetchGoogleUserInfo, "google")
 }
 
 // HandleDiscordCallback processes the Discord OAuth2 callback
-func (s *serviceImpl) HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+func (s *userServiceImpl) HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	return s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord")
 }
 
 // fetchGoogleUserInfo retrieves user information from Google API
-func (s *serviceImpl) fetchGoogleUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
+func (s *userServiceImpl) fetchGoogleUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
 	client := s.googleConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *serviceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth2.To
 // - If user exists with provider: Update their info from provider
 // - If user exists with email only: Ask user to confirm linking
 // - If user doesn't exist: Create new user
-func (s *serviceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	// Check if user exists with this provider
 	user, err := s.repo.GetUserByProvider(ctx, userInfo.Provider, userInfo.ProviderUserID)
 	if err != nil {
@@ -263,7 +263,7 @@ func (s *serviceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAut
 }
 
 // createUserFromOAuth creates a new user from OAuth provider information
-func (s *serviceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, error) {
+func (s *userServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, error) {
 	// Generate username from email
 	username := strings.Split(userInfo.Email, "@")[0]
 
@@ -302,12 +302,12 @@ func (s *serviceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.O
 }
 
 // generateJWT creates a JWT token for authenticated user
-func (s *serviceImpl) generateJWT(user *model.User) (string, error) {
+func (s *userServiceImpl) generateJWT(user *model.User) (string, error) {
 	return s.jwtService.GenerateAccessToken(user)
 }
 
 // generateLinkToken creates a temporary token for account linking confirmation
-func (s *serviceImpl) generateLinkToken(userID string, providerInfo *model.OAuthUserInfo) (string, error) {
+func (s *userServiceImpl) generateLinkToken(userID string, providerInfo *model.OAuthUserInfo) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":          userID,
 		"provider":         providerInfo.Provider,
@@ -323,7 +323,7 @@ func (s *serviceImpl) generateLinkToken(userID string, providerInfo *model.OAuth
 }
 
 // ConfirmAccountLink handles user's decision to link or not link accounts
-func (s *serviceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error) {
+func (s *userServiceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error) {
 	// Parse and validate link token
 	claims, err := s.jwtService.ValidateCustomToken(linkToken)
 	if err != nil {
@@ -425,7 +425,7 @@ func getStringClaim(claims jwt.MapClaims, key string) string {
 
 // HandleNativeGoogleSignIn processes native Google Sign-In from mobile apps
 // This method verifies the Google ID token and authenticates the user
-func (s *serviceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error) {
+func (s *userServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error) {
 	// Verify the ID token with Google
 	userInfo, err := s.verifyGoogleIDToken(ctx, idToken)
 	if err != nil {
@@ -447,7 +447,7 @@ func (s *serviceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken stri
 }
 
 // verifyGoogleIDToken verifies Google ID token from native apps
-func (s *serviceImpl) verifyGoogleIDToken(ctx context.Context, idToken string) (*model.OAuthUserInfo, error) {
+func (s *userServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken string) (*model.OAuthUserInfo, error) {
 	// Call Google's tokeninfo endpoint to verify the token
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://oauth2.googleapis.com/tokeninfo?id_token=%s", idToken), nil)
 	if err != nil {

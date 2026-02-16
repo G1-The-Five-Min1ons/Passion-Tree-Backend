@@ -158,7 +158,7 @@ func (s *userServiceImpl) handleFailedLogin(ctx context.Context, user *model.Use
 }
 
 // ValidateToken validates JWT token and returns user
-func (s *serviceImpl) ValidateToken(ctx context.Context, token string) (*model.User, error) {
+func (s *userServiceImpl) ValidateToken(ctx context.Context, token string) (*model.User, error) {
 	if token == "" {
 		return nil, apperror.NewBadRequest("token is required")
 	}

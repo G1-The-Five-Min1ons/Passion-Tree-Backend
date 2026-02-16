@@ -7,7 +7,7 @@ import (
 )
 
 // UpdateProfile updates user profile information
-func (s *serviceImpl) UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error {
+func (s *userServiceImpl) UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error {
 	if userID == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}

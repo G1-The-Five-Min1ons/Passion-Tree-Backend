@@ -42,12 +42,12 @@ type RepositoryToken interface {
 	CreateToken(ctx context.Context, token *model.Token) error
 	GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error)
 	RevokeTokenByValue(ctx context.Context, tokenValue string, tokenType string) error 
-	RevokeAllUserTokens(ctx context.Context, userID string, tokenType string) error    
+	RevokeAllUserTokens(ctx context.Context, userID string, tokenType string) error
 	DeleteExpiredTokens(ctx context.Context) error
 	DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error
 	MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error        
 	GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error) 
-	RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error           
+	RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error
 	ReplaceVerificationToken(ctx context.Context, userID string, newToken *model.Token) error  
 }
 

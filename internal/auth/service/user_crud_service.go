@@ -10,7 +10,7 @@ import (
 )
 
 // CreateUser creates a new user with hashed password
-func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
+func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
 	if user.Email == "" {
 		return "", apperror.NewBadRequest("email is required")
 	}
@@ -26,15 +26,15 @@ func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile 
 
 	// Check if email already exists
 	if existingUser, _ := s.repo.GetUserByEmail(ctx, user.Email); existingUser != nil {
-        s.logger.WarnContext(ctx, "register failed email taken", "email", user.Email)
-        return "", apperror.NewConflict("email already registered")
-    }
+		s.logger.WarnContext(ctx, "register failed email taken", "email", user.Email)
+		return "", apperror.NewConflict("email already registered")
+	}
 
 	// Check if username already exists
 	if existingUser, _ := s.repo.GetUserByUsername(ctx, user.Username); existingUser != nil {
-        s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
-        return "", apperror.NewConflict("username already taken")
-    }
+		s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
+		return "", apperror.NewConflict("username already taken")
+	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -118,7 +118,7 @@ func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile 
 }
 
 // GetUserByID retrieves user and profile by ID
-func (s *serviceImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 	if id == "" {
 		return nil, nil, apperror.NewBadRequest("user_id is required")
 	}
@@ -136,7 +136,7 @@ func (s *serviceImpl) GetUserByID(ctx context.Context, id string) (*model.User, 
 }
 
 // GetUserByEmail retrieves user by email
-func (s *serviceImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	if email == "" {
 		return nil, apperror.NewBadRequest("email is required")
 	}
@@ -154,7 +154,7 @@ func (s *serviceImpl) GetUserByEmail(ctx context.Context, email string) (*model.
 }
 
 // UpdateUser updates user information (only first_name and last_name)
-func (s *serviceImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
+func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
@@ -181,7 +181,7 @@ func (s *serviceImpl) UpdateUser(ctx context.Context, id string, firstName strin
 }
 
 // DeleteUser deletes a user after password confirmation
-func (s *serviceImpl) DeleteUser(ctx context.Context, id string, password string) error {
+func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
@@ -211,5 +211,3 @@ func (s *serviceImpl) DeleteUser(ctx context.Context, id string, password string
 	s.logger.InfoContext(ctx, "user deleted successfully", "user_id", id)
 	return nil
 }
-
-

@@ -11,7 +11,7 @@ import (
 )
 
 // ForgotPassword sends a password reset code to user's email
-func (s *serviceImpl) ForgotPassword(ctx context.Context, email string) error {
+func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) error {
 	if email == "" {
 		return apperror.NewBadRequest("email is required")
 	}
@@ -64,7 +64,7 @@ func (s *serviceImpl) ForgotPassword(ctx context.Context, email string) error {
 }
 
 // ResetPassword resets user password using reset code
-func (s *serviceImpl) ResetPassword(ctx context.Context, code string, newPassword string) error {
+func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPassword string) error {
 	if code == "" {
 		return apperror.NewBadRequest("reset code is required")
 	}
@@ -118,7 +118,7 @@ func (s *serviceImpl) ResetPassword(ctx context.Context, code string, newPasswor
 }
 
 // ChangePassword changes password for authenticated user
-func (s *serviceImpl) ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error {
+func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error {
 	if userID == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}

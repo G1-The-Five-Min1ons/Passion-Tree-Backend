@@ -9,7 +9,7 @@ import (
 )
 
 // VerifyEmail verifies a user's email using verification token
-func (s *serviceImpl) VerifyEmail(ctx context.Context, token string) error {
+func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	if token == "" {
 		return apperror.NewBadRequest("verification token is required")
 	}
@@ -55,7 +55,7 @@ func (s *serviceImpl) VerifyEmail(ctx context.Context, token string) error {
 }
 
 // ResendVerificationEmail resends verification email to user
-func (s *serviceImpl) ResendVerificationEmail(ctx context.Context, email string) error {
+func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email string) error {
 	if email == "" {
 		return apperror.NewBadRequest("email is required")
 	}
@@ -92,7 +92,7 @@ func (s *serviceImpl) ResendVerificationEmail(ctx context.Context, email string)
 	}
 
 	// Send verification email
-	if err := s.SendVerificationEmail(user.Email, verificationToken); err != nil {
+	if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
 		s.logger.ErrorContext(ctx, "send verification email failed", "error", err, "email", user.Email)
 		return apperror.NewInternal("failed to send verification email: %w", err)
 	}
