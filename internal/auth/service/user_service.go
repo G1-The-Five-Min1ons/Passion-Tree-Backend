@@ -14,7 +14,7 @@ import (
 
 // Login authenticates user and returns access and refresh tokens
 // identifier can be either username or email
-func (s *userServiceImpl) Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (string, string, error) {
+func (s *serviceImpl) Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (string, string, error) {
 	if identifier == "" || password == "" {
 		return "", "", apperror.NewBadRequest("identifier and password are required")
 	}
@@ -145,7 +145,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	return accessToken, refreshToken, nil
 }
 
-func (s *userServiceImpl) handleFailedLogin(ctx context.Context, user *model.User) {
+func (s *serviceImpl) handleFailedLogin(ctx context.Context, user *model.User) {
 	newAttempts, err := s.repo.UpdateFailedLogin(ctx, user.UserID, 15*time.Minute)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed_update_attempts", "error", err, "user_id", user.UserID)
@@ -185,7 +185,7 @@ func (s *serviceImpl) ValidateToken(ctx context.Context, token string) (*model.U
 
 // RefreshAccessToken generates new access and refresh tokens using a valid refresh token
 // This implements token rotation for enhanced security
-func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (string, string, error) {
+func (s *serviceImpl) RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (string, string, error) {
 	if refreshToken == "" {
 		return "", "", apperror.NewBadRequest("refresh token is required")
 	}
@@ -300,7 +300,7 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 }
 
 // handleTokenTheft handles potential token theft by revoking all refresh tokens
-func (s *userServiceImpl) handleTokenTheft(ctx context.Context, userID string) {
+func (s *serviceImpl) handleTokenTheft(ctx context.Context, userID string) {
 	// Revoke ALL refresh tokens for this user
 	err := s.repo.RevokeAllUserTokens(ctx, userID, model.TokenTypeRefresh)
 	if err != nil {
@@ -333,7 +333,7 @@ func (s *userServiceImpl) handleTokenTheft(ctx context.Context, userID string) {
 }
 
 // Logout revokes all refresh tokens for a user
-func (s *userServiceImpl) Logout(ctx context.Context, userID string) error {
+func (s *serviceImpl) Logout(ctx context.Context, userID string) error {
 	if userID == "" {
 		return apperror.NewBadRequest("user ID is required")
 	}
@@ -350,7 +350,7 @@ func (s *userServiceImpl) Logout(ctx context.Context, userID string) error {
 }
 
 // GetActiveSessions retrieves all active sessions/devices for a user
-func (s *userServiceImpl) GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error) {
+func (s *serviceImpl) GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error) {
 	if userID == "" {
 		return nil, apperror.NewBadRequest("user ID is required")
 	}
@@ -388,7 +388,7 @@ func (s *userServiceImpl) GetActiveSessions(ctx context.Context, userID string, 
 }
 
 // LogoutSession revokes a specific session by session ID
-func (s *userServiceImpl) LogoutSession(ctx context.Context, userID string, sessionID string) error {
+func (s *serviceImpl) LogoutSession(ctx context.Context, userID string, sessionID string) error {
 	if userID == "" || sessionID == "" {
 		return apperror.NewBadRequest("user ID and session ID are required")
 	}

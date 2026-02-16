@@ -8,18 +8,6 @@ import (
 	"time"
 )
 
-type DBTX interface {
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
-}
-
-type Database interface {
-	DBTX
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-	Close() error
-}
-
 type RepositoryUser interface {
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
@@ -47,7 +35,7 @@ type RepositoryToken interface {
 	DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error
 	MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error        
 	GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error) 
-	RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error           
+	RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error
 	ReplaceVerificationToken(ctx context.Context, userID string, newToken *model.Token) error  
 }
 
@@ -63,19 +51,14 @@ type Repository interface {
 	RepositoryUser
 	RepositoryToken
 	RepositorySocial
-	GetDB() Database
 }
 
 type repositoryImpl struct {
-	db Database
+	db *sql.DB
 }
 
 func NewRepository(ds connection.Database) Repository {
 	return &repositoryImpl{
-		db: ds.GetDB().(Database),
+		db: ds.GetDB(),
 	}
-}
-
-func (r *repositoryImpl) GetDB() Database {
-	return r.db
 }

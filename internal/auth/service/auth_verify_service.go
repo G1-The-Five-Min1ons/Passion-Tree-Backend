@@ -92,9 +92,11 @@ func (s *serviceImpl) ResendVerificationEmail(ctx context.Context, email string)
 	}
 
 	// Send verification email
-	if err := s.SendVerificationEmail(user.Email, verificationToken); err != nil {
-		s.logger.ErrorContext(ctx, "send verification email failed", "error", err, "email", user.Email)
-		return apperror.NewInternal("failed to send verification email: %w", err)
+	if s.emailService != nil {
+		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
+			s.logger.ErrorContext(ctx, "send verification email failed", "error", err, "email", user.Email)
+			return apperror.NewInternal("failed to send verification email: %w", err)
+		}
 	}
 
 	s.logger.InfoContext(ctx, "verification email resent successfully", "user_id", user.UserID)

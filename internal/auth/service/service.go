@@ -11,9 +11,9 @@ import (
 	"passiontree/internal/config"
 	"passiontree/internal/pkg/jwt"
 
+	"github.com/mailersend/mailersend-go"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"github.com/mailersend/mailersend-go"
 )
 
 var (
@@ -62,7 +62,7 @@ type SocialAuthService interface {
 	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 
-type userServiceImpl struct {
+type serviceImpl struct {
 	repo          repository.Repository
 	emailService  EmailService
 	jwtService    *jwt.Service
@@ -79,14 +79,22 @@ type emailServiceImpl struct {
 	logger           *slog.Logger
 }
 
+type emailTemplates struct {
+	verification  *template.Template
+	passwordReset *template.Template
+	securityAlert *template.Template
+}
+
 // --- Constructors ---
 
 func NewUserService(repo repository.Repository, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) UserService {
-	return &userServiceImpl{
-		repo:       repo,
-		config:     cfg,
-		jwtService: jwtSvc,
-		logger:     logger,
+	emailSvc := NewEmailService(cfg, logger)
+	return &serviceImpl{
+		repo:         repo,
+		emailService: emailSvc,
+		config:       cfg,
+		jwtService:   jwtSvc,
+		logger:       logger,
 	}
 }
 
@@ -107,13 +115,15 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 	}
 }
 
-// NewSocialAuthService จะคืนค่าเป็น userServiceImpl ที่มีการตั้งค่า OAuth
+// NewSocialAuthService จะคืนค่าเป็น serviceImpl ที่มีการตั้งค่า OAuth
 func NewSocialAuthService(repo repository.Repository, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) SocialAuthService {
-	return &userServiceImpl{
-		repo:       repo,
-		config:     cfg,
-		jwtService: jwtSvc,
-		logger:     logger,
+	emailSvc := NewEmailService(cfg, logger)
+	return &serviceImpl{
+		repo:         repo,
+		emailService: emailSvc,
+		config:       cfg,
+		jwtService:   jwtSvc,
+		logger:       logger,
 		googleConfig: &oauth2.Config{
 			ClientID:     cfg.GoogleClientID,
 			ClientSecret: cfg.GoogleClientSecret,

@@ -104,13 +104,14 @@ func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile 
 		ExpireAt:  tokenExpiry,
 	}
 	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
-		// Log error but don't fail registration
 		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
 	}
 
 	// Send verification email (don't fail registration if email sending fails)
-	if err := s.SendVerificationEmail(user.Email, verificationToken); err != nil {
-		s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
+	if s.emailService != nil {
+		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
+			s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
+		}
 	}
 
 	s.logger.InfoContext(ctx, "user registered successfully", "user_id", userID)

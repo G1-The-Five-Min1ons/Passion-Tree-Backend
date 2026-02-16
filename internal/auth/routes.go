@@ -23,11 +23,12 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	}
 
 	repo := repository.NewRepository(db)
-	userSvc := service.NewUserServiceWithEmail(repo, cfg, logger)
-	socialAuthSvc := service.NewSocialAuthService(repo, cfg, logger)
-	
+
+	// Initialize services
 	jwtService := jwt.NewService(cfg)
-	userSvc := service.NewUserServiceWithEmail(repo, cfg, logger)
+	userSvc := service.NewUserService(repo, cfg, jwtService, logger)
+	socialAuthSvc := service.NewSocialAuthService(repo, cfg, jwtService, logger)
+
 	h := handler.NewHandler(userSvc, socialAuthSvc, logger)
 
 	auth := r.Group("/auth")
@@ -46,10 +47,10 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		auth.Get("/google/callback", h.GoogleCallback)
 		auth.Get("/discord", h.DiscordLogin)
 		auth.Get("/discord/callback", h.DiscordCallback)
-		
+
 		// Account Linking Confirmation
 		auth.Post("/confirm-link", h.ConfirmAccountLink)
-		
+
 		// Native SSO route (for Android/mobile apps)
 		auth.Post("/native/google", h.NativeGoogleSignIn)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -283,6 +282,19 @@ func (r *repositoryImpl) SetRequire2FANextLogin(ctx context.Context, userID stri
 }
 
 // --- Verification & Failed Logins ---
+
+func (r *repositoryImpl) UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error {
+	query := `UPDATE users SET is_email_verified = @p1 WHERE user_id = @p2`
+	result, err := r.db.ExecContext(ctx, query, isVerified, userID)
+	if err != nil {
+		return err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found or no changes made")
+	}
+	return nil
+}
 
 func (r *repositoryImpl) VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
