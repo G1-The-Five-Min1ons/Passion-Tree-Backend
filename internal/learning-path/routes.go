@@ -26,6 +26,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
+		paths.Get("/user/enroll", h.GetMyPaths)
 		paths.Put("/uploadimg", h.UpdateCoverImage)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
@@ -38,7 +39,6 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Post("/:path_id/nodes", h.CreateNode)
 		paths.Post("/generate", h.Generate)
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
-		paths.Get("/user/enroll", h.GetMyPaths)
 	}
 
 	nodes := protected.Group("/learningpaths/nodes")
