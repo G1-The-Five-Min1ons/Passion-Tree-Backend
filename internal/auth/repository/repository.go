@@ -8,9 +8,19 @@ import (
 	"time"
 )
 
-// Repository defines all auth-related repository methods
-type Repository interface {
-	// User methods
+type DBTX interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+}
+
+type Database interface {
+	DBTX
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	Close() error
+}
+
+type RepositoryUser interface {
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
@@ -25,17 +35,18 @@ type Repository interface {
 	VerifyEmailAndRevokeToken(ctx context.Context, userID string, tokenID string) error
 	UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
-	GetDB() *sql.DB
+}
 
-	// Token methods
+type RepositoryToken interface {
 	CreateToken(ctx context.Context, token *model.Token) error
 	GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error)
 	RevokeToken(ctx context.Context, tokenID string) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID string) error
 	DeleteExpiredTokens(ctx context.Context) error
 	DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error
+}
 
-	// Social Auth methods
+type RepositorySocial interface {
 	GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error)
 	CreateSocialUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error
@@ -43,19 +54,23 @@ type Repository interface {
 	UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error
 }
 
-// repositoryImpl implements Repository interface
-type repositoryImpl struct {
-	db *sql.DB
+type Repository interface {
+	RepositoryUser
+	RepositoryToken
+	RepositorySocial
+	GetDB() Database
 }
 
-// NewRepository creates a new repository instance
+type repositoryImpl struct {
+	db Database
+}
+
 func NewRepository(ds connection.Database) Repository {
 	return &repositoryImpl{
 		db: ds.GetDB(),
 	}
 }
 
-// GetDB returns the database connection for direct queries when needed
-func (r *repositoryImpl) GetDB() *sql.DB {
+func (r *repositoryImpl) GetDB() Database {
 	return r.db
 }
