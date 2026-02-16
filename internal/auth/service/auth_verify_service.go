@@ -15,7 +15,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	}
 
 	// Get token from Token table
-	tokenModel, err := s.tokenRepo.GetTokenByValue(token, model.TokenTypeEmailVerification)
+	tokenModel, err := s.repo.GetTokenByValue(ctx, token, model.TokenTypeEmailVerification)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "verify email token failed", "error", err)
 		return apperror.NewInternal("failed to get verification token: %w", err)
@@ -30,7 +30,7 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 	}
 
 	// Get user
-	user, _, err := s.userRepo.GetUserByID(ctx, tokenModel.UserID)
+	user, _, err := s.repo.GetUserByID(ctx, tokenModel.UserID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "verify email get user id failed", "error", err, "user_id", tokenModel.UserID)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
@@ -44,15 +44,12 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, token string) error {
 		return apperror.NewBadRequest("email already verified")
 	}
 
-	// Update user email verification status
-	if err := s.userRepo.UpdateEmailVerified(ctx, tokenModel.UserID, true); err != nil {
-		s.logger.ErrorContext(ctx, "verify email update status failed", "error", err, "user_id", tokenModel.UserID)
-		return apperror.NewInternal("failed to update email verification status: %w", err)
-	}
+	
 
-	// Revoke the token
-	if err := s.tokenRepo.RevokeToken(tokenModel.TokenID); err != nil {
-		s.logger.WarnContext(ctx, "failed to revoke verification token", "error", err, "token_id", tokenModel.TokenID)
+	// Update email verification status and revoke token in a single transaction
+	if err := s.repo.VerifyEmailWithToken(ctx, tokenModel.UserID, tokenModel.Token, tokenModel.TokenType); err != nil {
+		s.logger.ErrorContext(ctx, "verify email with token failed", "error", err, "user_id", tokenModel.UserID)
+		return apperror.NewInternal("failed to verify email: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "email verified successfully", "user_id", tokenModel.UserID)
@@ -66,19 +63,14 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 	}
 
 	// Get user by email
-	user, err := s.userRepo.GetUserByEmail(ctx, email)
-    if err != nil || user == nil {
-        return apperror.NewNotFound("user not found")
-    }
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil || user == nil {
+		return apperror.NewNotFound("user not found")
+	}
 
-    if user.IsEmailVerified {
-        return apperror.NewBadRequest("email already verified")
-    }
-
-	// Delete old verification tokens for this user
-	if err := s.tokenRepo.DeleteTokensByUserAndType(user.UserID, model.TokenTypeEmailVerification); err != nil {
-        s.logger.WarnContext(ctx, "resend cleanup failed", "error", err, "user_id", user.UserID)
-    }
+	if user.IsEmailVerified {
+		return apperror.NewBadRequest("email already verified")
+	}
 
 	// Generate new verification token
 	verificationToken, err := GenerateVerificationToken()
@@ -87,7 +79,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		return apperror.NewInternal("failed to generate verification token: %w", err)
 	}
 
-	// Save new token to Token table
+	// Replace old token with new one (atomic operation)
 	tokenExpiry := GetVerificationTokenExpiry()
 	tokenModel := &model.Token{
 		UserID:    user.UserID,
@@ -96,9 +88,9 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
-		s.logger.ErrorContext(ctx, "save verification token failed", "error", err, "user_id", user.UserID)
-		return apperror.NewInternal("failed to save verification token: %w", err)
+	if err := s.repo.ReplaceVerificationToken(ctx, user.UserID, tokenModel); err != nil {
+		s.logger.ErrorContext(ctx, "replace verification token failed", "error", err, "user_id", user.UserID)
+		return apperror.NewInternal("failed to replace verification token: %w", err)
 	}
 
 	// Send verification email

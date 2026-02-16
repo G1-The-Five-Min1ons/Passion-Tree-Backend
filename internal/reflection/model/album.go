@@ -28,8 +28,11 @@ type UpdateAlbumRequest struct {
 
 // AlbumResponse represents the response after creating/updating an album
 type AlbumResponse struct {
-	AlbumID       string `json:"album_id"`
-	AlbumName     string `json:"album_name"`
-	TreeCount     int    `json:"tree_count"`
-	CoverImageURL string `json:"cover_image_url"`
+	AlbumID       string    `json:"album_id"`
+	AlbumName     string    `json:"album_name"`
+	TreeCount     int       `json:"tree_count"`
+	CoverImageURL string    `json:"cover_image_url"`
+	UserID        string    `json:"user_id"`
+	CreatedAt     time.Time `json:"created_at"`
+	LastEdit      time.Time `json:"last_edit"`
 }

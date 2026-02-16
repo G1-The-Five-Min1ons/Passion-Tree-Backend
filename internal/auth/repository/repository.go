@@ -1,14 +1,15 @@
 package repository
 
 import (
-	"time"
 	"context"
 	"database/sql"
 	"passiontree/internal/auth/model"
 	"passiontree/internal/connection"
+	"time"
 )
 
-type UserRepository interface {
+type Repository interface {
+	// User Repository Methods
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
@@ -19,21 +20,34 @@ type UserRepository interface {
 	UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error
 	UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
+	SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error
 
-	GetDB() *sql.DB
+	// Token Repository Methods
+	CreateToken(ctx context.Context, token *model.Token) error
+	GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error)
+	RevokeTokenByValue(ctx context.Context, tokenValue string, tokenType string) error
+	RevokeAllUserTokens(ctx context.Context, userID string, tokenType string) error
+	DeleteExpiredTokens(ctx context.Context) error
+	DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error
+	MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error
+	GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error)
+	RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error
+	ReplaceVerificationToken(ctx context.Context, userID string, newToken *model.Token) error
+
+	// Password Management Methods
+	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
+	ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error
+
+	// Email Verification with Transaction
+	VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error
 }
 
-type userRepositoryImpl struct {
+type repositoryImpl struct {
 	db *sql.DB
 }
 
-func NewUserRepository(ds connection.Database) UserRepository {
-	return &userRepositoryImpl{
+func NewRepository(ds connection.Database) Repository {
+	return &repositoryImpl{
 		db: ds.GetDB(),
 	}
-}
-
-// GetDB returns the database connection for direct queries when needed
-func (r *userRepositoryImpl) GetDB() *sql.DB {
-	return r.db
 }

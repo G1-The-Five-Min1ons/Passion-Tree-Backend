@@ -8,6 +8,7 @@ import (
 	"passiontree/internal/auth/service"
 	"passiontree/internal/config"
 	"passiontree/internal/connection"
+	"passiontree/internal/pkg/jwt"
 	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,17 +17,19 @@ import (
 func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger) {
 	// Load configuration for email service
 	cfg, err := config.LoadDBConfig()
-    if err != nil {
-        logger.Error("startup_failed", "error", err) 
-        panic("Failed to load configuration: " + err.Error())
-    }
+	if err != nil {
+		logger.Error("startup_failed", "error", err)
+		panic("Failed to load configuration: " + err.Error())
+	}
 
-	// Initialize repositories
-	userRepo := repository.NewUserRepository(db)
-	tokenRepo := repository.NewTokenRepository(db.GetDB())
+	// Initialize repository
+	repo := repository.NewRepository(db)
+
+	// Initialize JWT service
+	jwtService := jwt.NewService(cfg)
 
 	// Initialize services with email configuration
-	userSvc := service.NewUserServiceWithEmail(userRepo, tokenRepo, cfg, logger)
+	userSvc := service.NewUserServiceWithEmail(repo, cfg, logger)
 
 	h := handler.NewHandler(userSvc, logger)
 
@@ -35,6 +38,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		// Public routes - no authentication required
 		auth.Post("/register", h.Register)
 		auth.Post("/login", middleware.RateLimitMiddleware(), h.Login)
+		auth.Post("/refresh", h.RefreshToken) // Refresh access token
 		auth.Post("/verify-email", h.VerifyEmail)
 		auth.Post("/resend-verification", h.ResendVerificationEmail)
 		auth.Post("/forgot-password", h.ForgotPassword)
@@ -42,8 +46,15 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	}
 
 	// --- Protected Routes (Require JWT) ---
-	protected := auth.Group("/", middleware.JWTMiddleware(logger))
+	protected := auth.Group("/", middleware.JWTMiddleware(jwtService, logger))
 	{
+		// Authentication
+		protected.Post("/logout", h.Logout) // Logout and revoke tokens
+
+		// Multi-device Session Management
+		protected.Get("/sessions", h.GetActiveSessions)            // List all active sessions/devices
+		protected.Delete("/sessions/:session_id", h.LogoutSession) // Logout from a specific device
+
 		// Profile & User Management
 		protected.Get("/profile", h.GetUserProfile)
 		protected.Put("/profile", h.UpdateProfile)
