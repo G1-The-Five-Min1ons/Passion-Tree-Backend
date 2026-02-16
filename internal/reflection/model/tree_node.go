@@ -8,7 +8,7 @@ type TreeNode struct {
 	NodeTitle  string     `json:"node_title"`
 	NodeID     string     `json:"node_id"`
 	NodeScore  *float64   `json:"node_score"`
-	CreatedAt  time.Time  `json:"create_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 	TreeID     string     `json:"tree_id"`
 	ChildNode  *string    `json:"child_node"`
 	Sequence   int        `json:"sequence"`
@@ -35,7 +35,7 @@ type TreeNodeResponse struct {
 	NodeTitle  string     `json:"node_title"`
 	NodeID     string     `json:"node_id"`
 	NodeScore  *float64   `json:"node_score"`
-	CreatedAt  time.Time  `json:"create_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 	TreeID     string     `json:"tree_id"`
 	ChildNode  *string    `json:"child_node"`
 	Sequence   int        `json:"sequence"`

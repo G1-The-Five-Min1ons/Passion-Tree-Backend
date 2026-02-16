@@ -8,7 +8,7 @@ type Album struct {
 	AlbumName     string    `json:"album_name"`
 	TreeCount     int       `json:"tree_count"`
 	CoverImageURL string    `json:"cover_image_url"`
-	CreatedAt     time.Time `json:"create_at"`
+	CreatedAt     time.Time `json:"created_at"`
 	LastEdit      time.Time `json:"last_edit"`
 	UserID        string    `json:"user_id"`
 }
@@ -17,7 +17,7 @@ type Album struct {
 type CreateAlbumRequest struct {
 	UserID       string `json:"user_id"`
 	AlbumName    string `json:"album_name"`
-	CoverImgURL  string `json:"cover_image_url"`
+	CoverImageURL  string `json:"cover_image_url"`
 }
 
 // UpdateAlbumRequest represents the request to update an album
