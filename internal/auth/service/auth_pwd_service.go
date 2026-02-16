@@ -17,7 +17,7 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 	}
 
 	// Get user by email
-	user, err := s.userRepo.GetUserByEmail(ctx, email)
+	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		return apperror.NewInternal("failed to get user by email: %w", err)
 	}
@@ -27,7 +27,7 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 	}
 
 	// Delete old password reset tokens for this user
-	if err := s.tokenRepo.DeleteTokensByUserAndType(user.UserID, model.TokenTypePasswordReset); err != nil {
+	if err := s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypePasswordReset); err != nil {
 		s.logger.WarnContext(ctx, "forgot password cleanup failed", "error", err, "user_id", user.UserID)
 	}
 
@@ -46,18 +46,18 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
+	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
 		return apperror.NewInternal("failed to save reset code: %w", err)
 	}
 
 	// Send password reset email
 	if s.emailService != nil {
-        if err := s.emailService.SendPasswordResetEmail(user.Email, resetCode); err != nil {
-            _ = s.tokenRepo.RevokeToken(tokenModel.TokenID) // Rollback
-            s.logger.ErrorContext(ctx, "forgot pwd email failed", "user_id", user.UserID, "error", err)
-            return apperror.NewInternal("failed to send reset email")
-        }
-    }
+		if err := s.emailService.SendPasswordResetEmail(user.Email, resetCode); err != nil {
+			_ = s.repo.RevokeTokenByValue(ctx, tokenModel.Token, tokenModel.TokenType) // Rollback
+			s.logger.ErrorContext(ctx, "forgot pwd email failed", "user_id", user.UserID, "error", err)
+			return apperror.NewInternal("failed to send reset email")
+		}
+	}
 
 	s.logger.InfoContext(ctx, "forgot password email sent", "user_id", user.UserID, "email", user.Email)
 	return nil
@@ -76,7 +76,7 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	}
 
 	// Get token from Token table
-	tokenModel, err := s.tokenRepo.GetTokenByValue(code, model.TokenTypePasswordReset)
+	tokenModel, err := s.repo.GetTokenByValue(ctx, code, model.TokenTypePasswordReset)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "reset pwd get token failed", "code", code, "err", err)
 		return apperror.NewInternal("failed to get token by value: %w", err)
@@ -91,7 +91,7 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 	}
 
 	// Get user
-	user, _, err := s.userRepo.GetUserByID(ctx, tokenModel.UserID)
+	user, _, err := s.repo.GetUserByID(ctx, tokenModel.UserID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "reset pwd get user failed", "uid", tokenModel.UserID, "err", err)
 		return apperror.NewInternal("failed to get user: %w", err)
@@ -107,32 +107,10 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 
-	// Begin transaction to ensure atomicity
-	tx, err := s.userRepo.GetDB().Begin()
-	if err != nil {
-		s.logger.ErrorContext(ctx, "reset pwd begin tx failed", "user_id", user.UserID, "error", err)
-		return apperror.NewInternal("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback() 
-
-	// Update password in transaction
-	updateQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
-	if _, err := tx.Exec(updateQuery, string(hashedPassword), user.UserID); err != nil {
-		s.logger.ErrorContext(ctx, "reset pwd update failed", "user_id", user.UserID, "error", err)
-		return apperror.NewInternal("failed to update password: %w", err)
-	}
-
-	// Revoke the reset token in transaction
-	revokeQuery := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
-	if _, err := tx.Exec(revokeQuery, tokenModel.TokenID); err != nil {
-		s.logger.ErrorContext(ctx, "reset pwd revoke token failed", "user_id", user.UserID, "error", err)
-		return apperror.NewInternal("failed to revoke token: %w", err)
-	}
-
-	// Commit transaction
-	if err := tx.Commit(); err != nil {
-		s.logger.ErrorContext(ctx, "reset pwd commit tx failed", "user_id", user.UserID, "error", err)
-		return apperror.NewInternal("failed to commit transaction: %w", err)
+	// Reset password and revoke token in transaction
+	if err := s.repo.ResetPasswordWithToken(ctx, user.UserID, string(hashedPassword), tokenModel.TokenID); err != nil {
+		s.logger.ErrorContext(ctx, "reset pwd failed", "user_id", user.UserID, "error", err)
+		return apperror.NewInternal("failed to reset password: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "password reset successful", "user_id", user.UserID)
@@ -155,7 +133,7 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 	}
 
 	// Get user
-	user, _, err := s.userRepo.GetUserByID(ctx, userID)
+	user, _, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "change pwd get user failed", "user_id", userID, "error", err)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
@@ -177,13 +155,12 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 	// Hash new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "change pwd hash failed", "user_id", user.UserID, "error", err)	
+		s.logger.ErrorContext(ctx, "change pwd hash failed", "user_id", user.UserID, "error", err)
 		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 
 	// Update password in database
-	updateQuery := `UPDATE users SET password = @p1 WHERE user_id = @p2`
-	if _, err := s.userRepo.GetDB().Exec(updateQuery, string(hashedPassword), user.UserID); err != nil {
+	if err := s.repo.UpdatePassword(ctx, user.UserID, string(hashedPassword)); err != nil {
 		s.logger.ErrorContext(ctx, "change pwd update failed", "user_id", user.UserID, "error", err)
 		return apperror.NewInternal("failed to update password: %w", err)
 	}
@@ -191,3 +168,5 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 	s.logger.InfoContext(ctx, "password change successful", "user_id", user.UserID)
 	return nil
 }
+
+

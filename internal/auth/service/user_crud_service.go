@@ -22,13 +22,13 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 
 	// Check if email already exists
-	if existingUser, _ := s.userRepo.GetUserByEmail(ctx, user.Email); existingUser != nil {
+	if existingUser, _ := s.repo.GetUserByEmail(ctx, user.Email); existingUser != nil {
         s.logger.WarnContext(ctx, "register failed email taken", "email", user.Email)
         return "", apperror.NewConflict("email already registered")
     }
 
 	// Check if username already exists
-	if existingUser, _ := s.userRepo.GetUserByUsername(ctx, user.Username); existingUser != nil {
+	if existingUser, _ := s.repo.GetUserByUsername(ctx, user.Username); existingUser != nil {
         s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
         return "", apperror.NewConflict("username already taken")
     }
@@ -76,7 +76,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 
 	// Create user and profile
-	userID, err := s.userRepo.CreateUser(ctx, user, profile)
+	userID, err := s.repo.CreateUser(ctx, user, profile)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return "", apperror.NewConflict("user already exists")
@@ -93,7 +93,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.tokenRepo.CreateToken(tokenModel); err != nil {
+	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
 		// Log error but don't fail registration
 		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
 	}
@@ -115,7 +115,7 @@ func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.Us
 		return nil, nil, apperror.NewBadRequest("user_id is required")
 	}
 
-	user, profile, err := s.userRepo.GetUserByID(ctx, id)
+	user, profile, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "get user by ID failed", "error", err, "user_id", id)
 		return nil, nil, apperror.NewInternal("failed to get user by ID: %w", err)
@@ -133,7 +133,7 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 		return nil, apperror.NewBadRequest("email is required")
 	}
 
-	user, err := s.userRepo.GetUserByEmail(ctx, email)
+	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "get user by email failed", "error", err, "email", email)
 		return nil, apperror.NewInternal("failed to get user by email: %w", err)
@@ -152,7 +152,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 	}
 
 	// Check if user exists
-	existingUser, _, err := s.userRepo.GetUserByID(ctx, id)
+	existingUser, _, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "update user failed", "error", err, "user_id", id)
 		return apperror.NewInternal("failed to get user by ID: %w", err)
@@ -161,7 +161,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 		return apperror.NewNotFound("user with id '%s' not found", id)
 	}
 
-	if err := s.userRepo.UpdateUser(ctx, id, firstName, lastName); err != nil {
+	if err := s.repo.UpdateUser(ctx, id, firstName, lastName); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("username already taken")
 		}
@@ -182,7 +182,7 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 	}
 
 	// Get user and verify password
-	user, _, err := s.userRepo.GetUserByID(ctx, id)
+	user, _, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		return apperror.NewInternal("failed to get user by ID: %w", err)
 	}
@@ -196,10 +196,12 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 		return apperror.NewUnauthorized("incorrect password")
 	}
 
-	if err := s.userRepo.DeleteUser(ctx, id); err != nil {
+	if err := s.repo.DeleteUser(ctx, id); err != nil {
 		return apperror.NewInternal("failed to delete user: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "user deleted successfully", "user_id", id)
 	return nil
 }
+
+
