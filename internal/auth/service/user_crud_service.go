@@ -86,6 +86,16 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 
 	// Create user and profile
+	// Nil checks for repo and emailService
+	if s.repo == nil {
+		s.logger.ErrorContext(ctx, "userServiceImpl.repo is nil")
+		return "", apperror.NewInternal("internal server error: repository is nil")
+	}
+	if s.emailService == nil {
+		s.logger.ErrorContext(ctx, "userServiceImpl.emailService is nil")
+		return "", apperror.NewInternal("internal server error: email service is nil")
+	}
+
 	userID, err := s.repo.CreateUser(ctx, user, profile)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
@@ -103,14 +113,18 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
-		// Log error but don't fail registration
-		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
-	}
+	   if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
+		   s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
+		   return "", apperror.NewInternal("failed to save verification token: %w", err)
+	   }
 
 	// Send verification email (don't fail registration if email sending fails)
-	if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
-		s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
+	if user.Email == "" {
+		s.logger.WarnContext(ctx, "user email is empty, skipping verification email", "user_id", userID)
+	} else {
+		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
+			s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
+		}
 	}
 
 	s.logger.InfoContext(ctx, "user registered successfully", "user_id", userID)
