@@ -109,7 +109,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 
 	// Send verification email (don't fail registration if email sending fails)
-	if err := s.SendVerificationEmail(user.Email, verificationToken); err != nil {
+	if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
 		s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
 	}
 
