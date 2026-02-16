@@ -11,18 +11,16 @@ import (
 )
 
 // JWTMiddleware validates JWT token from Authorization header
-func JWTMiddleware(logger *slog.Logger) fiber.Handler {
-	jwtService := jwt.NewService()
-
+func JWTMiddleware(jwtService *jwt.Service, logger *slog.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Get Authorization header
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			logger.WarnContext(c.UserContext(), "unauthorized_access_attempt",
-                "reason", "missing_header",
-                "ip", c.IP(),
-                "path", c.Path(),
-            )
+				"reason", "missing_header",
+				"ip", c.IP(),
+				"path", c.Path(),
+			)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"success": false,
 				"error":   "missing authorization header",
@@ -33,9 +31,9 @@ func JWTMiddleware(logger *slog.Logger) fiber.Handler {
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
 			logger.WarnContext(c.UserContext(), "unauthorized_access_attempt",
-                "reason", "invalid_format",
-                "ip", c.IP(),
-            )
+				"reason", "invalid_format",
+				"ip", c.IP(),
+			)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"success": false,
 				"error":   "invalid authorization header format",
@@ -48,11 +46,11 @@ func JWTMiddleware(logger *slog.Logger) fiber.Handler {
 		claims, err := jwtService.ValidateToken(tokenString)
 		if err != nil {
 			logger.WarnContext(c.UserContext(), "security_anomaly",
-                "reason", "invalid_or_expired_token",
-                "err", err.Error(),
-                "ip", c.IP(),
-                "path", c.Path(),
-            )
+				"reason", "invalid_or_expired_token",
+				"err", err.Error(),
+				"ip", c.IP(),
+				"path", c.Path(),
+			)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"success": false,
 				"error":   "invalid or expired token",

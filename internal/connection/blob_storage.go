@@ -15,7 +15,7 @@ func InitBlobStorage(cfg *config.Config) (*storage.BlobService, error) {
 		return nil, fmt.Errorf("Azure Storage connection string is not configured")
 	}
 
-    // 1. สร้าง Low-level Client
+	// 1. สร้าง Low-level Client
 	client, err := azblob.NewClientFromConnectionString(cfg.AzureStorageConnString, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Azure Storage client: %w", err)
@@ -24,28 +24,31 @@ func InitBlobStorage(cfg *config.Config) (*storage.BlobService, error) {
 	// 2. Extract ข้อมูลที่จำเป็น
 	accountName := extractAccountName(cfg.AzureStorageConnString)
 	accountKey := extractAccountKey(cfg.AzureStorageConnString)
+	containerMap := map[string]string{
+		"learning-path": cfg.ContainerLearningPath,
+		"profile":       cfg.ContainerProfile,
+	}
 
-    // 3. ส่งต่อ Client และ Config ไปให้ package storage จัดการต่อ
+	// 3. ส่งต่อ Client และ Config ไปให้ package storage จัดการต่อ
 	return storage.NewBlobService(
 		client,
 		accountName,
 		accountKey,
-		cfg.ContainerLearningPath,
-		cfg.ContainerProfile,
+		containerMap,
 	), nil
 }
 
 // extractAccountName ดึงชื่อ storage account จาก connection string
 func extractAccountName(connString string) string {
-    parts := strings.Split(connString, ";")
+	parts := strings.Split(connString, ";")
 
-    for _, part := range parts {
-        if strings.HasPrefix(part, "AccountName=") {
-            return strings.TrimPrefix(part, "AccountName=")
-        }
-    }
+	for _, part := range parts {
+		if strings.HasPrefix(part, "AccountName=") {
+			return strings.TrimPrefix(part, "AccountName=")
+		}
+	}
 
-    return ""
+	return ""
 }
 
 func extractAccountKey(connString string) string {

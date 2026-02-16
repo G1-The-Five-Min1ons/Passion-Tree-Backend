@@ -51,10 +51,12 @@ func (s *serviceImpl) ForgotPassword(ctx context.Context, email string) error {
 	}
 
 	// Send password reset email
-	if err := s.SendPasswordResetEmail(user.Email, resetCode); err != nil {
-		_ = s.repo.RevokeToken(ctx, tokenModel.TokenID) // Rollback
-		s.logger.ErrorContext(ctx, "forgot pwd email failed", "user_id", user.UserID, "error", err)
-		return apperror.NewInternal("failed to send reset email")
+	if s.emailService != nil {
+		if err := s.emailService.SendPasswordResetEmail(user.Email, resetCode); err != nil {
+			_ = s.repo.RevokeTokenByValue(ctx, tokenModel.Token, tokenModel.TokenType) // Rollback
+			s.logger.ErrorContext(ctx, "forgot pwd email failed", "user_id", user.UserID, "error", err)
+			return apperror.NewInternal("failed to send reset email")
+		}
 	}
 
 	s.logger.InfoContext(ctx, "forgot password email sent", "user_id", user.UserID, "email", user.Email)
@@ -153,7 +155,7 @@ func (s *serviceImpl) ChangePassword(ctx context.Context, userID string, oldPass
 	// Hash new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "change pwd hash failed", "user_id", user.UserID, "error", err)	
+		s.logger.ErrorContext(ctx, "change pwd hash failed", "user_id", user.UserID, "error", err)
 		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 

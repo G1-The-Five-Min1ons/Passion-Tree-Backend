@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	_ "embed"
+	"html/template"
 	"log/slog"
 
 	"passiontree/internal/auth/model"
@@ -11,6 +13,16 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"github.com/mailersend/mailersend-go"
+)
+
+var (
+	// go:embed templates/verification.html
+	verificationTemplate string
+	// go:embed templates/password_reset.html
+	passwordResetTemplate string
+	// go:embed templates/security_alert.html
+	securityAlertTemplate string
 )
 
 type UserService interface {
@@ -20,18 +32,25 @@ type UserService interface {
 	UpdateUser(ctx context.Context, id string, firstName string, lastName string) error
 	UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error
 	DeleteUser(ctx context.Context, id string, password string) error
-	Login(ctx context.Context, identifier string, password string) (string, error)
+	Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (accessToken, refreshToken string, err error)
+	RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (newAccessToken, newRefreshToken string, err error)
+	Logout(ctx context.Context, userID string) error
 	ValidateToken(ctx context.Context, token string) (*model.User, error)
 	VerifyEmail(ctx context.Context, token string) error
 	ResendVerificationEmail(ctx context.Context, email string) error
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, code string, newPassword string) error
 	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
+
+	// Multi-device Session Management
+	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
+	LogoutSession(ctx context.Context, userID string, sessionID string) error
 }
 
 type EmailService interface {
 	SendVerificationEmail(to, token string) error
 	SendPasswordResetEmail(to, token string) error
+	SendSecurityAlertEmail(to, userID string) error
 }
 
 type SocialAuthService interface {
@@ -39,76 +58,68 @@ type SocialAuthService interface {
 	GetDiscordAuthURL(state string) string
 	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
-	// Native SSO method for Android/mobile apps
 	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
-	// Confirm account linking
 	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 
-// serviceImpl implements UserService, EmailService, and SocialAuthService
-type serviceImpl struct {
+type userServiceImpl struct {
 	repo          repository.Repository
-	emailConfig   *config.Config
+	emailService  EmailService
+	jwtService    *jwt.Service
+	config        *config.Config
+	logger        *slog.Logger
 	googleConfig  *oauth2.Config
 	discordConfig *oauth2.Config
-	jwtService    *jwt.Service
-	logger        *slog.Logger
 }
 
-// NewUserService creates a new UserService instance
-func NewUserService(repo repository.Repository, logger *slog.Logger) UserService {
-	return &serviceImpl{
-		repo:   repo,
+type emailServiceImpl struct {
+	mailersendClient *mailersend.Mailersend
+	templates        *emailTemplates
+	config           *config.Config
+	logger           *slog.Logger
+}
+
+// --- Constructors ---
+
+func NewUserService(repo repository.Repository, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) UserService {
+	return &userServiceImpl{
+		repo:       repo,
+		config:     cfg,
+		jwtService: jwtSvc,
+		logger:     logger,
+	}
+}
+
+func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
+	verificationTmpl := template.Must(template.New("verification").Parse(verificationTemplate))
+	passwordResetTmpl := template.Must(template.New("passwordReset").Parse(passwordResetTemplate))
+	securityAlertTmpl := template.Must(template.New("securityAlert").Parse(securityAlertTemplate))
+
+	return &emailServiceImpl{
+		mailersendClient: mailersend.NewMailersend(cfg.MailerSendAPIKey),
+		templates: &emailTemplates{
+			verification:  verificationTmpl,
+			passwordReset: passwordResetTmpl,
+			securityAlert: securityAlertTmpl,
+		},
+		config: cfg,
 		logger: logger,
 	}
 }
 
-// NewEmailService creates a new EmailService instance
-func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
-	return &serviceImpl{
-		emailConfig: cfg,
-		logger:      logger,
-	}
-}
-
-// NewUserServiceWithEmail creates a UserService with email capabilities
-func NewUserServiceWithEmail(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
-	svc := &serviceImpl{
-		repo:        repo,
-		emailConfig: cfg,
-		logger:      logger,
-	}
-
-	// Log email service initialization status
-	if cfg.SMTPHost != "" {
-		svc.logger.Info("Email service initialized (SMTP)")
-	} else if cfg.MailerSendAPIKey != "" {
-		svc.logger.Info("Email service initialized (MailerSend API)")
-	} else {
-		svc.logger.Warn("Email service NOT initialized - no email configuration found")
-	}
-
-	return svc
-}
-
-// NewSocialAuthService creates a new SocialAuthService instance
-func NewSocialAuthService(
-	repo repository.Repository,
-	cfg *config.Config,
-	logger *slog.Logger,
-) SocialAuthService {
-	return &serviceImpl{
+// NewSocialAuthService จะคืนค่าเป็น userServiceImpl ที่มีการตั้งค่า OAuth
+func NewSocialAuthService(repo repository.Repository, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) SocialAuthService {
+	return &userServiceImpl{
 		repo:       repo,
-		jwtService: jwt.NewService(),
+		config:     cfg,
+		jwtService: jwtSvc,
+		logger:     logger,
 		googleConfig: &oauth2.Config{
 			ClientID:     cfg.GoogleClientID,
 			ClientSecret: cfg.GoogleClientSecret,
 			RedirectURL:  cfg.GoogleRedirectURL,
-			Scopes: []string{
-				"https://www.googleapis.com/auth/userinfo.email",
-				"https://www.googleapis.com/auth/userinfo.profile",
-			},
-			Endpoint: google.Endpoint,
+			Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+			Endpoint:     google.Endpoint,
 		},
 		discordConfig: &oauth2.Config{
 			ClientID:     cfg.DiscordClientID,
@@ -120,6 +131,5 @@ func NewSocialAuthService(
 				TokenURL: "https://discord.com/api/oauth2/token",
 			},
 		},
-		logger: logger,
 	}
 }

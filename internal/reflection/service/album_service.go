@@ -39,6 +39,9 @@ func (s *serviceImpl) CreateAlbum(ctx context.Context, req model.CreateAlbumRequ
 		AlbumName:     album.AlbumName,
 		TreeCount:     album.TreeCount,
 		CoverImageURL: album.CoverImageURL,
+		UserID:        album.UserID,
+		CreatedAt:     album.CreatedAt,
+		LastEdit:      album.LastEdit,
 	}, nil
 }
 
@@ -70,16 +73,15 @@ func (s *serviceImpl) GetAlbumsByUserID(ctx context.Context, userID string) ([]m
 	albums, err := s.refRepo.GetAlbumsByUserID(ctx, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			s.logger.WarnContext(ctx, "no albums found for user", "user_id", userID)
-			return nil, apperror.NewNotFound("albums for user with id '%s' not found", userID)
-		}
+            return []model.Album{}, nil 
+        }
 		s.logger.ErrorContext(ctx, "failed to fetch user albums", "error", err, "user_id", userID)
 		return nil, apperror.NewInternal("failed to fetch user albums: %w", err)
 	}
 	
-	if len(albums) == 0 {
+	if albums == nil {
 		s.logger.InfoContext(ctx, "user has an empty album list", "user_id", userID)
-		return nil, apperror.NewNotFound("albums for user with id '%s' not found", userID)
+		return []model.Album{}, nil
 	}
 
 	s.logger.InfoContext(ctx, "successfully retrieved user albums", "user_id", userID, "count", len(albums))

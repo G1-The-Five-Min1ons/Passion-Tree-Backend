@@ -32,18 +32,23 @@ type RepositoryUser interface {
 	ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error
 	DeleteUser(ctx context.Context, id string) error
 	UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error
-	VerifyEmailAndRevokeToken(ctx context.Context, userID string, tokenID string) error
+	VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error 
 	UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
+	SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error 
 }
 
 type RepositoryToken interface {
 	CreateToken(ctx context.Context, token *model.Token) error
 	GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error)
-	RevokeToken(ctx context.Context, tokenID string) error
-	RevokeAllUserRefreshTokens(ctx context.Context, userID string) error
+	RevokeTokenByValue(ctx context.Context, tokenValue string, tokenType string) error 
+	RevokeAllUserTokens(ctx context.Context, userID string, tokenType string) error    
 	DeleteExpiredTokens(ctx context.Context) error
 	DeleteTokensByUserAndType(ctx context.Context, userID string, tokenType string) error
+	MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error        
+	GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error) 
+	RevokeTokenByIDForUser(ctx context.Context, tokenID string, userID string) error           
+	ReplaceVerificationToken(ctx context.Context, userID string, newToken *model.Token) error  
 }
 
 type RepositorySocial interface {
@@ -67,7 +72,7 @@ type repositoryImpl struct {
 
 func NewRepository(ds connection.Database) Repository {
 	return &repositoryImpl{
-		db: ds.GetDB(),
+		db: ds.GetDB().(Database),
 	}
 }
 

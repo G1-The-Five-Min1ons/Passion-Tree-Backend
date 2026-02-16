@@ -24,6 +24,18 @@ func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile 
 		return "", apperror.NewBadRequest("username is required")
 	}
 
+	// Check if email already exists
+	if existingUser, _ := s.repo.GetUserByEmail(ctx, user.Email); existingUser != nil {
+        s.logger.WarnContext(ctx, "register failed email taken", "email", user.Email)
+        return "", apperror.NewConflict("email already registered")
+    }
+
+	// Check if username already exists
+	if existingUser, _ := s.repo.GetUserByUsername(ctx, user.Username); existingUser != nil {
+        s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
+        return "", apperror.NewConflict("username already taken")
+    }
+
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -199,3 +211,5 @@ func (s *serviceImpl) DeleteUser(ctx context.Context, id string, password string
 	s.logger.InfoContext(ctx, "user deleted successfully", "user_id", id)
 	return nil
 }
+
+

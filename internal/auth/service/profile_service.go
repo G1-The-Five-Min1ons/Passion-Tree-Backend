@@ -37,3 +37,4 @@ func (s *serviceImpl) UpdateProfile(ctx context.Context, userID string, profile 
 	s.logger.InfoContext(ctx, "profile updated successfully", "user_id", userID)
 	return nil
 }
+

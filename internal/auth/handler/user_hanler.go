@@ -2,10 +2,10 @@ package handler
 
 import (
 	"context"
-	"time"
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -45,15 +45,24 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	// Extract device info for token tracking
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
 	// Auto-login หลังจากสมัครสมาชิกสำเร็จ
-	token, _ := h.userSvc.Login(ctx, req.Username, req.Password)
+	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Username, req.Password, deviceInfo, ipAddress, userAgent)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "User registered successfully",
 		"data": fiber.Map{
-			"user_id": userID,
-			"token":   token,
+			"user_id":       userID,
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
 		},
 	})
 }
@@ -68,14 +77,22 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	token, err := h.userSvc.Login(ctx, req.Identifier, req.Password)
+	// Extract device info for session tracking
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
+	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Identifier, req.Password, deviceInfo, ipAddress, userAgent)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"data":    fiber.Map{"token": token},
+		"data": fiber.Map{
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+		},
 	})
 }
 
@@ -159,5 +176,112 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"user_id": userID,
 		},
+	})
+}
+
+// RefreshToken generates a new access token and refresh token using token rotation
+func (h *Handler) RefreshToken(c *fiber.Ctx) error {
+	var req model.RefreshTokenRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	if req.RefreshToken == "" {
+		return h.handleError(c, apperror.NewBadRequest("refresh_token is required"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	// Extract device info for new token
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
+	accessToken, newRefreshToken, err := h.userSvc.RefreshAccessToken(ctx, req.RefreshToken, deviceInfo, ipAddress, userAgent)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Tokens refreshed successfully",
+		"data": fiber.Map{
+			"access_token":  accessToken,
+			"refresh_token": newRefreshToken,
+		},
+	})
+}
+
+// Logout revokes all refresh tokens for the authenticated user
+func (h *Handler) Logout(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.userSvc.Logout(ctx, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Logged out successfully",
+	})
+}
+
+// GetActiveSessions retrieves all active sessions/devices for the authenticated user
+func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	// Try to get current refresh token from request body (optional)
+	var req struct {
+		CurrentRefreshToken string `json:"current_refresh_token"`
+	}
+	_ = c.BodyParser(&req)
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	sessions, err := h.userSvc.GetActiveSessions(ctx, userID, req.CurrentRefreshToken)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Active sessions retrieved successfully",
+		"data":    sessions,
+	})
+}
+
+// LogoutSession revokes a specific session by session ID
+func (h *Handler) LogoutSession(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	sessionID := c.Params("session_id")
+	if sessionID == "" {
+		return h.handleError(c, apperror.NewBadRequest("session_id is required"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.userSvc.LogoutSession(ctx, userID, sessionID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Session logged out successfully",
 	})
 }

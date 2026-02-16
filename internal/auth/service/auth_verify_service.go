@@ -42,11 +42,11 @@ func (s *serviceImpl) VerifyEmail(ctx context.Context, token string) error {
 	// Check if already verified
 	if user.IsEmailVerified {
 		return apperror.NewBadRequest("email already verified")
-	}
+	}	
 
-	// Verify email and revoke token in transaction
-	if err := s.repo.VerifyEmailAndRevokeToken(ctx, tokenModel.UserID, tokenModel.TokenID); err != nil {
-		s.logger.ErrorContext(ctx, "verify email transaction failed", "error", err, "user_id", tokenModel.UserID)
+	// Update email verification status and revoke token in a single transaction
+	if err := s.repo.VerifyEmailWithToken(ctx, tokenModel.UserID, tokenModel.Token, tokenModel.TokenType); err != nil {
+		s.logger.ErrorContext(ctx, "verify email with token failed", "error", err, "user_id", tokenModel.UserID)
 		return apperror.NewInternal("failed to verify email: %w", err)
 	}
 
@@ -62,18 +62,13 @@ func (s *serviceImpl) ResendVerificationEmail(ctx context.Context, email string)
 
 	// Get user by email
 	user, err := s.repo.GetUserByEmail(ctx, email)
-    if err != nil || user == nil {
-        return apperror.NewNotFound("user not found")
-    }
+	if err != nil || user == nil {
+		return apperror.NewNotFound("user not found")
+	}
 
-    if user.IsEmailVerified {
-        return apperror.NewBadRequest("email already verified")
-    }
-
-	// Delete old verification tokens for this user
-	if err := s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypeEmailVerification); err != nil {
-        s.logger.WarnContext(ctx, "resend cleanup failed", "error", err, "user_id", user.UserID)
-    }
+	if user.IsEmailVerified {
+		return apperror.NewBadRequest("email already verified")
+	}
 
 	// Generate new verification token
 	verificationToken, err := GenerateVerificationToken()
@@ -82,7 +77,7 @@ func (s *serviceImpl) ResendVerificationEmail(ctx context.Context, email string)
 		return apperror.NewInternal("failed to generate verification token: %w", err)
 	}
 
-	// Save new token to Token table
+	// Replace old token with new one (atomic operation)
 	tokenExpiry := GetVerificationTokenExpiry()
 	tokenModel := &model.Token{
 		UserID:    user.UserID,
@@ -91,9 +86,9 @@ func (s *serviceImpl) ResendVerificationEmail(ctx context.Context, email string)
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
-		s.logger.ErrorContext(ctx, "save verification token failed", "error", err, "user_id", user.UserID)
-		return apperror.NewInternal("failed to save verification token: %w", err)
+	if err := s.repo.ReplaceVerificationToken(ctx, user.UserID, tokenModel); err != nil {
+		s.logger.ErrorContext(ctx, "replace verification token failed", "error", err, "user_id", user.UserID)
+		return apperror.NewInternal("failed to replace verification token: %w", err)
 	}
 
 	// Send verification email
