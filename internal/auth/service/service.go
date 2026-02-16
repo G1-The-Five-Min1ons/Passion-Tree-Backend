@@ -1,4 +1,3 @@
-
 package service
 
 import (
@@ -12,9 +11,9 @@ import (
 	"passiontree/internal/config"
 	"passiontree/internal/pkg/jwt"
 
+	"github.com/mailersend/mailersend-go"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"github.com/mailersend/mailersend-go"
 )
 
 var (
@@ -72,6 +71,7 @@ type userServiceImpl struct {
 	googleConfig  *oauth2.Config
 	discordConfig *oauth2.Config
 }
+
 // emailTemplates holds parsed HTML templates for email notifications
 type emailTemplates struct {
 	verification  *template.Template
@@ -87,12 +87,13 @@ type emailServiceImpl struct {
 
 // --- Constructors ---
 
-func NewUserService(repo repository.Repository, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) UserService {
+func NewUserService(repo repository.Repository, emailSvc EmailService, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) UserService {
 	return &userServiceImpl{
-		repo:       repo,
-		config:     cfg,
-		jwtService: jwtSvc,
-		logger:     logger,
+		repo:         repo,
+		config:       cfg,
+		emailService: emailSvc,
+		jwtService:   jwtSvc,
+		logger:       logger,
 	}
 }
 
