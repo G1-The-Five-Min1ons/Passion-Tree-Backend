@@ -100,7 +100,7 @@ func (s *userServiceImpl) fetchGoogleUserInfo(ctx context.Context, token *oauth2
 }
 
 // fetchDiscordUserInfo retrieves user information from Discord API
-func (s *serviceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
+func (s *userServiceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth2.Token) (*model.OAuthUserInfo, error) {
 	client := s.discordConfig.Client(ctx, token)
 	resp, err := client.Get("https://discord.com/api/users/@me")
 	if err != nil {
