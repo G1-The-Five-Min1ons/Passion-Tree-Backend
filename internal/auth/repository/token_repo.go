@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateToken creates a new token with full session tracking
+// CreateToken creates a new token
 func (r *repositoryImpl) CreateToken(ctx context.Context, token *model.Token) error {
+
 	if token.TokenID == "" {
 		token.TokenID = uuid.New().String()
 	}
@@ -41,7 +42,7 @@ func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string,
 		device_info, ip_address, user_agent, last_used_at, max_expires_at,
 		CONVERT(VARCHAR(36), parent_token_id) as parent_token_id, is_rotated
 		FROM Token 
-		WHERE token = @p1 AND token_type = @p2`
+		WHERE token = @p1 AND token_type = @p2 AND is_revoke = 0`
 
 	var token model.Token
 	err := r.db.QueryRowContext(ctx, query, tokenValue, tokenType).Scan(
@@ -57,6 +58,26 @@ func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string,
 		return nil, fmt.Errorf("get token by value failed: %w", err)
 	}
 	return &token, nil
+}
+
+// RevokeToken marks a token as revoked
+func (r *repositoryImpl) RevokeToken(ctx context.Context, tokenID string) error {
+	query := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
+	_, err := r.db.ExecContext(ctx, query, tokenID)
+	if err != nil {
+		return fmt.Errorf("revoke token failed: %w", err)
+	}
+	return nil
+}
+
+// RevokeAllUserRefreshTokens revokes all refresh tokens for a user (invalidates all sessions)
+func (r *repositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, userID string) error {
+	query := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
+	_, err := r.db.ExecContext(ctx, query, userID, model.TokenTypeRefresh)
+	if err != nil {
+		return fmt.Errorf("revoke all user refresh tokens failed: %w", err)
+	}
+	return nil
 }
 
 // DeleteExpiredTokens removes all expired tokens

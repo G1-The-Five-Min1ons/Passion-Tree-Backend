@@ -33,6 +33,19 @@ const (
 	EnvSMTPFromEmail          = "SMTP_FROM_EMAIL"
 	EnvMailerSendAPIKey       = "MAILERSEND_API_KEY"
 	EnvAppURL                 = "APP_URL"
+	
+	// OAuth Environment variables
+	EnvGoogleClientID       = "GOOGLE_CLIENT_ID"
+	EnvGoogleClientSecret   = "GOOGLE_CLIENT_SECRET"
+	EnvGoogleRedirectURL    = "GOOGLE_REDIRECT_URL"
+	EnvDiscordClientID      = "DISCORD_CLIENT_ID"
+	EnvDiscordClientSecret  = "DISCORD_CLIENT_SECRET"
+	EnvDiscordRedirectURL   = "DISCORD_REDIRECT_URL"
+	
+	// JWT Environment variables
+	EnvJWTSecret            = "JWT_SECRET"
+	EnvJWTAccessTTL         = "JWT_ACCESS_TTL"
+	EnvJWTRefreshTTL        = "JWT_REFRESH_TTL"
 	EnvJWTSecret              = "JWT_SECRET"
 	EnvJWTAccessTTL           = "JWT_ACCESS_TTL"
 	EnvJWTRefreshTTL          = "JWT_REFRESH_TTL"
@@ -58,6 +71,19 @@ type Config struct {
 	SMTPFromEmail          string
 	MailerSendAPIKey       string
 	AppURL                 string
+	
+	// OAuth settings
+	GoogleClientID       string
+	GoogleClientSecret   string
+	GoogleRedirectURL    string
+	DiscordClientID      string
+	DiscordClientSecret  string
+	DiscordRedirectURL   string
+	
+	// JWT settings
+	JWTSecret            string
+	JWTAccessTTL         string
+	JWTRefreshTTL        string
 	JWTSecret              string
 	JWTAccessTTL           string // in hours
 	JWTRefreshTTL          string // in hours (sliding window)
@@ -79,6 +105,20 @@ func LoadDBConfig() (*Config, error) {
 		AIServiceURL:           getEnvOrDefault(EnvAIServiceURL, DefaultAIServiceURL),
 		AzureStorageConnString: os.Getenv(EnvAzureStorageConnString),
 		ContainerLearningPath:  getEnvOrDefault(EnvContainerLearningPath, DefaultContainerLearning),
+		
+		// OAuth settings
+		GoogleClientID:       os.Getenv(EnvGoogleClientID),
+		GoogleClientSecret:   os.Getenv(EnvGoogleClientSecret),
+		GoogleRedirectURL:    getEnvOrDefault(EnvGoogleRedirectURL, "http://localhost:5000/auth/google/callback"),
+		DiscordClientID:      os.Getenv(EnvDiscordClientID),
+		DiscordClientSecret:  os.Getenv(EnvDiscordClientSecret),
+		DiscordRedirectURL:   getEnvOrDefault(EnvDiscordRedirectURL, "http://localhost:5000/auth/discord/callback"),
+		
+		// JWT settings
+		JWTSecret:            getEnvOrDefault(EnvJWTSecret, "passion-tree-secret-key-2024"),
+		JWTAccessTTL:         getEnvOrDefault(EnvJWTAccessTTL, "24"),
+		JWTRefreshTTL:        getEnvOrDefault(EnvJWTRefreshTTL, "168"),
+		
 		ContainerProfile:       getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
 		SMTPHost:               os.Getenv(EnvSMTPHost),
 		SMTPPort:               getEnvOrDefault(EnvSMTPPort, "587"),

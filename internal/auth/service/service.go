@@ -11,6 +11,8 @@ import (
 	"passiontree/internal/config"
 	"passiontree/internal/pkg/jwt"
 
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"github.com/mailersend/mailersend-go"
 )
 
@@ -51,12 +53,23 @@ type EmailService interface {
 	SendSecurityAlertEmail(to, userID string) error
 }
 
+type SocialAuthService interface {
+	GetGoogleAuthURL(state string) string
+	GetDiscordAuthURL(state string) string
+	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
+	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
+	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
+	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
+}
+
 type userServiceImpl struct {
-	repo         repository.Repository
-	emailService EmailService
-	jwtService   *jwt.Service
-	config       *config.Config
-	logger       *slog.Logger
+	repo          repository.Repository
+	emailService  EmailService
+	jwtService    *jwt.Service
+	config        *config.Config
+	logger        *slog.Logger
+	googleConfig  *oauth2.Config
+	discordConfig *oauth2.Config
 }
 
 type emailServiceImpl struct {
@@ -66,22 +79,18 @@ type emailServiceImpl struct {
 	logger           *slog.Logger
 }
 
-type emailTemplates struct {
-	verification  *template.Template
-	passwordReset *template.Template
-	securityAlert *template.Template
-}
+// --- Constructors ---
 
-func NewUserService(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
+func NewUserService(repo repository.Repository, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) UserService {
 	return &userServiceImpl{
-		repo:   repo,
-		config: cfg,
-		logger: logger,
+		repo:       repo,
+		config:     cfg,
+		jwtService: jwtSvc,
+		logger:     logger,
 	}
 }
 
 func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
-	// Parse templates once at initialization
 	verificationTmpl := template.Must(template.New("verification").Parse(verificationTemplate))
 	passwordResetTmpl := template.Must(template.New("passwordReset").Parse(passwordResetTemplate))
 	securityAlertTmpl := template.Must(template.New("securityAlert").Parse(securityAlertTemplate))
@@ -98,30 +107,29 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 	}
 }
 
-// NewUserServiceWithEmail creates a new UserService with email service configured
-func NewUserServiceWithEmail(repo repository.Repository, cfg *config.Config, logger *slog.Logger) UserService {
-	svc := &userServiceImpl{
+// NewSocialAuthService จะคืนค่าเป็น userServiceImpl ที่มีการตั้งค่า OAuth
+func NewSocialAuthService(repo repository.Repository, cfg *config.Config, jwtSvc *jwt.Service, logger *slog.Logger) SocialAuthService {
+	return &userServiceImpl{
 		repo:       repo,
 		config:     cfg,
+		jwtService: jwtSvc,
 		logger:     logger,
-		jwtService: jwt.NewService(cfg),
+		googleConfig: &oauth2.Config{
+			ClientID:     cfg.GoogleClientID,
+			ClientSecret: cfg.GoogleClientSecret,
+			RedirectURL:  cfg.GoogleRedirectURL,
+			Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+			Endpoint:     google.Endpoint,
+		},
+		discordConfig: &oauth2.Config{
+			ClientID:     cfg.DiscordClientID,
+			ClientSecret: cfg.DiscordClientSecret,
+			RedirectURL:  cfg.DiscordRedirectURL,
+			Scopes:       []string{"identify", "email"},
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://discord.com/api/oauth2/authorize",
+				TokenURL: "https://discord.com/api/oauth2/token",
+			},
+		},
 	}
-
-	// Initialize email service if SMTP or MailerSend is configured
-	if cfg.SMTPHost != "" {
-		svc.emailService = NewEmailService(cfg, logger)
-		svc.logger.Info("Email service initialized (SMTP)")
-	} else if cfg.MailerSendAPIKey != "" {
-		svc.emailService = NewEmailService(cfg, logger)
-		svc.logger.Info("Email service initialized (MailerSend API)")
-	} else {
-		svc.logger.Warn("Email service NOT initialized - no email configuration found")
-	}
-
-	return svc
-}
-
-// SetEmailService sets the email service (used for dependency injection)
-func (s *userServiceImpl) SetEmailService(emailService EmailService) {
-	s.emailService = emailService
 }

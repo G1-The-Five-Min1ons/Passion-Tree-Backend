@@ -10,12 +10,15 @@ import (
 )
 
 // CreateUser creates a new user with hashed password
-func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
+func (s *serviceImpl) CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error) {
 	if user.Email == "" {
 		return "", apperror.NewBadRequest("email is required")
 	}
 	if user.Password == "" {
 		return "", apperror.NewBadRequest("password is required")
+	}
+	if len(user.Password) < 8 {
+		return "", apperror.NewBadRequest("password must be at least 8 characters long")
 	}
 	if user.Username == "" {
 		return "", apperror.NewBadRequest("username is required")
@@ -40,10 +43,15 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 	user.Password = string(hashedPassword)
 
-	// Set default values
+	// Validate role
 	if user.Role == "" {
-		user.Role = "user"
+		return "", apperror.NewBadRequest("role is required (student or teacher)")
 	}
+	if user.Role != model.RoleStudent && user.Role != model.RoleTeacher {
+		return "", apperror.NewBadRequest("role must be either 'student' or 'teacher'")
+	}
+
+	// Set default values
 	if user.HeartCount == 0 {
 		user.HeartCount = 5 // default hearts
 	}
@@ -56,11 +64,13 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	user.IsEmailVerified = false
 
 	// Set default profile values
-	if profile.Level == 0 {
-		profile.Level = 1
+	if profile.Level == nil {
+		defaultLevel := 1
+		profile.Level = &defaultLevel
 	}
-	if profile.XP == 0 {
-		profile.XP = 0
+	if profile.XP == nil {
+		defaultXP := int64(0)
+		profile.XP = &defaultXP
 	}
 	if profile.LearningStreak == 0 {
 		profile.LearningStreak = 0
@@ -99,10 +109,8 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 
 	// Send verification email (don't fail registration if email sending fails)
-	if s.emailService != nil {
-		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
-			s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
-		}
+	if err := s.SendVerificationEmail(user.Email, verificationToken); err != nil {
+		s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
 	}
 
 	s.logger.InfoContext(ctx, "user registered successfully", "user_id", userID)
@@ -110,7 +118,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 }
 
 // GetUserByID retrieves user and profile by ID
-func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+func (s *serviceImpl) GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 	if id == "" {
 		return nil, nil, apperror.NewBadRequest("user_id is required")
 	}
@@ -128,7 +136,7 @@ func (s *userServiceImpl) GetUserByID(ctx context.Context, id string) (*model.Us
 }
 
 // GetUserByEmail retrieves user by email
-func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+func (s *serviceImpl) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	if email == "" {
 		return nil, apperror.NewBadRequest("email is required")
 	}
@@ -146,7 +154,7 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 }
 
 // UpdateUser updates user information (only first_name and last_name)
-func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
+func (s *serviceImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
@@ -173,7 +181,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 }
 
 // DeleteUser deletes a user after password confirmation
-func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password string) error {
+func (s *serviceImpl) DeleteUser(ctx context.Context, id string, password string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}

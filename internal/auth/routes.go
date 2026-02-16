@@ -22,16 +22,13 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		panic("Failed to load configuration: " + err.Error())
 	}
 
-	// Initialize repository
 	repo := repository.NewRepository(db)
-
-	// Initialize JWT service
-	jwtService := jwt.NewService(cfg)
-
-	// Initialize services with email configuration
 	userSvc := service.NewUserServiceWithEmail(repo, cfg, logger)
-
-	h := handler.NewHandler(userSvc, logger)
+	socialAuthSvc := service.NewSocialAuthService(repo, cfg, logger)
+	
+	jwtService := jwt.NewService(cfg)
+	userSvc := service.NewUserServiceWithEmail(repo, cfg, logger)
+	h := handler.NewHandler(userSvc, socialAuthSvc, logger)
 
 	auth := r.Group("/auth")
 	{
@@ -43,6 +40,18 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		auth.Post("/resend-verification", h.ResendVerificationEmail)
 		auth.Post("/forgot-password", h.ForgotPassword)
 		auth.Post("/reset-password", h.ResetPassword)
+
+		// Social Auth routes
+		auth.Get("/google", h.GoogleLogin)
+		auth.Get("/google/callback", h.GoogleCallback)
+		auth.Get("/discord", h.DiscordLogin)
+		auth.Get("/discord/callback", h.DiscordCallback)
+		
+		// Account Linking Confirmation
+		auth.Post("/confirm-link", h.ConfirmAccountLink)
+		
+		// Native SSO route (for Android/mobile apps)
+		auth.Post("/native/google", h.NativeGoogleSignIn)
 	}
 
 	// --- Protected Routes (Require JWT) ---

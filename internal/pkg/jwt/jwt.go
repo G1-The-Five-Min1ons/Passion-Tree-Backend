@@ -223,3 +223,34 @@ func (s *Service) ExtractUserID(tokenString string) (string, error) {
 	}
 	return claims.UserID, nil
 }
+
+// GenerateCustomToken generates a token with custom claims and expiration
+// This is useful for special tokens like account linking, password reset, etc.
+func (s *Service) GenerateCustomToken(claims jwt.MapClaims, expiration time.Duration) (string, error) {
+	// Set standard claims
+	claims["exp"] = time.Now().Add(expiration).Unix()
+	claims["iat"] = time.Now().Unix()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secretKey)
+}
+
+// ValidateCustomToken validates a custom token and returns its claims
+func (s *Service) ValidateCustomToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("invalid signing method")
+		}
+		return s.secretKey, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid token")
+}
