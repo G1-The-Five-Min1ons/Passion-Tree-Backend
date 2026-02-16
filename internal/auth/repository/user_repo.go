@@ -334,3 +334,9 @@ func (r *repositoryImpl) ResetFailedLogin(ctx context.Context, userID string) er
 	_, err := r.db.ExecContext(ctx, query, userID)
 	return err
 }
+
+func (r *repositoryImpl) UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error {
+	query := `UPDATE users SET is_email_verified = @p1 WHERE user_id = @p2`
+	_, err := r.db.ExecContext(ctx, query, isVerified, userID)
+	return err
+}
