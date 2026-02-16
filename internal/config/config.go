@@ -12,8 +12,9 @@ import (
 const (
 	DefaultAzureSQLPort      = "1433"
 	DefaultAIServiceURL      = "http://ai-service:8000"
-	DefaultContainerLearning = "learning-path-cover-imgs"
+	DefaultContainerLearning = "learning-paths"
 	DefaultContainerProfile  = "profile-imgs"
+	DefaultContainerReflect  = "reflect"
 	DefaultJWTAccessTTL      = "1"   // 1 hour 
     DefaultJWTRefreshTTL     = "168" // 7 days
     DefaultJWTRefreshAbsolute = "720" // 30 days
@@ -30,6 +31,7 @@ const (
 	EnvAzureStorageConnString = "AZURE_STORAGE_CONNECTION_STRING"
 	EnvContainerLearningPath  = "CONTAINER_LEARNING_PATH"
 	EnvContainerProfile       = "CONTAINER_PROFILE"
+	EnvContainerReflect       = "CONTAINER_REFLECT"
 	EnvSMTPHost               = "SMTP_HOST"
 	EnvSMTPPort               = "SMTP_PORT"
 	EnvSMTPUsername           = "SMTP_USERNAME"
@@ -63,6 +65,7 @@ type Config struct {
 	AzureStorageConnString string
 	ContainerLearningPath  string
 	ContainerProfile       string
+	ContainerReflect       string
 	SMTPHost               string
 	SMTPPort               string
 	SMTPUsername           string
