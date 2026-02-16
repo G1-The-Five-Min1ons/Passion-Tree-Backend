@@ -11,8 +11,9 @@ import (
 const (
 	DefaultAzureSQLPort      = "1433"
 	DefaultAIServiceURL      = "http://ai-service:8000"
-	DefaultContainerLearning = "learning-path-cover-imgs"
+	DefaultContainerLearning = "learning-paths"
 	DefaultContainerProfile  = "profile-imgs"
+	DefaultContainerReflect  = "reflect"
 )
 
 // Environment variable keys
@@ -26,6 +27,7 @@ const (
 	EnvAzureStorageConnString = "AZURE_STORAGE_CONNECTION_STRING"
 	EnvContainerLearningPath  = "CONTAINER_LEARNING_PATH"
 	EnvContainerProfile       = "CONTAINER_PROFILE"
+	EnvContainerReflect       = "CONTAINER_REFLECT"
 	EnvSMTPHost               = "SMTP_HOST"
 	EnvSMTPPort               = "SMTP_PORT"
 	EnvSMTPUsername           = "SMTP_USERNAME"
@@ -41,6 +43,7 @@ type Config struct {
 	AzureStorageConnString string
 	ContainerLearningPath  string
 	ContainerProfile       string
+	ContainerReflect       string
 	SMTPHost               string
 	SMTPPort               string
 	SMTPUsername           string
@@ -60,6 +63,7 @@ func LoadDBConfig() (*Config, error) {
 		AzureStorageConnString: os.Getenv(EnvAzureStorageConnString),
 		ContainerLearningPath:  getEnvOrDefault(EnvContainerLearningPath, DefaultContainerLearning),
 		ContainerProfile:       getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
+		ContainerReflect:       getEnvOrDefault(EnvContainerReflect, DefaultContainerReflect),
 		SMTPHost:               os.Getenv(EnvSMTPHost),
 		SMTPPort:               getEnvOrDefault(EnvSMTPPort, "587"),
 		SMTPUsername:           os.Getenv(EnvSMTPUsername),
