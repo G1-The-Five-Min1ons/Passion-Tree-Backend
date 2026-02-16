@@ -1,3 +1,4 @@
+
 package service
 
 import (
@@ -71,7 +72,12 @@ type userServiceImpl struct {
 	googleConfig  *oauth2.Config
 	discordConfig *oauth2.Config
 }
-
+// emailTemplates holds parsed HTML templates for email notifications
+type emailTemplates struct {
+	verification  *template.Template
+	passwordReset *template.Template
+	securityAlert *template.Template
+}
 type emailServiceImpl struct {
 	mailersendClient *mailersend.Mailersend
 	templates        *emailTemplates
