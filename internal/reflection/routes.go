@@ -2,21 +2,27 @@ package reflection
 
 import (
 	"log/slog"
+
 	"github.com/gofiber/fiber/v2"
-	
+
+	"passiontree/internal/connection"
+	"passiontree/internal/pkg/jwt"
+	"passiontree/internal/pkg/middleware"
+	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/handler"
 	"passiontree/internal/reflection/repository"
 	"passiontree/internal/reflection/service"
-	"passiontree/internal/connection"
-	"passiontree/internal/platform/aiclient"
 )
 
-func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, logger *slog.Logger) {
+func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, jwtService *jwt.Service, logger *slog.Logger) {
 	repo := repository.NewRepository(db)
 	svc := service.NewService(repo, aiClient, logger)
 	h := handler.NewHandler(svc, logger)
 
-	reflections := r.Group("/reflections")
+	// All reflection routes require JWT authentication
+	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
+
+	reflections := protected.Group("/reflections")
 	{
 		reflections.Get("", h.GetAll)
 		reflections.Post("", h.Create)
@@ -24,33 +30,33 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		reflections.Put("/:reflect_id", h.Update)
 		reflections.Delete("/:reflect_id", h.Delete)
 	}
-	
+
 	// Album routes
-	albums := r.Group("/albums")
+	albums := protected.Group("/albums")
 	{
 		albums.Post("", h.CreateAlbum)
-		albums.Get("", h.GetAlbumsByUserID)  // ?user_id=xxx
+		albums.Get("", h.GetAlbumsByUserID) // ?user_id=xxx
 		albums.Get("/:album_id", h.GetAlbumByID)
 		albums.Put("/:album_id", h.UpdateAlbum)
 		albums.Delete("/:album_id", h.DeleteAlbum)
 	}
-	
+
 	// Tree routes
-	trees := r.Group("/trees")
+	trees := protected.Group("/trees")
 	{
 		trees.Post("", h.CreateTree)
-		trees.Get("", h.GetTreesByAlbumID)  // ?album_id=xxx
+		trees.Get("", h.GetTreesByAlbumID) // ?album_id=xxx
 		trees.Get("/:tree_id", h.GetTreeByID)
 		trees.Put("/:tree_id", h.UpdateTree)
 		trees.Patch("/:tree_id/pause", h.PauseTree)
 		trees.Delete("/:tree_id", h.DeleteTree)
 	}
-	
+
 	// Tree Node routes
-	treeNodes := r.Group("/tree-nodes")
+	treeNodes := protected.Group("/tree-nodes")
 	{
 		treeNodes.Post("", h.CreateTreeNode)
-		treeNodes.Get("", h.GetTreeNodesByTreeID)  // ?tree_id=xxx
+		treeNodes.Get("", h.GetTreeNodesByTreeID) // ?tree_id=xxx
 		treeNodes.Get("/:tree_node_id", h.GetTreeNodeByID)
 		treeNodes.Put("/:tree_node_id", h.UpdateTreeNode)
 		treeNodes.Delete("/:tree_node_id", h.DeleteTreeNode)
