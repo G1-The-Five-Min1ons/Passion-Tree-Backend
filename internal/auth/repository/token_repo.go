@@ -24,7 +24,7 @@ func (r *repositoryImpl) CreateToken(ctx context.Context, token *model.Token) er
 
 	_, err := r.db.ExecContext(ctx, query,
 		token.TokenID, token.UserID, token.Token, token.TokenType, token.IsRevoked, token.ExpireAt,
-		token.DeviceInfo, token.IPAddress, token.UserAgent, token.LastUsedAt, token.MaxExpiresAt, 
+		token.DeviceInfo, token.IPAddress, token.UserAgent, token.LastUsedAt, token.MaxExpiresAt,
 		token.ParentTokenID, token.IsRotated)
 	if err != nil {
 		return fmt.Errorf("create token failed: %w", err)
@@ -37,7 +37,7 @@ func (r *repositoryImpl) CreateToken(ctx context.Context, token *model.Token) er
 func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error) {
 	query := `SELECT 
 		CONVERT(VARCHAR(36), token_id) as token_id, CONVERT(VARCHAR(36), user_id) as user_id,
-		token, token_type, is_revoke, created_at, expire_at,
+		token, token_type, is_revoke, create_at, expire_at,
 		device_info, ip_address, user_agent, last_used_at, max_expires_at,
 		CONVERT(VARCHAR(36), parent_token_id) as parent_token_id, is_rotated
 		FROM Token 
@@ -47,13 +47,21 @@ func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string,
 			AND expire_at > GETDATE()`
 
 	var token model.Token
-	var ParentTokenID sql.NullString
+	var (
+		ParentTokenID sql.NullString
+		DeviceInfo    sql.NullString
+		IPAddress     sql.NullString
+		UserAgent     sql.NullString
+		LastUsedAt    sql.NullTime
+		MaxExpiresAt  sql.NullTime
+	)
 
 	err := r.db.QueryRowContext(ctx, query, tokenValue, tokenType).Scan(
 		&token.TokenID, &token.UserID, &token.Token, &token.TokenType,
 		&token.IsRevoked, &token.CreatedAt, &token.ExpireAt,
-		&token.DeviceInfo, &token.IPAddress, &token.UserAgent, &token.LastUsedAt, &token.MaxExpiresAt,
-		&ParentTokenID, &token.IsRotated)
+		&DeviceInfo, &IPAddress, &UserAgent, &LastUsedAt, &MaxExpiresAt,
+		&ParentTokenID, &token.IsRotated,
+	)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -61,12 +69,24 @@ func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string,
 		}
 		return nil, fmt.Errorf("get token by value failed: %w", err)
 	}
-	
+
 	if ParentTokenID.Valid {
-		tempID := ParentTokenID.String
-		token.ParentTokenID = &tempID
-	} else {
-		token.ParentTokenID = nil
+		token.ParentTokenID = &ParentTokenID.String
+	}
+	if DeviceInfo.Valid {
+		token.DeviceInfo = &DeviceInfo.String
+	}
+	if IPAddress.Valid {
+		token.IPAddress = &IPAddress.String
+	}
+	if UserAgent.Valid {
+		token.UserAgent = &UserAgent.String
+	}
+	if LastUsedAt.Valid {
+		token.LastUsedAt = &LastUsedAt.Time
+	}
+	if MaxExpiresAt.Valid {
+		token.MaxExpiresAt = &MaxExpiresAt.Time
 	}
 
 	return &token, nil
@@ -167,7 +187,7 @@ func (r *repositoryImpl) GetActiveUserSessions(ctx context.Context, userID strin
 	query := `SELECT 
 		CONVERT(VARCHAR(36), token_id) as token_id,
 		CONVERT(VARCHAR(36), user_id) as user_id,
-		token, token_type, is_revoke, created_at, expire_at,
+		token, token_type, is_revoke, create_at, expire_at,
 		device_info, ip_address, user_agent, last_used_at, max_expires_at,
 		CONVERT(VARCHAR(36), parent_token_id) as parent_token_id, is_rotated
 	FROM Token 
@@ -176,7 +196,7 @@ func (r *repositoryImpl) GetActiveUserSessions(ctx context.Context, userID strin
 		AND is_revoke = 0 
 		AND is_rotated = 0
 		AND expire_at > GETDATE()
-	ORDER BY created_at DESC`
+	ORDER BY create_at DESC`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, tokenType)
 	if err != nil {
@@ -188,28 +208,38 @@ func (r *repositoryImpl) GetActiveUserSessions(ctx context.Context, userID strin
 	for rows.Next() {
 		var session model.Token
 		var (
-            parentID, device, ip, ua sql.NullString
-            lastUsed, maxExpire      sql.NullTime
-        )
+			parentID, device, ip, ua sql.NullString
+			lastUsed, maxExpire      sql.NullTime
+		)
 		err := rows.Scan(
 			&session.TokenID, &session.UserID, &session.Token, &session.TokenType,
 			&session.IsRevoked, &session.CreatedAt, &session.ExpireAt,
-			&device, &ip, &ua, &lastUsed, &maxExpire, 
-            &parentID, &session.IsRotated,
+			&device, &ip, &ua, &lastUsed, &maxExpire,
+			&parentID, &session.IsRotated,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan session row failed: %w", err)
 		}
 
-		if device.Valid { session.DeviceInfo = &device.String }
-        if ip.Valid { session.IPAddress = &ip.String }
-        if ua.Valid { session.UserAgent = &ua.String }
-        if parentID.Valid { 
-            tmp := parentID.String
-            session.ParentTokenID = &tmp 
-        }
-        if lastUsed.Valid { session.LastUsedAt = &lastUsed.Time }
-        if maxExpire.Valid { session.MaxExpiresAt = &maxExpire.Time }
+		if device.Valid {
+			session.DeviceInfo = &device.String
+		}
+		if ip.Valid {
+			session.IPAddress = &ip.String
+		}
+		if ua.Valid {
+			session.UserAgent = &ua.String
+		}
+		if parentID.Valid {
+			tmp := parentID.String
+			session.ParentTokenID = &tmp
+		}
+		if lastUsed.Valid {
+			session.LastUsedAt = &lastUsed.Time
+		}
+		if maxExpire.Valid {
+			session.MaxExpiresAt = &maxExpire.Time
+		}
 
 		sessions = append(sessions, &session)
 	}
@@ -245,4 +275,3 @@ func (r *repositoryImpl) RevokeTokenByIDForUser(ctx context.Context, tokenID str
 
 	return nil
 }
-

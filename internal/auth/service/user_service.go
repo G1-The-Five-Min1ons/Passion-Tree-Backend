@@ -103,53 +103,41 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		_ = s.repo.ResetFailedLogin(ctx, user.UserID)
 	}
 
-	// Generate JWT token pair
-	accessToken, refreshToken, err := s.jwtService.GenerateTokenPair(user)
+	otpCode, err := GenerateVerificationToken()
 	if err != nil {
-		s.logger.ErrorContext(ctx, "jwt generation failed", "error", err, "user_id", user.UserID)
-		return "", "", apperror.NewInternal("failed to generate token: %w", err)
+		s.logger.ErrorContext(ctx, "failed to generate otp", "error", err)
+		return "", "", apperror.NewInternal("failed to generate verification code")
 	}
 
-	// Get absolute expiration time from config
-	refreshTTLHours := 168      // 7 days default
-	refreshAbsoluteHours := 720 // 30 days default
-	if s.config.JWTRefreshTTL != "" {
-		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshTTL); parseErr == nil {
-			refreshTTLHours = hours
-		}
-	}
-	if s.config.JWTRefreshAbsolute != "" {
-		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshAbsolute); parseErr == nil {
-			refreshAbsoluteHours = hours
-		}
+	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, "email_verification")
+
+	otpToken := &model.Token{
+		UserID:    user.UserID,
+		Token:     otpCode,
+		TokenType: "email_verification",
+		IsRevoked: false,
+		ExpireAt:  time.Now().Add(15 * time.Minute),
 	}
 
-	// Store refresh token in database with session tracking
-	now := time.Now()
-	expireAt := now.Add(time.Duration(refreshTTLHours) * time.Hour)
-	maxExpireAt := now.Add(time.Duration(refreshAbsoluteHours) * time.Hour)
-
-	tokenModel := &model.Token{
-		UserID:       user.UserID,
-		Token:        refreshToken,
-		TokenType:    model.TokenTypeRefresh,
-		IsRevoked:    false,
-		ExpireAt:     expireAt,
-		DeviceInfo:   &deviceInfo,
-		IPAddress:    &ipAddress,
-		UserAgent:    &userAgent,
-		LastUsedAt:   &now,
-		MaxExpiresAt: &maxExpireAt,
-		IsRotated:    false,
-	}
-	err = s.repo.CreateToken(ctx, tokenModel)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to store refresh token", "error", err, "user_id", user.UserID)
-		return "", "", apperror.NewInternal("failed to store refresh token: %w", err)
+	if err := s.repo.CreateToken(ctx, otpToken); err != nil {
+		s.logger.ErrorContext(ctx, "failed to store otp", "error", err)
+		return "", "", apperror.NewInternal("failed to store verification code")
 	}
 
-	s.logger.InfoContext(ctx, "login success", "user_id", user.UserID)
-	return accessToken, refreshToken, nil
+	s.logger.InfoContext(ctx, "[DEBUG] OTP stored successfully",
+		"otp_code", otpCode,
+		"user_id", user.UserID,
+		"token_type", "email_verification",
+		"expire_at", otpToken.ExpireAt,
+	)
+
+	if err := s.emailService.SendVerificationEmail(user.Email, otpCode); err != nil {
+		s.logger.ErrorContext(ctx, "failed to send otp email", "error", err)
+		return "", "", apperror.NewInternal("failed to send verification email")
+	}
+
+	s.logger.InfoContext(ctx, "login step 1 success, otp sent", "user_id", user.UserID)
+	return "", "", apperror.NewForbidden("verification_required: please enter the 6-digit code sent to %s", user.Email)
 }
 
 func (s *userServiceImpl) handleFailedLogin(ctx context.Context, user *model.User) {

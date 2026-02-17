@@ -38,6 +38,9 @@ const (
 	EnvMailerSendAPIKey       = "MAILERSEND_API_KEY"
 	EnvAppURL                 = "APP_URL"
 
+	EnvGmailEmail         = "GMAIL_EMAIL"
+    EnvGmailAppPassword   = "GMAIL_APP_PASSWORD"
+
 	// OAuth Environment variables
 
 	// JWT Environment variables
@@ -67,6 +70,9 @@ type Config struct {
 	SMTPFromEmail          string
 	MailerSendAPIKey       string
 	AppURL                 string
+
+	GmailEmail       		string
+    GmailAppPassword 		string
 
 	// OAuth settings
 	GoogleClientID      string
@@ -115,6 +121,9 @@ func LoadDBConfig() (*Config, error) {
 		SMTPFromEmail:    os.Getenv(EnvSMTPFromEmail),
 		MailerSendAPIKey: os.Getenv(EnvMailerSendAPIKey),
 		AppURL:           getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
+
+		GmailEmail:       os.Getenv(EnvGmailEmail),
+        GmailAppPassword: os.Getenv(EnvGmailAppPassword),
 	}
 
 	// Build database connection string

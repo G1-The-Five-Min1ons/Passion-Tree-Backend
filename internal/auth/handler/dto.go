@@ -25,13 +25,22 @@ func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	if err := h.userSvc.VerifyEmail(ctx, req.Code); err != nil {
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
+	accessToken, refreshToken, err := h.userSvc.VerifyEmail(ctx, req.Code, deviceInfo, ipAddress, userAgent)
+	if err != nil {
 		return h.handleError(c, err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Email verified successfully",
+		"message": "Email verified and logged in successfully",
+		"data": fiber.Map{
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
+		},
 	})
 }
 

@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"strings"
+
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
@@ -45,24 +47,11 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	// Extract device info for token tracking
-	deviceInfo := c.Get("User-Agent", "Unknown Device")
-	ipAddress := c.IP()
-	userAgent := c.Get("User-Agent", "Unknown")
-
-	// Auto-login หลังจากสมัครสมาชิกสำเร็จ
-	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Username, req.Password, deviceInfo, ipAddress, userAgent)
-	if err != nil {
-		return h.handleError(c, err)
-	}
-
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "User registered successfully",
 		"data": fiber.Map{
-			"user_id":       userID,
-			"access_token":  accessToken,
-			"refresh_token": refreshToken,
+			"user_id": userID,
 		},
 	})
 }
@@ -84,6 +73,15 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 
 	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Identifier, req.Password, deviceInfo, ipAddress, userAgent)
 	if err != nil {
+		// OTP verification was triggered successfully — return as success with message
+		if appErr, ok := err.(*apperror.AppError); ok && appErr.Code == fiber.StatusForbidden {
+			if strings.HasPrefix(appErr.Message, "verification_required:") || strings.HasPrefix(appErr.Message, "security verification required.") {
+				return c.Status(fiber.StatusOK).JSON(fiber.Map{
+					"success": true,
+					"message": appErr.Message,
+				})
+			}
+		}
 		return h.handleError(c, err)
 	}
 
