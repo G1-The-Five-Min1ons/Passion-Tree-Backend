@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"log/slog"
 
 	"github.com/joho/godotenv"
 )
@@ -13,6 +14,9 @@ const (
 	DefaultAIServiceURL      = "http://ai-service:8000"
 	DefaultContainerLearning = "learning-path-cover-imgs"
 	DefaultContainerProfile  = "profile-imgs"
+	DefaultJWTAccessTTL      = "1"   // 1 hour 
+    DefaultJWTRefreshTTL     = "168" // 7 days
+    DefaultJWTRefreshAbsolute = "720" // 30 days
 )
 
 // Environment variable keys
@@ -99,8 +103,9 @@ func LoadDBConfig() (*Config, error) {
 
 		// JWT settings
 		JWTSecret:     os.Getenv(EnvJWTSecret),
-		JWTAccessTTL:  getEnvOrDefault(EnvJWTAccessTTL, "24"),
-		JWTRefreshTTL: getEnvOrDefault(EnvJWTRefreshTTL, "168"),
+		JWTAccessTTL:  getEnvOrDefault(EnvJWTAccessTTL, DefaultJWTAccessTTL),
+		JWTRefreshTTL: getEnvOrDefault(EnvJWTRefreshTTL, DefaultJWTRefreshTTL),
+		JWTRefreshAbsolute: getEnvOrDefault(EnvJWTRefreshAbsolute, DefaultJWTRefreshAbsolute),
 
 		ContainerProfile: getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
 		SMTPHost:         os.Getenv(EnvSMTPHost),
@@ -123,6 +128,10 @@ func LoadDBConfig() (*Config, error) {
 	if config.JWTSecret == "" {
 		return nil, fmt.Errorf("JWT_SECRET is required in environment variables")
 	}
+
+	if config.GoogleClientID == "" || config.DiscordClientID == "" {
+        slog.Warn("Missing Google or Discord client ID in configuration")
+    }
 
 	return config, nil
 }

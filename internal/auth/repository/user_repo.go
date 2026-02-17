@@ -65,7 +65,7 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 		WHERE u.user_id = @p1`
 
 	var u model.User
-	var p model.Profile
+	var p *model.Profile
 	var profileID, avatarURL, rankName, location, bio sql.NullString
 	var learningStreak, learningCount, level, hourLearned sql.NullInt32
 	var xp sql.NullInt64
@@ -85,6 +85,7 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 	}
 
 	if profileID.Valid {
+		p = &model.Profile{}
 		p.ProfileID = profileID.String
 		p.AvatarURL = avatarURL.String
 		p.RankName = rankName.String
@@ -104,7 +105,7 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 		p.UserID = u.UserID
 	}
 
-	return &u, &p, nil
+	return &u, p, nil
 }
 
 // --- Auth Helpers ---
@@ -336,7 +337,25 @@ func (r *repositoryImpl) ResetFailedLogin(ctx context.Context, userID string) er
 }
 
 func (r *repositoryImpl) UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error {
-	query := `UPDATE users SET is_email_verified = @p1 WHERE user_id = @p2`
-	_, err := r.db.ExecContext(ctx, query, isVerified, userID)
-	return err
+	query := `
+		UPDATE users 
+		SET is_email_verified = @p1, 
+		    updated_at = GETDATE() 
+		WHERE user_id = @p2`
+
+	result, err := r.db.ExecContext(ctx, query, isVerified, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update email verification status: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	
+	if rows == 0 {
+		return fmt.Errorf("user not found: %s", userID)
+	}
+
+	return nil
 }
