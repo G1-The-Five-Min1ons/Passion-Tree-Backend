@@ -139,13 +139,13 @@ func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model
 	return nil
 }
 
-func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error) {
+func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 
 	if nodeID == "" {
 		return nil, apperror.NewBadRequest("node_id is required")
 	}
 	
-	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "node details not found", "node_id", nodeID)
@@ -160,13 +160,13 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model
 	return node, nil
 }
 
-func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
+func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string, node_id string) ([]model.Node, error) {
 
 	if pathID == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
 
-	nodes, err := s.nodeRepo.GetNodesByPathID(ctx, pathID)
+	nodes, err := s.nodeRepo.GetNodesByPathID(ctx, pathID, node_id)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "database error fetching nodes by path id", "error", err, "path_id", pathID)
 		return nil, apperror.NewInternal("failed to retrieve nodes for path %s: %w", pathID, err)

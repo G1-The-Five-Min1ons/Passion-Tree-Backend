@@ -24,9 +24,45 @@ func (r *repositoryImpl) createNodeInternal(ctx context.Context, db DBTX, req mo
 	return id, nil
 }
 
-func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
-	query := `SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, description, CONVERT(VARCHAR(36), path_id) as path_id, sequence FROM node WHERE path_id = @p1 ORDER BY sequence ASC`
-	rows, err := r.db.QueryContext(ctx, query, pathID)
+func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
+	var query string
+	var args []interface{}
+
+	if userID != "" {
+		query = `
+			SELECT 
+				CONVERT(VARCHAR(36), n.node_id) as node_id, 
+				n.title, 
+				n.description, 
+				CONVERT(VARCHAR(36), n.path_id) as path_id, 
+				n.sequence,
+				ISNULL(np.status, 'locked') as status,
+				np.complete
+			FROM node n
+			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
+			WHERE n.path_id = @p1 
+			ORDER BY n.sequence ASC`
+		
+		args = []interface{}{pathID, userID}
+
+	} else {
+		query = `
+			SELECT 
+				CONVERT(VARCHAR(36), node_id) as node_id, 
+				title, 
+				description, 
+				CONVERT(VARCHAR(36), path_id) as path_id, 
+				sequence,
+				'locked' as status,
+				'false' as complete
+			FROM node 
+			WHERE path_id = @p1 
+			ORDER BY sequence ASC`
+			
+		args = []interface{}{pathID}
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetNodesByPathID query failed: %w", err)
 	}
@@ -35,7 +71,7 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string) ([
 	var nodes []model.Node
 	for rows.Next() {
 		var n model.Node
-		if err := rows.Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID, &n.Sequence); err != nil {
+		if err := rows.Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID, &n.Sequence, &n.Status, &n.Complete); err != nil {
 			return nil, fmt.Errorf("repo.GetNodesByPathID scan failed: %w", err)
 		}
 		nodes = append(nodes, n)
@@ -126,11 +162,49 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 	return nil
 }
 
-func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error) {
-	query := `SELECT CONVERT(VARCHAR(36), node_id) as node_id, title, description, CONVERT(VARCHAR(36), path_id) as path_id FROM node WHERE node_id = @p1`
+func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
+	var query string
+	var args []interface{}
+
+	if userID != "" {
+		query = `
+			SELECT 
+				CONVERT(VARCHAR(36), n.node_id) as node_id, 
+				n.title, 
+				n.description, 
+				CONVERT(VARCHAR(36), n.path_id) as path_id,
+				ISNULL(np.status, 'locked') as status,
+				np.complete
+			FROM node n
+			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
+			WHERE n.node_id = @p1`
+		
+		args = []interface{}{nodeID, userID}
+	} else {
+		query = `
+			SELECT 
+				CONVERT(VARCHAR(36), node_id) as node_id, 
+				title, 
+				description, 
+				CONVERT(VARCHAR(36), path_id) as path_id,
+				'locked' as status
+				'false' as complete
+			FROM node 
+			WHERE node_id = @p1`
+			
+		args = []interface{}{nodeID}
+	}
 
 	var n model.Node
-	err := r.db.QueryRowContext(ctx, query, nodeID).Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID)
+	err := r.db.QueryRowContext(ctx, query, args...).Scan(
+		&n.NodeID, 
+		&n.Title, 
+		&n.Description, 
+		&n.PathID, 
+		&n.Status,
+		&n.Complete,
+	)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
