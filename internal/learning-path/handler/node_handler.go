@@ -199,3 +199,45 @@ func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 		"data":    nodes,
 	})
 }
+
+func (h *Handler) StartNode(c *fiber.Ctx) error {
+	nodeID := c.Params("node_id")
+	userID := c.Query("user_id") 
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.nodeSvc.StartNode(ctx, nodeID, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Node started successfully",
+		"data": fiber.Map{
+			"node_id": nodeID,
+			"status":  "active",
+		},
+	})
+}
+
+func (h *Handler) CompleteNode(c *fiber.Ctx) error {
+	nodeID := c.Params("node_id")
+	userID := c.Query("user_id")
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.nodeSvc.CompleteNode(ctx, nodeID, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Node marked as completed",
+		"data": fiber.Map{
+			"node_id":  nodeID,
+			"complete": true,
+		},
+	})
+}

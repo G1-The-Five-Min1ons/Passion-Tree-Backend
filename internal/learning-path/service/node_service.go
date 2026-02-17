@@ -179,3 +179,37 @@ func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string, userI
 	s.logger.InfoContext(ctx, "nodes retrieved successfully for path", "path_id", pathID, "count", len(nodes))
 	return nodes, nil
 }
+
+func (s *serviceImpl) StartNode(ctx context.Context, nodeID string, userID string) error {
+	if nodeID == "" || userID == "" {
+		return apperror.NewBadRequest("node_id and user_id are required")
+	}
+
+	if err := s.nodeRepo.UpdateNodeProgressStatus(ctx, nodeID, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("node progress not found or user not enrolled")
+		}
+		s.logger.ErrorContext(ctx, "failed to start node", "error", err, "node_id", nodeID, "user_id", userID)
+		return apperror.NewInternal("failed to start node: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "node started successfully", "node_id", nodeID, "user_id", userID)
+	return nil
+}
+
+func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID string) error {
+	if nodeID == "" || userID == "" {
+		return apperror.NewBadRequest("node_id and user_id are required")
+	}
+
+	if err := s.nodeRepo.UpdateNodeProgressCompletion(ctx, nodeID, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("node progress not found or user not enrolled")
+		}
+		s.logger.ErrorContext(ctx, "failed to complete node", "error", err, "node_id", nodeID, "user_id", userID)
+		return apperror.NewInternal("failed to complete node: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "node completed successfully", "node_id", nodeID, "user_id", userID)
+	return nil
+}
