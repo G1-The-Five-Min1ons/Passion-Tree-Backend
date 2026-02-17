@@ -17,21 +17,24 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	if user.Password == "" {
 		return "", apperror.NewBadRequest("password is required")
 	}
+	if len(user.Password) < 8 {
+		return "", apperror.NewBadRequest("password must be at least 8 characters long")
+	}
 	if user.Username == "" {
 		return "", apperror.NewBadRequest("username is required")
 	}
 
 	// Check if email already exists
 	if existingUser, _ := s.repo.GetUserByEmail(ctx, user.Email); existingUser != nil {
-        s.logger.WarnContext(ctx, "register failed email taken", "email", user.Email)
-        return "", apperror.NewConflict("email already registered")
-    }
+		s.logger.WarnContext(ctx, "register failed email taken", "email", user.Email)
+		return "", apperror.NewConflict("email already registered")
+	}
 
 	// Check if username already exists
 	if existingUser, _ := s.repo.GetUserByUsername(ctx, user.Username); existingUser != nil {
-        s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
-        return "", apperror.NewConflict("username already taken")
-    }
+		s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
+		return "", apperror.NewConflict("username already taken")
+	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -40,10 +43,15 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 	user.Password = string(hashedPassword)
 
-	// Set default values
+	// Validate role
 	if user.Role == "" {
-		user.Role = "user"
+		return "", apperror.NewBadRequest("role is required (student or teacher)")
 	}
+	if user.Role != model.RoleStudent && user.Role != model.RoleTeacher {
+		return "", apperror.NewBadRequest("role must be either 'student' or 'teacher'")
+	}
+
+	// Set default values
 	if user.HeartCount == 0 {
 		user.HeartCount = 5 // default hearts
 	}
@@ -56,11 +64,13 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	user.IsEmailVerified = false
 
 	// Set default profile values
-	if profile.Level == 0 {
-		profile.Level = 1
+	if profile.Level == nil {
+		defaultLevel := 1
+		profile.Level = &defaultLevel
 	}
-	if profile.XP == 0 {
-		profile.XP = 0
+	if profile.XP == nil {
+		defaultXP := int64(0)
+		profile.XP = &defaultXP
 	}
 	if profile.LearningStreak == 0 {
 		profile.LearningStreak = 0
@@ -76,6 +86,16 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 
 	// Create user and profile
+	// Nil checks for repo and emailService
+	if s.repo == nil {
+		s.logger.ErrorContext(ctx, "userServiceImpl.repo is nil")
+		return "", apperror.NewInternal("internal server error: repository is nil")
+	}
+	if s.emailService == nil {
+		s.logger.ErrorContext(ctx, "userServiceImpl.emailService is nil")
+		return "", apperror.NewInternal("internal server error: email service is nil")
+	}
+
 	userID, err := s.repo.CreateUser(ctx, user, profile)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
@@ -93,15 +113,19 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
-		// Log error but don't fail registration
-		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
-	}
+	   if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
+		   s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
+		   return "", apperror.NewInternal("failed to save verification token: %w", err)
+	   }
 
 	// Send verification email (don't fail registration if email sending fails)
-	if s.emailService != nil {
+	if user.Email == "" {
+		s.logger.WarnContext(ctx, "user email is empty, skipping verification email", "user_id", userID)
+	} else {
 		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
-			s.logger.WarnContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
+			s.logger.WarnContext(ctx, "failed to send verification email", "error", err.Error(), "email", user.Email)
+			// Print full error details if available
+			s.logger.ErrorContext(ctx, "MailerSend error details", "user_id", userID, "email", user.Email, "error", err)
 		}
 	}
 
@@ -203,5 +227,3 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 	s.logger.InfoContext(ctx, "user deleted successfully", "user_id", id)
 	return nil
 }
-
-

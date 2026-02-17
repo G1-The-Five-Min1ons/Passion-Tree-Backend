@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log/slog"
+	"os"
 
 	"passiontree/internal/auth/service"
 	"passiontree/internal/pkg/apperror"
@@ -10,24 +11,29 @@ import (
 )
 
 type Handler struct {
-	userSvc service.UserService
-	logger  *slog.Logger
+	userSvc       service.UserService
+	socialAuthSvc service.SocialAuthService
+	logger        *slog.Logger
+	isProduction  bool
 }
 
-func NewHandler(userSvc service.UserService, logger *slog.Logger) *Handler {
+func NewHandler(userSvc service.UserService, socialAuthSvc service.SocialAuthService, logger *slog.Logger) *Handler {
+	appEnv := os.Getenv("APP_ENV")
 	return &Handler{
-		userSvc: userSvc,
-		logger:  logger,
+		userSvc:       userSvc,
+		socialAuthSvc: socialAuthSvc,
+		logger:        logger,
+		isProduction:  appEnv == "production",
 	}
 }
 
 func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 	if appErr, ok := err.(*apperror.AppError); ok {
-		// use tagged switch seperate Log 
+		// use tagged switch seperate Log
 		switch appErr.Code {
 		case fiber.StatusInternalServerError:
 			h.logger.ErrorContext(c.UserContext(), "server_error",
-				"error", appErr.Log, 
+				"error", appErr.Log,
 				"path", c.Path(),
 			)
 
@@ -36,14 +42,14 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 				"error", appErr.Message,
 				"ip", c.IP(),
 			)
-		
+
 		case fiber.StatusUnauthorized, fiber.StatusForbidden:
-    		h.logger.WarnContext(c.UserContext(), "security_anomaly",
-        	"code", appErr.Code,
-        	"error", appErr.Message,
-        	"path", c.Path(),
-        	"ip", c.IP(),
-    		)
+			h.logger.WarnContext(c.UserContext(), "security_anomaly",
+				"code", appErr.Code,
+				"error", appErr.Message,
+				"path", c.Path(),
+				"ip", c.IP(),
+			)
 
 		// for 400, 401, 404
 		default:
@@ -57,15 +63,20 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 	}
 
 	// Unknown Error
-    h.logger.ErrorContext(c.UserContext(), "unknown_error", 
-        "err", err, 
-        "method", c.Method(), 
-        "path", c.Path(), 
-        "ip", c.IP(),
-    )
-	
+	h.logger.ErrorContext(c.UserContext(), "unknown_error",
+		"err", err,
+		"method", c.Method(),
+		"path", c.Path(),
+		"ip", c.IP(),
+	)
+
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 		"success": false,
 		"error":   "internal server error",
 	})
+}
+
+// isSecureCookie returns true if running in production environment
+func (h *Handler) isSecureCookie() bool {
+	return h.isProduction
 }

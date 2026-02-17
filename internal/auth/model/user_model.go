@@ -9,22 +9,42 @@ type User struct {
 	Password        string    `json:"-"`
 	FirstName       string    `json:"first_name"`
 	LastName        string    `json:"last_name"`
-	Role            string    `json:"role"`
+	Role            UserRole  `json:"role"`
 	HeartCount      int       `json:"heart_count"`
 	IsEmailVerified bool      `json:"is_email_verified"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 
+	// Social Auth fields
+	AuthProvider   string `json:"auth_provider"`    // "local", "google", "discord"
+	ProviderUserID string `json:"provider_user_id"` // User ID from OAuth provider
 	FailedAttempts      int        `json:"failed_attempts"`
 	LockedUntil         *time.Time `json:"locked_until"`
 	Require2FANextLogin bool       `json:"require_2fa_next_login"` // Security flag: set to true after token theft detection
 }
 
+type UserRole string
 const (
-	RoleStudent = "student"
-	RoleTeacher = "teacher"
-	RoleAdmin   = "admin"
+	RoleStudent UserRole = "student"
+	RoleTeacher UserRole = "teacher"
+	RoleAdmin   UserRole = "admin"
 )
+
+const (
+	AuthProviderLocal   = "local"
+	AuthProviderGoogle  = "google"
+	AuthProviderDiscord = "discord"
+)
+
+// LinkConfirmationNeeded is returned when user needs to confirm account linking
+type LinkConfirmationNeeded struct {
+	LinkToken     string `json:"link_token"`
+	ExistingUser  *User  `json:"existing_user"`
+	ProviderEmail string `json:"provider_email"`
+	ProviderName  string `json:"provider_name"`
+	Message       string `json:"message"`
+	NeedsConfirm  bool   `json:"needs_confirm"`
+}
 
 type RegisterRequest struct {
 	Username  string `json:"username"`
@@ -32,10 +52,10 @@ type RegisterRequest struct {
 	Password  string `json:"password"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
-	Bio       string `json:"bio"`
-	Location  string `json:"location"`
-	AvatarURL string `json:"avatar_url"`
-	Role      string `json:"role"`
+	Bio       string   `json:"bio"`
+	Location  string   `json:"location"`
+	AvatarURL string   `json:"avatar_url"`
+	Role      UserRole `json:"role"`
 }
 
 type LoginRequest struct {
@@ -63,6 +83,21 @@ type ForgotPasswordRequest struct {
 type ResetPasswordRequest struct {
 	Code        string `json:"code"`
 	NewPassword string `json:"new_password"`
+}
+
+// Social Auth Models
+type SocialAuthCallbackRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
+type OAuthUserInfo struct {
+	ProviderUserID string
+	Email          string
+	FirstName      string
+	LastName       string
+	AvatarURL      string
+	Provider       string
 }
 
 type ChangePasswordRequest struct {

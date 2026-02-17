@@ -14,7 +14,7 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, userID string, prof
 
 	// Validate that at least one profile field is being updated
 	if profile.AvatarURL == "" && profile.RankName == "" && profile.Location == "" &&
-		profile.Bio == "" && profile.Level == 0 && profile.XP == 0 &&
+		profile.Bio == "" && profile.Level == nil && profile.XP == nil &&
 		profile.LearningStreak == 0 && profile.LearningCount == 0 && profile.HourLearned == 0 {
 		return apperror.NewBadRequest("no profile fields to update")
 	}

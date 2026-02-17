@@ -43,8 +43,12 @@ type Service struct {
 
 // NewService creates a new JWT service from config
 func NewService(cfg *config.Config) *Service {
+	if cfg.JWTSecret == "" {
+        panic("JWT_SECRET is not set in configuration")
+    }
+
 	// Parse access token TTL from config (hours)
-	accessTTL := 24 * time.Hour
+	accessTTL := 1 * time.Hour
 	if hours, err := strconv.Atoi(cfg.JWTAccessTTL); err == nil {
 		accessTTL = time.Duration(hours) * time.Hour
 	}
@@ -72,6 +76,9 @@ func (s *Service) GenerateAccessToken(user *model.User) (string, error) {
 		TokenType: TokenTypeAccess,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTokenTTL)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			Issuer:    "passion-tree",
 			Subject:   user.UserID,
 		},
 	}
@@ -146,12 +153,15 @@ func (s *Service) GetTokenExpiration(tokenString string) (time.Time, error) {
 }
 
 // IsTokenExpired checks if a token is expired without validating the signature
+// This is useful for checking token expiration status even when the token might be invalid
 func (s *Service) IsTokenExpired(tokenString string) bool {
-	expTime, err := s.GetTokenExpiration(tokenString)
-	if err != nil {
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	claims := &CustomClaims{}
+	_, _, err := parser.ParseUnverified(tokenString, claims)
+	if err != nil || claims.ExpiresAt == nil {
 		return true
 	}
-	return time.Now().After(expTime)
+	return time.Now().After(claims.ExpiresAt.Time)
 }
 
 // GenerateTokenPair generates both access and refresh tokens
@@ -216,4 +226,35 @@ func (s *Service) ExtractUserID(tokenString string) (string, error) {
 		return "", err
 	}
 	return claims.UserID, nil
+}
+
+// GenerateCustomToken generates a token with custom claims and expiration
+// This is useful for special tokens like account linking, password reset, etc.
+func (s *Service) GenerateCustomToken(claims jwt.MapClaims, expiration time.Duration) (string, error) {
+	// Set standard claims
+	claims["exp"] = time.Now().Add(expiration).Unix()
+	claims["iat"] = time.Now().Unix()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.secretKey)
+}
+
+// ValidateCustomToken validates a custom token and returns its claims
+func (s *Service) ValidateCustomToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("invalid signing method")
+		}
+		return s.secretKey, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid token")
 }

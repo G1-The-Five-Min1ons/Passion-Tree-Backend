@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// CreateToken creates a new token with full session tracking
+// CreateToken creates a new token
 func (r *repositoryImpl) CreateToken(ctx context.Context, token *model.Token) error {
+
 	if token.TokenID == "" {
 		token.TokenID = uuid.New().String()
 	}
@@ -35,20 +36,24 @@ func (r *repositoryImpl) CreateToken(ctx context.Context, token *model.Token) er
 // GetTokenByValue retrieves a token by its value and type with all session tracking fields
 func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error) {
 	query := `SELECT 
-		CONVERT(VARCHAR(36), token_id) as token_id,
-		CONVERT(VARCHAR(36), user_id) as user_id,
+		CONVERT(VARCHAR(36), token_id) as token_id, CONVERT(VARCHAR(36), user_id) as user_id,
 		token, token_type, is_revoke, created_at, expire_at,
 		device_info, ip_address, user_agent, last_used_at, max_expires_at,
 		CONVERT(VARCHAR(36), parent_token_id) as parent_token_id, is_rotated
 		FROM Token 
-		WHERE token = @p1 AND token_type = @p2`
+		WHERE token = @p1 
+			AND token_type = @p2
+			AND is_revoke = 0
+			AND expire_at > GETDATE()`
 
 	var token model.Token
+	var ParentTokenID sql.NullString
+
 	err := r.db.QueryRowContext(ctx, query, tokenValue, tokenType).Scan(
 		&token.TokenID, &token.UserID, &token.Token, &token.TokenType,
 		&token.IsRevoked, &token.CreatedAt, &token.ExpireAt,
 		&token.DeviceInfo, &token.IPAddress, &token.UserAgent, &token.LastUsedAt, &token.MaxExpiresAt,
-		&token.ParentTokenID, &token.IsRotated)
+		&ParentTokenID, &token.IsRotated)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -56,7 +61,35 @@ func (r *repositoryImpl) GetTokenByValue(ctx context.Context, tokenValue string,
 		}
 		return nil, fmt.Errorf("get token by value failed: %w", err)
 	}
+	
+	if ParentTokenID.Valid {
+		tempID := ParentTokenID.String
+		token.ParentTokenID = &tempID
+	} else {
+		token.ParentTokenID = nil
+	}
+
 	return &token, nil
+}
+
+// RevokeToken marks a token as revoked
+func (r *repositoryImpl) RevokeToken(ctx context.Context, tokenID string) error {
+	query := `UPDATE Token SET is_revoke = 1 WHERE token_id = @p1`
+	_, err := r.db.ExecContext(ctx, query, tokenID)
+	if err != nil {
+		return fmt.Errorf("revoke token failed: %w", err)
+	}
+	return nil
+}
+
+// RevokeAllUserRefreshTokens revokes all refresh tokens for a user (invalidates all sessions)
+func (r *repositoryImpl) RevokeAllUserRefreshTokens(ctx context.Context, userID string) error {
+	query := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
+	_, err := r.db.ExecContext(ctx, query, userID, model.TokenTypeRefresh)
+	if err != nil {
+		return fmt.Errorf("revoke all user refresh tokens failed: %w", err)
+	}
+	return nil
 }
 
 // DeleteExpiredTokens removes all expired tokens
@@ -154,16 +187,30 @@ func (r *repositoryImpl) GetActiveUserSessions(ctx context.Context, userID strin
 	var sessions []*model.Token
 	for rows.Next() {
 		var session model.Token
+		var (
+            parentID, device, ip, ua sql.NullString
+            lastUsed, maxExpire      sql.NullTime
+        )
 		err := rows.Scan(
 			&session.TokenID, &session.UserID, &session.Token, &session.TokenType,
 			&session.IsRevoked, &session.CreatedAt, &session.ExpireAt,
-			&session.DeviceInfo, &session.IPAddress, &session.UserAgent, 
-			&session.LastUsedAt, &session.MaxExpiresAt,
-			&session.ParentTokenID, &session.IsRotated,
+			&device, &ip, &ua, &lastUsed, &maxExpire, 
+            &parentID, &session.IsRotated,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan session row failed: %w", err)
 		}
+
+		if device.Valid { session.DeviceInfo = &device.String }
+        if ip.Valid { session.IPAddress = &ip.String }
+        if ua.Valid { session.UserAgent = &ua.String }
+        if parentID.Valid { 
+            tmp := parentID.String
+            session.ParentTokenID = &tmp 
+        }
+        if lastUsed.Valid { session.LastUsedAt = &lastUsed.Time }
+        if maxExpire.Valid { session.MaxExpiresAt = &maxExpire.Time }
+
 		sessions = append(sessions, &session)
 	}
 

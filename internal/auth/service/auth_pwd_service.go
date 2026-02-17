@@ -109,11 +109,11 @@ func (s *userServiceImpl) ResetPassword(ctx context.Context, code string, newPas
 
 	// Reset password and revoke token in transaction
 	if err := s.repo.ResetPasswordWithToken(ctx, user.UserID, string(hashedPassword), tokenModel.TokenID); err != nil {
-		s.logger.ErrorContext(ctx, "reset pwd failed", "user_id", user.UserID, "error", err)
+		s.logger.ErrorContext(ctx, "reset pwd transaction failed", "user_id", user.UserID, "error", err)
 		return apperror.NewInternal("failed to reset password: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "password reset successful", "user_id", user.UserID)
+	s.logger.InfoContext(ctx, "password reset successful, all sessions revoked", "user_id", user.UserID)
 	return nil
 }
 
@@ -159,14 +159,12 @@ func (s *userServiceImpl) ChangePassword(ctx context.Context, userID string, old
 		return apperror.NewInternal("failed to hash password: %w", err)
 	}
 
-	// Update password in database
-	if err := s.repo.UpdatePassword(ctx, user.UserID, string(hashedPassword)); err != nil {
+	// Update password and revoke all active sessions
+	if err := s.repo.ChangePasswordAndRevokeSessions(ctx, user.UserID, string(hashedPassword)); err != nil {
 		s.logger.ErrorContext(ctx, "change pwd update failed", "user_id", user.UserID, "error", err)
 		return apperror.NewInternal("failed to update password: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "password change successful", "user_id", user.UserID)
+	s.logger.InfoContext(ctx, "password change successful, all sessions revoked", "user_id", user.UserID)
 	return nil
 }
-
-

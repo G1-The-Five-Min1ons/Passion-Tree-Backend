@@ -1,6 +1,6 @@
-# Database Migrations - Authentication Module
+# Database Migrations
 
-This directory contains SQL migration scripts for authentication-related database changes.
+This directory contains SQL migration scripts for the Passion Tree Backend database.
 
 ## Migration Files
 
@@ -23,26 +23,8 @@ Creates the necessary tables for social authentication (Discord and Google):
 - Trigger: `trg_social_auth_providers_update` - Auto-updates `updated_at` timestamp
 - Stored Procedure: `sp_cleanup_expired_oauth_states` - Cleans up expired OAuth states
 
-### 002_add_require_2fa_flag.sql
-Adds security enhancement for token theft detection:
-
-**Changes:**
-- Adds `require_2fa_next_login` column to Users table
-  - Type: BIT (boolean)
-  - Default: 0 (false)
-  - Purpose: Flag users requiring additional security verification after token theft detection
-
-- Creates index `IX_Users_Require2FA` for performance
-- Adds column description via extended properties
-
-**Security Flow:**
-1. When token theft/reuse is detected, this flag is set to true
-2. User must verify identity (2FA) on next login attempt
-3. Flag is cleared after successful verification
-
-### Rollback Scripts
-- `001_rollback_social_auth_tables.sql` - Removes social auth tables
-- `002_rollback_require_2fa_flag.sql` - Removes 2FA flag column
+### 001_rollback_social_auth_tables.sql
+Rollback script to remove all social authentication tables and related objects.
 
 ## How to Run Migrations
 
@@ -50,7 +32,6 @@ Adds security enhancement for token theft detection:
 ```powershell
 # Using sqlcmd
 sqlcmd -S your_server -d your_database -U your_user -P your_password -i 001_add_social_auth_tables.sql
-sqlcmd -S your_server -d your_database -U your_user -P your_password -i 002_add_require_2fa_flag.sql
 
 # Using Azure Data Studio or SQL Server Management Studio
 # Simply open the file and execute
@@ -58,18 +39,16 @@ sqlcmd -S your_server -d your_database -U your_user -P your_password -i 002_add_
 
 ### Rollback Migration
 ```powershell
-# Rollback in reverse order
-sqlcmd -S your_server -d your_database -U your_user -P your_password -i 002_rollback_require_2fa_flag.sql
 sqlcmd -S your_server -d your_database -U your_user -P your_password -i 001_rollback_social_auth_tables.sql
 ```
 
 ## Migration Order
 Migrations should be applied in numerical order:
 1. 001_add_social_auth_tables.sql
-2. 002_add_require_2fa_flag.sql
 
 ## Notes
 - Always review migrations before applying to production
-- Keep rollback scripts synchronized with forward migrations
-- Test migrations in development/staging environment first
-- Always backup database before running migrations in production
+- Take a database backup before running migrations
+- Test migrations in a development environment first
+- The social_auth_providers table has a CASCADE DELETE on user_id - deleting a user will remove their social auth connections
+- OAuth states should be cleaned up periodically using the `sp_cleanup_expired_oauth_states` stored procedure

@@ -7,6 +7,7 @@ const (
 	TokenTypeRefresh           = "refresh_token"
 	TokenTypeEmailVerification = "email_verification"
 	TokenTypePasswordReset     = "password_reset"
+	TokenType2FA               = "2fa_verification"
 )
 
 type Token struct {

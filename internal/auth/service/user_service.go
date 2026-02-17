@@ -54,9 +54,48 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	// Check if 2FA is required (security flag set after token theft)
 	if user.Require2FANextLogin {
 		s.logger.WarnContext(ctx, "2FA verification required", "user_id", user.UserID)
-		// TODO: Implement actual 2FA verification flow
-		// For now, block login and inform user to contact support
-		return "", "", apperror.NewForbidden("additional security verification required. please contact support or use account recovery")
+
+		// Generate 2FA OTP
+		otpCode, err := GenerateVerificationToken()
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to generate 2FA OTP", "error", err)
+			return "", "", apperror.NewInternal("failed to generate security code")
+		}
+
+		// Delete old 2FA tokens for this user
+		_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenType2FA)
+
+		// Store 2FA OTP in database
+		otpExpiry := GetVerificationTokenExpiry() // 15 minutes
+		otpToken := &model.Token{
+			UserID:    user.UserID,
+			Token:     otpCode,
+			TokenType: model.TokenType2FA,
+			IsRevoked: false,
+			ExpireAt:  otpExpiry,
+		}
+		if err := s.repo.CreateToken(ctx, otpToken); err != nil {
+			s.logger.ErrorContext(ctx, "failed to store 2FA OTP", "error", err)
+			return "", "", apperror.NewInternal("failed to store security code")
+		}
+
+		// Send OTP to user's email
+		if s.emailService != nil {
+			if err := s.emailService.SendVerificationEmail(user.Email, otpCode); err != nil {
+				s.logger.ErrorContext(ctx, "failed to send 2FA OTP email (1st attempt)", "error", err, "user_id", user.UserID)
+
+				// ถอยออกมาตั้งหลักสัก 1-2 วินาทีก่อนลองใหม่
+				time.Sleep(1 * time.Second)
+
+				if retryErr := s.emailService.SendVerificationEmail(user.Email, otpCode); retryErr != nil {
+					s.logger.ErrorContext(ctx, "failed to send 2FA OTP email (2nd attempt)", "error", retryErr, "user_id", user.UserID)
+					// แจ้งให้ User ทราบใน Error Message ว่าอีเมลอาจจะมาช้าหน่อย
+				}
+			}
+		}
+
+		s.logger.InfoContext(ctx, "2FA OTP sent to email", "user_id", user.UserID, "email", user.Email)
+		return "", "", apperror.NewForbidden("security verification required. we've sent a verification code to your email: %s", user.Email)
 	}
 
 	// Reset failed attempts on successful login
@@ -190,7 +229,8 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 
 	// Check absolute expiration
 	if storedToken.MaxExpiresAt != nil && time.Now().After(*storedToken.MaxExpiresAt) {
-		_ = s.repo.RevokeTokenByValue(ctx, refreshToken, model.TokenTypeRefresh)
+		// use Task Queue to revoke token asynchronously to avoid blocking user request in Future
+		_ = s.repo.RevokeTokenByValue(context.Background(), refreshToken, model.TokenTypeRefresh)
 		s.logger.WarnContext(ctx, "absolute token lifetime exceeded", "user_id", claims.UserID)
 		return "", "", apperror.NewUnauthorized("session expired - please login again")
 	}
@@ -256,9 +296,10 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	}
 
 	// Revoke old token after short grace period (5 minutes) to handle race conditions
+	// Use context.Background() because the parent request context will be cancelled before this completes
 	go func() {
 		time.Sleep(5 * time.Minute)
-		_ = s.repo.RevokeTokenByValue(ctx, refreshToken, model.TokenTypeRefresh)
+		_ = s.repo.RevokeTokenByValue(context.Background(), refreshToken, model.TokenTypeRefresh)
 	}()
 
 	s.logger.InfoContext(ctx, "tokens refreshed successfully", "user_id", user.UserID)
@@ -372,8 +413,8 @@ func (s *userServiceImpl) LogoutSession(ctx context.Context, userID string, sess
 
 // Helper function to safely get string value from pointer
 func getStringValue(s *string) string {
-	if s == nil {
-		return "Unknown"
+	if s == nil || *s == "" {
+		return "Unknown Device"
 	}
 	return *s
 }
