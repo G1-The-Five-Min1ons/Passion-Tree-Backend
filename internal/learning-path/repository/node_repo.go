@@ -297,3 +297,31 @@ func (r *repositoryImpl) CreateNodeWithContentInternal(ctx context.Context, db D
 
 	return nodeID, nil
 }
+
+func (r *repositoryImpl) UpdateNodeProgressStatus(ctx context.Context, nodeID string, userID string) error {
+	query := `UPDATE node_progress SET status = 'active', updated_at = GETDATE() WHERE node_id = @p1 AND user_id = @p2`
+	res, err := r.db.ExecContext(ctx, query, nodeID, userID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdateNodeProgressStatus exec failed: %w", err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *repositoryImpl) UpdateNodeProgressCompletion(ctx context.Context, nodeID string, userID string) error {
+	query := `UPDATE node_progress SET complete = 'true', updated_at = GETDATE() WHERE node_id = @p1 AND user_id = @p2`
+	res, err := r.db.ExecContext(ctx, query, nodeID, userID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdateNodeProgressCompletion exec failed: %w", err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}

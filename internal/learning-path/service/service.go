@@ -38,6 +38,8 @@ type ServiceNode interface {
 	RemoveMaterial(ctx context.Context, materialID string) error
 	ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error
 	GetNodesByPathID(ctx context.Context, pathID string, node_id string) ([]model.Node, error)
+	StartNode(ctx context.Context, nodeID string, userID string) error
+	CompleteNode(ctx context.Context, nodeID string, userID string) error
 }
 
 type ServiceComment interface {

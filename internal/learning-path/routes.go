@@ -41,6 +41,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		nodes.Get("/:node_id", h.GetOneNode)
 		nodes.Put("/:node_id", h.UpdateNode)
 		nodes.Delete("/:node_id", h.DeleteNode)
+		nodes.Put("/:node_id/start", h.StartNode)
+		nodes.Put("/:node_id/complete", h.CompleteNode)
 		nodes.Post("/:node_id/materials", h.CreateMaterial)
 		nodes.Get("/:node_id/comments", h.GetComments)
 		nodes.Post("/:node_id/comments", h.CreateComment)
