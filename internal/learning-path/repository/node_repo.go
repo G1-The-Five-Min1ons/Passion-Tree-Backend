@@ -53,8 +53,8 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 				description, 
 				CONVERT(VARCHAR(36), path_id) as path_id, 
 				sequence,
-				'locked' as status,
-				'false' as complete
+				'null' as status,
+				'null' as complete
 			FROM node 
 			WHERE path_id = @p1 
 			ORDER BY sequence ASC`
@@ -187,8 +187,8 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID 
 				title, 
 				description, 
 				CONVERT(VARCHAR(36), path_id) as path_id,
-				'locked' as status
-				'false' as complete
+				'null' as status,
+				'null' as complete
 			FROM node 
 			WHERE node_id = @p1`
 			
