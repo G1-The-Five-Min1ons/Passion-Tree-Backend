@@ -8,18 +8,24 @@ import (
 	"github.com/google/uuid"
 )
 
+func (h *Handler) setOAuthStateCookie(c *fiber.Ctx, state string) {
+	c.Cookie(&fiber.Cookie{
+		Name:     "oauth_state",
+		Value:    state,
+		HTTPOnly: true,                  
+		Secure:   h.isSecureCookie(),   
+		SameSite: "Lax",                 
+		MaxAge:   300,                   
+		Path:     "/",                   
+	})
+}
+
 func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
 
 	// Store state in session/cookie for validation
-	c.Cookie(&fiber.Cookie{
-		Name:     "oauth_state",
-		Value:    state,
-		HTTPOnly: true,
-		Secure:   h.isSecureCookie(),
-		MaxAge:   300, // 5 minutes
-	})
+	h.setOAuthStateCookie(c, state)
 
 	authURL := h.socialAuthSvc.GetGoogleAuthURL(state)
 
@@ -35,13 +41,7 @@ func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 	state := uuid.New().String()
 
 	// Store state in session/cookie for validation
-	c.Cookie(&fiber.Cookie{
-		Name:     "oauth_state",
-		Value:    state,
-		HTTPOnly: true,
-		Secure:   h.isSecureCookie(),
-		MaxAge:   300, // 5 minutes
-	})
+	h.setOAuthStateCookie(c, state)
 
 	authURL := h.socialAuthSvc.GetDiscordAuthURL(state)
 
@@ -131,16 +131,12 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.Warn("invalid request body", "error", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
+		return h.handleError(c, apperror.NewBadRequest("Invalid request body"))
 	}
 
 	if req.IDToken == "" {
 		h.logger.Warn("missing id_token in native google signin")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "ID token is required",
-		})
+		return h.handleError(c, apperror.NewBadRequest("ID token is required"))
 	}
 
 	// Verify and authenticate user
@@ -150,10 +146,7 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	h.logger.Info("native google signin successful",
-		"user_id", user.UserID,
-		"email", user.Email,
-	)
+	h.logger.Info("native google signin successful", "user_id", user.UserID, "email", user.Email, "name", user.Username)
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -178,16 +171,12 @@ func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.Warn("invalid request body", "error", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
+		return h.handleError(c, apperror.NewBadRequest("Invalid request body"))
 	}
 
 	if req.LinkToken == "" {
 		h.logger.Warn("missing link_token in confirm request")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Link token is required",
-		})
+		return h.handleError(c, apperror.NewBadRequest("Link token is required"))
 	}
 
 	// Process confirmation
@@ -209,7 +198,7 @@ func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Login successful",
+		"message": "Account link confirmation processed",
 		"token":   token,
 		"linked":  req.Confirm,
 		"user": fiber.Map{

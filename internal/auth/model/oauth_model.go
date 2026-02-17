@@ -33,3 +33,7 @@ type GoogleTokenInfo struct {
 	GivenName     string `json:"given_name"`
 	FamilyName    string `json:"family_name"`
 }
+
+var req struct {
+	IDToken string `json:"id_token"`
+}
