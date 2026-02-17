@@ -72,6 +72,8 @@ type userServiceImpl struct {
 	discordConfig *oauth2.Config
 }
 
+type fetchUserInfoFunc func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error)
+
 // emailTemplates holds parsed HTML templates for email notifications
 type emailTemplates struct {
 	verification  *template.Template

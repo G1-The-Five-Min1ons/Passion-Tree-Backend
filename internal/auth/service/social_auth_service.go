@@ -26,14 +26,9 @@ func (s *userServiceImpl) GetDiscordAuthURL(state string) string {
 	return s.discordConfig.AuthCodeURL(state)
 }
 
+// Private helper function to handle OAuth callbacks for Google and Discord
 // handleOAuthCallback is a generic handler for OAuth callbacks
-func (s *userServiceImpl) handleOAuthCallback(
-	ctx context.Context,
-	code string,
-	config *oauth2.Config,
-	fetchUserInfo func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error),
-	providerName string,
-) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+func (s *userServiceImpl) handleOAuthCallback(ctx context.Context, code string, config *oauth2.Config, fetchUserInfo func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error), providerName string,) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	// Exchange code for token
 	token, err := config.Exchange(ctx, code)
 	if err != nil {
