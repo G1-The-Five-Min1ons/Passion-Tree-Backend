@@ -20,6 +20,8 @@ type Node struct {
 	Description string         `json:"description"`
 	Sequence    int            `json:"sequence"`
 	PathID      string         `json:"path_id"`
+	Status      string         `json:"status"`
+	Complete    string           `json:"complete"`
 	Materials   []NodeMaterial `json:"materials,omitempty"`
 }
 

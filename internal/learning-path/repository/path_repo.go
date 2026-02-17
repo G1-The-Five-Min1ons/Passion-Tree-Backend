@@ -171,12 +171,42 @@ func (r *repositoryImpl) DeleteLearningPath(ctx context.Context, path_id string)
 }
 
 func (r *repositoryImpl) EnrollLearningPathUser(ctx context.Context, pathID string, userID string) error {
-	enrollID := uuid.New().String()
-	query := `INSERT INTO path_enroll (enroll_id, enrollment_status, enroll_at, user_id, path_id) VALUES (@p1, 'active', GETDATE(), @p2, @p3)`
-	_, err := r.db.ExecContext(ctx, query, enrollID, userID, pathID)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("repo.EnrollLearningPathUser failed: %w", err)
+		return fmt.Errorf("repo.EnrollLearningPathUser begin tx failed: %w", err)
 	}
+	defer tx.Rollback()
+
+	enrollID := uuid.New().String()
+	enrollQuery := `INSERT INTO path_enroll (enroll_id, enrollment_status, enroll_at, user_id, path_id) VALUES (@p1, 'active', GETDATE(), @p2, @p3)`
+	
+	_, err = tx.ExecContext(ctx, enrollQuery, enrollID, userID, pathID)
+	if err != nil {
+		return fmt.Errorf("repo.EnrollLearningPathUser insert path_enroll failed: %w", err)
+	}
+
+	progressQuery := `
+		INSERT INTO node_progress (progress_id, user_id, node_id, status, updated_at, complete)
+		SELECT 
+			NEWID(),
+			@p1,
+			node_id,
+			'locked',
+			GETDATE(),
+			'false'
+		FROM node 
+		WHERE path_id = @p2
+	`
+
+	_, err = tx.ExecContext(ctx, progressQuery, userID, pathID)
+	if err != nil {
+		return fmt.Errorf("repo.EnrollLearningPathUser insert node_progress failed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("repo.EnrollLearningPathUser commit failed: %w", err)
+	}
+
 	return nil
 }
 

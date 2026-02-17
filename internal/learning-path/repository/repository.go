@@ -21,9 +21,9 @@ type RepositoryLearningPath interface {
 }
 
 type RepositoryNode interface {
-	GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error)
+	GetNodeByID(ctx context.Context, nodeID string, userID string) (*model.Node, error)
 	CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error)
-	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
+	GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error)
 	UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
 	DeleteNode(ctx context.Context, nodeID string) error
 	CreateMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)

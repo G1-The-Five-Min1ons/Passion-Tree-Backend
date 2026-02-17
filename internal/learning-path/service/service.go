@@ -30,14 +30,14 @@ type ServiceSearch interface {
 }
 
 type ServiceNode interface {
-	GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error)
+	GetNodeDetails(ctx context.Context, nodeID string, userID string) (*model.Node, error)
 	AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error)
 	EditNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
 	RemoveNode(ctx context.Context, nodeID string) error
 	AddMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
 	RemoveMaterial(ctx context.Context, materialID string) error
 	ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error
-	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
+	GetNodesByPathID(ctx context.Context, pathID string, node_id string) ([]model.Node, error)
 }
 
 type ServiceComment interface {
