@@ -93,13 +93,7 @@ func (h *Handler) handleOAuth(c *fiber.Ctx, provider string) error {
 
     // 3. Manage Link Confirmation
     if linkConfirm != nil && linkConfirm.NeedsConfirm {
-        return c.JSON(fiber.Map{
-            "needs_confirmation": true,
-            "link_token":         linkConfirm.LinkToken,
-            "message":            linkConfirm.Message,
-            "existing_user":      linkConfirm.ExistingUser,
-            "provider_name":      linkConfirm.ProviderName,
-        })
+        return c.JSON(linkConfirm)
     }
 
     h.logger.Info(provider+" login successful", "user_id", user.UserID)
