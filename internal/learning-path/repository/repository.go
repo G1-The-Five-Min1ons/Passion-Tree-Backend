@@ -31,6 +31,8 @@ type RepositoryNode interface {
 	DeleteMaterial(ctx context.Context, materialID string) error
 	UpdateNodeSequence(ctx context.Context, nodeIDs []string) error
 	CreateNodeWithContent(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	UpdateNodeProgressStatus(ctx context.Context, nodeID string, userID string) error
+	UpdateNodeProgressCompletion(ctx context.Context, nodeID string, userID string) error
 }
 
 type RepositoryComment interface {
