@@ -225,45 +225,34 @@ func (r *repositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID str
 		return nil
 	}
 
-	// Check if profile exists
-	checkQuery := `SELECT COUNT(*) FROM profiles WHERE user_id = @p1`
-	var count int
-	err := r.db.QueryRowContext(ctx, checkQuery, userID).Scan(&count)
-	if err != nil {
-		return fmt.Errorf("failed to check profile existence: %w", err)
-	}
-
-	if count > 0 {
-		// Update existing profile (only update avatar_url from social auth)
-		updateQuery := `
-			UPDATE profiles
-			SET 
+	// Use MERGE for an atomic UPSERT operation in a single database round-trip
+	// 1. MATCHED: If a profile exists for this user_id, update only the avatar_url
+	// 2. NOT MATCHED: If no profile exists, insert a new record with all provided data
+	query := `
+		MERGE INTO profiles AS target
+		USING (SELECT @p1 AS user_id) AS source
+		ON target.user_id = source.user_id
+		WHEN MATCHED THEN
+			UPDATE SET 
 				avatar_url = CASE 
-					WHEN @p1 IS NOT NULL AND @p1 != '' THEN @p1 
-					ELSE avatar_url 
+					WHEN @p2 IS NOT NULL AND @p2 != '' THEN @p2 
+					ELSE target.avatar_url 
 				END,
-				updated_at = GETDATE()
-			WHERE user_id = @p2
-		`
-		_, err = r.db.ExecContext(ctx, updateQuery, profile.AvatarURL, userID)
-		if err != nil {
-			return fmt.Errorf("failed to update profile: %w", err)
-		}
-	} else {
-		// Create new profile
-		insertQuery := `
-			INSERT INTO profiles (user_id, bio, location, avatar_url)
-			VALUES (@p1, @p2, @p3, @p4)
-		`
-		_, err = r.db.ExecContext(ctx, insertQuery,
-			userID,
-			profile.Bio,
-			profile.Location,
-			profile.AvatarURL,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create profile: %w", err)
-		}
+				updated_at = GETUTCDATE()
+		WHEN NOT MATCHED THEN
+			INSERT (user_id, bio, location, avatar_url, created_at, updated_at)
+			VALUES (@p1, @p3, @p4, @p2, GETUTCDATE(), GETUTCDATE());
+	`
+
+	_, err := r.db.ExecContext(ctx, query,
+		userID,            
+		profile.AvatarURL,  
+		profile.Bio,        
+		profile.Location,   
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to upsert social profile: %w", err)
 	}
 
 	return nil
