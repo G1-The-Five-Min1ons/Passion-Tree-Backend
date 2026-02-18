@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passiontree – แจ้งเตือนความปลอดภัย</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: #F0EDE8;
+      font-family: 'DM Sans', Arial, sans-serif;
+      color: #1A1A1A;
+      padding: 40px 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wrapper {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    /* Brand bar */
+    .brand-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      padding: 0 4px;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      color: #1A1A1A;
+    }
+
+    .brand-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #C0392B;
+    }
+
+    /* Card */
+    .card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 2px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    /* Red header */
+    .card-top {
+      background: #1C0A0A;
+      padding: 36px 40px 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-top::before {
+      content: '';
+      position: absolute;
+      top: -40px;
+      right: -40px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: rgba(192, 57, 43, 0.15);
+    }
+
+    .card-top::after {
+      content: '';
+      position: absolute;
+      bottom: -20px;
+      right: 60px;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(192, 57, 43, 0.08);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(192, 57, 43, 0.2);
+      border: 1px solid rgba(192, 57, 43, 0.45);
+      border-radius: 100px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #E8756A;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .badge-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #E8756A;
+    }
+
+    .card-top h1 {
+      font-size: 26px;
+      font-weight: 600;
+      color: #FFFFFF;
+      line-height: 1.3;
+      letter-spacing: -0.5px;
+      position: relative;
+    }
+
+    .card-top p {
+      margin-top: 8px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.6;
+      position: relative;
+    }
+
+    /* Body */
+    .card-body {
+      padding: 36px 40px;
+    }
+
+    /* Main alert */
+    .main-alert {
+      background: #FDF2F2;
+      border: 1.5px solid #F5CECE;
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+
+    .main-alert-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #9A0000;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .main-alert p {
+      font-size: 13px;
+      color: #B03030;
+      line-height: 1.6;
+    }
+
+    /* Actions taken */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 14px;
+    }
+
+    .actions-taken {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .action-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 16px;
+      background: #F7F5F1;
+      border: 1px solid #E8E4DC;
+      border-radius: 10px;
+      font-size: 13px;
+      color: #444;
+      font-weight: 500;
+    }
+
+    .action-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #1A1A1A;
+      color: #FFF;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .divider {
+      height: 1px;
+      background: #F0EDE8;
+      margin: 24px 0;
+    }
+
+    /* Steps */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #C0392B;
+      color: #FFF;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step-text {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    .step-text strong { color: #1A1A1A; }
+
+    /* Meta info */
+    .meta-box {
+      background: #F7F5F1;
+      border: 1.5px solid #E8E4DC;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 24px;
+    }
+
+    .meta-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 12px;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .meta-row:last-child { margin-bottom: 0; }
+
+    .meta-key {
+      font-size: 12px;
+      color: #AAA;
+      font-weight: 500;
+      width: 70px;
+      flex-shrink: 0;
+    }
+
+    .meta-val {
+      font-family: 'DM Mono', 'Courier New', monospace;
+      font-size: 12px;
+      color: #444;
+      background: #ECEAE5;
+      padding: 2px 8px;
+      border-radius: 5px;
+      letter-spacing: 0.3px;
+    }
+
+    .divider { height: 1px; background: #F0EDE8; margin: 24px 0; }
+
+    .security-note {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.7;
+    }
+
+    .security-note strong { color: #555; }
+
+    /* CTA */
+    .cta-block {
+      margin-top: 24px;
+      padding: 16px 20px;
+      background: #FFF8EC;
+      border: 1px solid #F5E6C2;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .cta-text {
+      font-size: 13px;
+      color: #7A5200;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .cta-text span {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      color: #A07030;
+      margin-top: 2px;
+    }
+
+    .cta-link {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1A1A1A;
+      text-decoration: none;
+      background: #1A1A1A;
+      color: #FFF;
+      padding: 8px 16px;
+      border-radius: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 28px;
+      padding: 0 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-left {
+      font-size: 12px;
+      color: #AAA;
+      line-height: 1.6;
+    }
+
+    .footer-links { display: flex; gap: 16px; }
+
+    .footer-links a {
+      font-size: 12px;
+      color: #AAA;
+      text-decoration: none;
+      border-bottom: 1px solid #DDD;
+      padding-bottom: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <!-- Brand bar -->
+    <div class="brand-bar">
+      <span class="brand-name">Passiontree</span>
+      <div class="brand-dot"></div>
+    </div>
+
+    <!-- Card -->
+    <div class="card">
+
+      <!-- Dark red header -->
+      <div class="card-top">
+        <div class="badge">
+          <div class="badge-dot"></div>
+          แจ้งเตือนความปลอดภัย
+        </div>
+        <h1>ตรวจพบกิจกรรม<br>ที่น่าสงสัย</h1>
+        <p>ระบบได้ดำเนินการล็อกบัญชีชั่วคราวเพื่อปกป้องข้อมูลของคุณแล้ว</p>
+      </div>
+
+      <!-- Body -->
+      <div class="card-body">
+
+        <!-- Alert -->
+        <div class="main-alert">
+          <div class="main-alert-title">
+            🚨 มีการพยายามใช้ Token ที่ผิดปกติ
+          </div>
+          <p>ระบบตรวจพบความพยายามเข้าถึงบัญชีในลักษณะที่ผิดปกติ ซึ่งอาจบ่งชี้ถึงการโจรกรรมข้อมูล</p>
+        </div>
+
+        <!-- Actions taken -->
+        <div class="section-label">สิ่งที่ระบบดำเนินการแล้ว</div>
+        <div class="actions-taken">
+          <div class="action-item">
+            <div class="action-check">✓</div>
+            ล็อกเอาท์ทุกอุปกรณ์ที่เชื่อมต่ออยู่
+          </div>
+          <div class="action-item">
+            <div class="action-check">✓</div>
+            เพิกถอน Token การเข้าถึงทั้งหมด
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- What you should do -->
+        <div class="section-label">สิ่งที่คุณควรทำทันที</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">เข้าสู่ระบบอีกครั้งผ่านช่องทางที่ได้รับอนุญาตเท่านั้น</div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text"><strong>เปลี่ยนรหัสผ่านทันที</strong> และตั้งรหัสที่ไม่ซ้ำกับที่เคยใช้</div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">ตรวจสอบประวัติการเข้าใช้งานและอุปกรณ์ที่ได้รับอนุญาต</div>
+          </div>
+        </div>
+
+        <!-- Meta info -->
+        <div class="meta-box">
+          <div class="meta-label">รายละเอียดเหตุการณ์</div>
+          <div class="meta-row">
+            <span class="meta-key">User ID</span>
+            <span class="meta-val">{{.UserID}}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">เวลา</span>
+            <span class="meta-val">{{.Timestamp}}</span>
+          </div>
+        </div>
+
+        <!-- CTA contact support -->
+        <div class="cta-block">
+          <div class="cta-text">
+            หากคุณไม่ได้ดำเนินการนี้
+            <span>กรุณาติดต่อทีมสนับสนุนทันที เราพร้อมช่วยเหลือ 24/7</span>
+          </div>
+          <a href="mailto:support@passiontree.com" class="cta-link">ติดต่อเรา</a>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="security-note">
+          <strong>เพื่อความปลอดภัย</strong> ทีมงาน Passiontree จะ<strong>ไม่</strong>ขอรหัสผ่านหรือข้อมูลส่วนตัวของคุณผ่านอีเมลหรือช่องทางใดๆ
+        </p>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-left">
+        © 2025 Passiontree. All rights reserved.<br>
+        อีเมลนี้ส่งโดยอัตโนมัติ กรุณาอย่าตอบกลับ
+      </div>
+      <div class="footer-links">
+        <a href="#">ความเป็นส่วนตัว</a>
+        <a href="#">ติดต่อเรา</a>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

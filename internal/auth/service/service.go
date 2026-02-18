@@ -17,11 +17,11 @@ import (
 )
 
 var (
-	// go:embed templates/verification.html
+	//go:embed templates/verification.html
 	verificationTemplate string
-	// go:embed templates/password_reset.html
+	//go:embed templates/password_reset.html
 	passwordResetTemplate string
-	// go:embed templates/security_alert.html
+	//go:embed templates/security_alert.html
 	securityAlertTemplate string
 )
 
@@ -36,7 +36,7 @@ type UserService interface {
 	RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (newAccessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, userID string) error
 	ValidateToken(ctx context.Context, token string) (*model.User, error)
-	VerifyEmail(ctx context.Context, token string) error
+	VerifyEmail(ctx context.Context, vToken string, deviceInfo, ip, ua string) (accessToken string, refreshToken string, err error)
 	ResendVerificationEmail(ctx context.Context, email string) error
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, code string, newPassword string) error

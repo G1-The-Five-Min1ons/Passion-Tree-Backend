@@ -7,6 +7,9 @@ import (
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
 
+	"passiontree/internal/config"
+	"passiontree/internal/pkg/jwt"
+
 	auth "passiontree/internal/auth"
 	learningpath "passiontree/internal/learning-path"
 	reflection "passiontree/internal/reflection"
@@ -20,13 +23,23 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 	// Health check endpoint
 	api := app.Group("/api/v1")
 
+	// Load configuration for JWT service
+	cfg, err := config.LoadDBConfig()
+	if err != nil {
+		logger.Error("startup_failed", "error", err)
+		panic("Failed to load configuration: " + err.Error())
+	}
+
+	// Initialize JWT service
+	jwtService := jwt.NewService(cfg)
+
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return healthCheck(c, db, storageClient)
 	})
 
 	auth.RegisterRoutes(api, db, logger)
 	learningpath.RegisterRoutes(api, db, aiClient, logger, storageClient)
-	reflection.RegisterRoutes(api, db, aiClient, logger)
+	reflection.RegisterRoutes(api, db, aiClient, jwtService, logger)
 	upload.RegisterRoutes(api, logger, storageClient)
 }
 

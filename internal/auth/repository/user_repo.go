@@ -25,8 +25,8 @@ func (r *repositoryImpl) CreateUser(ctx context.Context, user *model.User, profi
 	userID := uuid.New().String()
 
 	// Insert into users table
-	userQuery := `INSERT INTO users (user_id, username, email, password, first_name, last_name, role, heart_count, is_email_verified) 
-	              VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9)`
+	userQuery := `INSERT INTO users (user_id, username, email, password, first_name, last_name, role, heart_count, is_email_verified, create_at, update_at) 
+	              VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, GETDATE(), GETDATE())`
 	_, err = tx.ExecContext(ctx, userQuery,
 		userID, user.Username, user.Email, user.Password, user.FirstName, user.LastName, user.Role, user.HeartCount,
 		user.IsEmailVerified)
@@ -155,7 +155,7 @@ func (r *repositoryImpl) GetUserByUsername(ctx context.Context, username string)
 // --- Updates & Deletion ---
 
 func (r *repositoryImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
-	query := `UPDATE users SET first_name=@p1, last_name=@p2 WHERE user_id=@p3`
+	query := `UPDATE users SET first_name=@p1, last_name=@p2, update_at=GETDATE() WHERE user_id=@p3`
 	_, err := r.db.ExecContext(ctx, query, firstName, lastName, id)
 	return err
 }
@@ -200,7 +200,7 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 		return nil
 	}
 
-	query := "UPDATE profile SET " + strings.Join(updates, ", ") + fmt.Sprintf(" WHERE user_id=@p%d", paramID)
+	query := "UPDATE profile SET " + strings.Join(updates, ", ") + fmt.Sprintf(", update_at=GETDATE() WHERE user_id=@p%d", paramID)
 	args = append(args, userID)
 
 	_, err := r.db.ExecContext(ctx, query, args...)
@@ -277,7 +277,7 @@ func (r *repositoryImpl) ChangePasswordAndRevokeSessions(ctx context.Context, us
 }
 
 func (r *repositoryImpl) SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error {
-	query := `UPDATE users SET require_2fa_next_login = @p1 WHERE user_id = @p2`
+	query := `UPDATE users SET require_2fa_next_login = @p1, update_at = GETDATE() WHERE user_id = @p2`
 	_, err := r.db.ExecContext(ctx, query, require2FA, userID)
 	return err
 }
@@ -289,7 +289,7 @@ func (r *repositoryImpl) VerifyEmailWithToken(ctx context.Context, userID string
 	if err != nil { return err }
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, `UPDATE users SET is_email_verified = 1 WHERE user_id = @p1`, userID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE users SET is_email_verified = 1, update_at = GETDATE() WHERE user_id = @p1`, userID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE Token SET is_revoke = 1 WHERE token = @p1 AND token_type = @p2`, tokenValue, tokenType); err != nil {
@@ -340,7 +340,7 @@ func (r *repositoryImpl) UpdateEmailVerified(ctx context.Context, userID string,
 	query := `
 		UPDATE users 
 		SET is_email_verified = @p1, 
-		    updated_at = GETDATE() 
+		    update_at = GETDATE() 
 		WHERE user_id = @p2`
 
 	result, err := r.db.ExecContext(ctx, query, isVerified, userID)

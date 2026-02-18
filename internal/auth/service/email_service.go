@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"net/smtp"
 	"time"
 
 	"passiontree/internal/pkg/apperror"
@@ -60,26 +61,57 @@ func (s *emailServiceImpl) SendSecurityAlertEmail(to, userID string) error {
 }
 
 func (s *emailServiceImpl) sendEmail(to, subject, html, text, fromName string) error {
-	if s.config.MailerSendAPIKey == "" || s.config.SMTPFromEmail == "" {
-		return apperror.NewInternal("email service not configured")
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	message := s.mailersendClient.Email.NewMessage()
-	message.SetFrom(mailersend.From{Name: fromName, Email: s.config.SMTPFromEmail})
-	message.SetRecipients([]mailersend.Recipient{{Name: "User", Email: to}})
-	message.SetSubject(subject)
-	message.SetHTML(html)
-	message.SetText(text)
+	// 1. ลองส่งด้วย MailerSend ก่อน (ถ้าตั้งค่า API Key ไว้)
+	if s.config.MailerSendAPIKey != "" {
+		message := s.mailersendClient.Email.NewMessage()
+		message.SetFrom(mailersend.From{Name: fromName, Email: s.config.SMTPFromEmail})
+		message.SetRecipients([]mailersend.Recipient{{Name: "User", Email: to}})
+		message.SetSubject(subject)
+		message.SetHTML(html)
+		message.SetText(text)
 
-	if _, err := s.mailersendClient.Email.Send(ctx, message); err != nil {
-		s.logger.Error("send email failed", "to", to, "error", err)
-		return apperror.NewInternal("failed to send email: %w", err)
+		_, err := s.mailersendClient.Email.Send(ctx, message)
+		if err == nil {
+			s.logger.Info("email sent via MailerSend", "to", to, "subject", subject)
+			return nil
+		}
+
+		// ถ้า MailerSend พัง หรือยังไม่ Approve (มักจะได้ Error กลับมา) ให้ Log ไว้แล้วไปต่อที่ Gmail
+		s.logger.Warn("MailerSend failed, trying fallback to Gmail", "error", err)
 	}
 
-	s.logger.Info("email sent", "to", to, "subject", subject)
+	// 2. Fallback: ส่งด้วย Gmail SMTP (ถ้า MailerSend ใช้ไม่ได้)
+	return s.sendViaGmail(to, subject, html)
+}
+
+func (s *emailServiceImpl) sendViaGmail(to, subject, htmlBody string) error {
+	from := s.config.GmailEmail
+	password := s.config.GmailAppPassword
+
+	// 1. สร้างหัวจดหมาย (Headers) - ต้องใช้ \r\n เท่านั้น
+	header := fmt.Sprintf("From: %s\r\n", from)
+	header += fmt.Sprintf("To: %s\r\n", to)
+	header += fmt.Sprintf("Subject: %s\r\n", subject)
+	header += "MIME-Version: 1.0\r\n"
+	header += "Content-Type: text/html; charset=\"UTF-8\"\r\n"
+	header += "\r\n" // บรรทัดว่างแบ่ง Header และ Body (ห้ามขาด!)
+
+	// 2. รวมร่าง Message
+	message := []byte(header + htmlBody)
+
+	// 3. Authentication & Send
+	auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
+	err := smtp.SendMail("smtp.gmail.com:587", auth, from, []string{to}, message)
+	
+	if err != nil {
+		s.logger.Error("Gmail ultimate failure", "error", err)
+		return err
+	}
+
+	s.logger.Info("OTP sent via Gmail successfully", "to", to)
 	return nil
 }
 
