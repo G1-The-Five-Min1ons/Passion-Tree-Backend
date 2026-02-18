@@ -17,9 +17,10 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	// Validate Role
-	if req.Role != model.RoleStudent && req.Role != model.RoleTeacher {
-		return h.handleError(c, apperror.NewBadRequest("role must be either 'student' or 'teacher'"))
+	// Set default role as 'pending'
+	Role := req.Role
+	if Role == "" {
+		Role = "pending"
 	}
 
 	user := &model.User{
@@ -28,7 +29,7 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		Password:  req.Password,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
-		Role:      req.Role,
+		Role:      Role,
 	}
 
 	profile := &model.Profile{

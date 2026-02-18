@@ -43,12 +43,12 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 	user.Password = string(hashedPassword)
 
-	// Validate role
+	// Validate role: allow 'pending' as default, only 'student', 'teacher', 'pending' allowed
 	if user.Role == "" {
-		return "", apperror.NewBadRequest("role is required (student or teacher)")
+		user.Role = "pending"
 	}
-	if user.Role != model.RoleStudent && user.Role != model.RoleTeacher {
-		return "", apperror.NewBadRequest("role must be either 'student' or 'teacher'")
+	if user.Role != "pending" && user.Role != model.RoleStudent && user.Role != model.RoleTeacher {
+		return "", apperror.NewBadRequest("role must be either 'student', 'teacher', or 'pending'")
 	}
 
 	// Set default values
@@ -113,10 +113,10 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	   if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
-		   s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
-		   return "", apperror.NewInternal("failed to save verification token: %w", err)
-	   }
+	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
+		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
+		return "", apperror.NewInternal("failed to save verification token: %w", err)
+	}
 
 	// Send verification email (don't fail registration if email sending fails)
 	if user.Email == "" {
