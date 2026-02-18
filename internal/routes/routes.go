@@ -38,9 +38,9 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 	})
 
 	auth.RegisterRoutes(api, db, logger)
-	learningpath.RegisterRoutes(api, db, aiClient, logger, storageClient)
+	learningpath.RegisterRoutes(api, db, aiClient, jwtService, logger, storageClient)
 	reflection.RegisterRoutes(api, db, aiClient, jwtService, logger)
-	upload.RegisterRoutes(api, logger, storageClient)
+	upload.RegisterRoutes(api, jwtService, logger, storageClient)
 }
 
 // healthCheck returns the service health status

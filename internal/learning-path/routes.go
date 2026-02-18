@@ -5,6 +5,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"passiontree/internal/connection"
+	"passiontree/internal/pkg/jwt"
+	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
@@ -12,12 +14,15 @@ import (
 	"passiontree/internal/platform/aiclient"
 )
 
-func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, logger *slog.Logger, storageClient *storage.BlobService) {
+func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, jwtService *jwt.Service, logger *slog.Logger, storageClient *storage.BlobService) {
 	repo := repository.NewRepository(db)
 	svc := service.NewService(repo, aiClient, logger)
 	h := handler.NewHandler(svc, logger, storageClient)
 
-	paths := r.Group("/learningpaths")
+	// All reflection routes require JWT authentication
+	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
+
+	paths := protected.Group("/learningpaths")
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
@@ -35,7 +40,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 	}
 
-	nodes := r.Group("/learningpaths/nodes")
+	nodes := protected.Group("/learningpaths/nodes")
 	{
 		nodes.Get("/:node_id", h.GetOneNode)
 		nodes.Put("/:node_id", h.UpdateNode)
@@ -48,30 +53,30 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		nodes.Delete("/materials/:material_id", h.DeleteMaterial)
 	}
 
-	questions := r.Group("/learningpaths/questions")
+	questions := protected.Group("/learningpaths/questions")
 	{
 		questions.Delete("/:question_id", h.DeleteQuestion)
 		questions.Post("/:question_id/choices", h.CreateChoice)
 		questions.Delete("/choices/:choice_id", h.DeleteChoice)
 	}
 
-	userPaths := r.Group("/user/learningpaths")
+	userPaths := protected.Group("/user/learningpaths")
 	{
 		userPaths.Get("/:path_id/status", h.GetEnrollmentStatus)
 		userPaths.Get("/:path_id/progress", h.GetPathProgress)
 	}
 
-	historyGroup := r.Group("/user/learningpaths/history")
+	historyGroup := protected.Group("/user/learningpaths/history")
 	{
 		historyGroup.Get("", h.GetUserHistory)
 	}
 
-	resumeGroup := r.Group("/user/learningpaths/resume")
+	resumeGroup := protected.Group("/user/learningpaths/resume")
 	{
 		resumeGroup.Get("", h.GetResume)
 	}
 
-	comments := r.Group("/learningpaths/comments")
+	comments := protected.Group("/learningpaths/comments")
 	{
 		comments.Post("/:comment_id/mentions", h.CreateMention)
 		comments.Post("/:comment_id/reactions", h.CreateReaction)

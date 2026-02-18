@@ -2,6 +2,9 @@ package upload
 
 import (
 	"log/slog"
+
+	"passiontree/internal/pkg/jwt"
+	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/upload/handler"
 	"passiontree/internal/upload/service"
@@ -9,11 +12,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(r fiber.Router, logger *slog.Logger, storageClient *storage.BlobService) {
+func RegisterRoutes(r fiber.Router, jwtService *jwt.Service, logger *slog.Logger, storageClient *storage.BlobService) {
 	svc := service.NewService(logger, storageClient)
 	h := handler.NewHandler(logger, svc)
 
-	group := r.Group("/upload")
+	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
+
+	group := protected.Group("/upload")
 	{
 		group.Post("/presignedimg-url", h.GetPresignedIMGURL)
 	}
