@@ -154,9 +154,35 @@ func (r *repositoryImpl) GetUserByUsername(ctx context.Context, username string)
 
 // --- Updates & Deletion ---
 
-func (r *repositoryImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
-	query := `UPDATE users SET first_name=@p1, last_name=@p2, update_at=GETDATE() WHERE user_id=@p3`
-	_, err := r.db.ExecContext(ctx, query, firstName, lastName, id)
+func (r *repositoryImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string, role string) error {
+	var updates []string
+	var args []interface{}
+	paramID := 1
+
+	if firstName != "" {
+		updates = append(updates, fmt.Sprintf("first_name=@p%d", paramID))
+		args = append(args, firstName)
+		paramID++
+	}
+	if lastName != "" {
+		updates = append(updates, fmt.Sprintf("last_name=@p%d", paramID))
+		args = append(args, lastName)
+		paramID++
+	}
+	if role != "" {
+		updates = append(updates, fmt.Sprintf("role=@p%d", paramID))
+		args = append(args, role)
+		paramID++
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	query := "UPDATE users SET " + strings.Join(updates, ", ") + fmt.Sprintf(", update_at=GETDATE() WHERE user_id=@p%d", paramID)
+	args = append(args, id)
+
+	_, err := r.db.ExecContext(ctx, query, args...)
 	return err
 }
 
@@ -172,27 +198,33 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 	// Dynamic query building
 	if profile.AvatarURL != "" {
 		updates = append(updates, fmt.Sprintf("Avatar_URL=@p%d", paramID))
-		args = append(args, profile.AvatarURL); paramID++
+		args = append(args, profile.AvatarURL)
+		paramID++
 	}
 	if profile.RankName != "" {
 		updates = append(updates, fmt.Sprintf("Rank_Name=@p%d", paramID))
-		args = append(args, profile.RankName); paramID++
+		args = append(args, profile.RankName)
+		paramID++
 	}
 	if profile.Location != "" {
 		updates = append(updates, fmt.Sprintf("Location=@p%d", paramID))
-		args = append(args, profile.Location); paramID++
+		args = append(args, profile.Location)
+		paramID++
 	}
 	if profile.Bio != "" {
 		updates = append(updates, fmt.Sprintf("Bio=@p%d", paramID))
-		args = append(args, profile.Bio); paramID++
+		args = append(args, profile.Bio)
+		paramID++
 	}
 	if profile.Level != nil {
 		updates = append(updates, fmt.Sprintf("Level=@p%d", paramID))
-		args = append(args, *profile.Level); paramID++
+		args = append(args, *profile.Level)
+		paramID++
 	}
 	if profile.XP != nil {
 		updates = append(updates, fmt.Sprintf("XP=@p%d", paramID))
-		args = append(args, *profile.XP); paramID++
+		args = append(args, *profile.XP)
+		paramID++
 	}
 	// ... add other fields as needed ...
 
@@ -209,12 +241,16 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 
 func (r *repositoryImpl) DeleteUser(ctx context.Context, id string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer tx.Rollback()
 
 	_, _ = tx.ExecContext(ctx, "DELETE FROM profile WHERE user_id = @p1", id)
 	_, err = tx.ExecContext(ctx, "DELETE FROM users WHERE user_id = @p1", id)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	return tx.Commit()
 }
@@ -238,7 +274,9 @@ func (r *repositoryImpl) UpdatePassword(ctx context.Context, userID string, hash
 // ResetPasswordWithToken implements Global Logout (Revoke all refresh tokens)
 func (r *repositoryImpl) ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer tx.Rollback()
 
 	// 1. Update Password
@@ -260,18 +298,26 @@ func (r *repositoryImpl) ResetPasswordWithToken(ctx context.Context, userID stri
 
 func (r *repositoryImpl) ChangePasswordAndRevokeSessions(ctx context.Context, userID string, hashedPassword string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer tx.Rollback()
 
 	result, err := tx.ExecContext(ctx, `UPDATE users SET password = @p1 WHERE user_id = @p2`, hashedPassword, userID)
-	if err != nil { return err }
-	
+	if err != nil {
+		return err
+	}
+
 	rows, _ := result.RowsAffected()
-	if rows == 0 { return fmt.Errorf("user not found") }
+	if rows == 0 {
+		return fmt.Errorf("user not found")
+	}
 
 	revokeQuery := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
 	_, err = tx.ExecContext(ctx, revokeQuery, userID, model.TokenTypeRefresh)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	return tx.Commit()
 }
@@ -286,7 +332,9 @@ func (r *repositoryImpl) SetRequire2FANextLogin(ctx context.Context, userID stri
 
 func (r *repositoryImpl) VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(ctx, `UPDATE users SET is_email_verified = 1, update_at = GETDATE() WHERE user_id = @p1`, userID); err != nil {
@@ -301,14 +349,18 @@ func (r *repositoryImpl) VerifyEmailWithToken(ctx context.Context, userID string
 
 func (r *repositoryImpl) ReplaceVerificationToken(ctx context.Context, userID string, newToken *model.Token) error {
 	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer tx.Rollback()
 
 	_, _ = tx.ExecContext(ctx, `DELETE FROM Token WHERE user_id = @p1 AND token_type = @p2`, userID, model.TokenTypeEmailVerification)
-	
+
 	insertQuery := `INSERT INTO Token (user_id, token, token_type, is_revoke, expire_at) VALUES (@p1, @p2, @p3, @p4, @p5)`
 	_, err = tx.ExecContext(ctx, insertQuery, newToken.UserID, newToken.Token, newToken.TokenType, newToken.IsRevoked, newToken.ExpireAt)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 
 	return tx.Commit()
 }
@@ -352,7 +404,7 @@ func (r *repositoryImpl) UpdateEmailVerified(ctx context.Context, userID string,
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rows == 0 {
 		return fmt.Errorf("user not found: %s", userID)
 	}

@@ -20,8 +20,8 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	}
 
 	// Validate Role
-	if req.Role != model.RoleStudent && req.Role != model.RoleTeacher {
-		return h.handleError(c, apperror.NewBadRequest("role must be either 'student' or 'teacher'"))
+	if req.Role != model.RoleStudent && req.Role != model.RoleTeacher && req.Role != model.RolePending {
+		return h.handleError(c, apperror.NewBadRequest("role must be either 'student', 'teacher', or 'pending'"))
 	}
 
 	user := &model.User{
@@ -119,7 +119,7 @@ func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateUser updates user information from JWT token (only first_name and last_name)
+// UpdateUser updates user information from JWT token (first_name, last_name, and optionally role)
 func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -131,10 +131,15 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
+	// Validate role if provided
+	if req.Role != "" && req.Role != model.RoleStudent && req.Role != model.RoleTeacher {
+		return h.handleError(c, apperror.NewBadRequest("role must be either 'student' or 'teacher'"))
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	if err := h.userSvc.UpdateUser(ctx, userID, req.FirstName, req.LastName); err != nil {
+	if err := h.userSvc.UpdateUser(ctx, userID, req.FirstName, req.LastName, string(req.Role)); err != nil {
 		return h.handleError(c, err)
 	}
 

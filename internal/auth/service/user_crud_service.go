@@ -45,10 +45,10 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 
 	// Validate role
 	if user.Role == "" {
-		return "", apperror.NewBadRequest("role is required (student or teacher)")
+		return "", apperror.NewBadRequest("role is required (student, teacher, or pending)")
 	}
-	if user.Role != model.RoleStudent && user.Role != model.RoleTeacher {
-		return "", apperror.NewBadRequest("role must be either 'student' or 'teacher'")
+	if user.Role != model.RoleStudent && user.Role != model.RoleTeacher && user.Role != model.RolePending {
+		return "", apperror.NewBadRequest("role must be either 'student', 'teacher', or 'pending'")
 	}
 
 	// Set default values
@@ -113,10 +113,10 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		IsRevoked: false,
 		ExpireAt:  tokenExpiry,
 	}
-	   if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
-		   s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
-		   return "", apperror.NewInternal("failed to save verification token: %w", err)
-	   }
+	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
+		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
+		return "", apperror.NewInternal("failed to save verification token: %w", err)
+	}
 
 	// Send verification email (don't fail registration if email sending fails)
 	if user.Email == "" {
@@ -169,8 +169,8 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 	return user, nil
 }
 
-// UpdateUser updates user information (only first_name and last_name)
-func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string) error {
+// UpdateUser updates user information (first_name, last_name, and optionally role)
+func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string, role string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
@@ -185,7 +185,7 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 		return apperror.NewNotFound("user with id '%s' not found", id)
 	}
 
-	if err := s.repo.UpdateUser(ctx, id, firstName, lastName); err != nil {
+	if err := s.repo.UpdateUser(ctx, id, firstName, lastName, role); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
 			return apperror.NewConflict("username already taken")
 		}

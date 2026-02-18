@@ -16,18 +16,20 @@ type User struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 
 	// Social Auth fields
-	AuthProvider   string `json:"auth_provider"`    // "local", "google", "discord"
-	ProviderUserID string `json:"provider_user_id"` // User ID from OAuth provider
+	AuthProvider        string     `json:"auth_provider"`    // "local", "google", "discord"
+	ProviderUserID      string     `json:"provider_user_id"` // User ID from OAuth provider
 	FailedAttempts      int        `json:"failed_attempts"`
 	LockedUntil         *time.Time `json:"locked_until"`
 	Require2FANextLogin bool       `json:"require_2fa_next_login"` // Security flag: set to true after token theft detection
 }
 
 type UserRole string
+
 const (
 	RoleStudent UserRole = "student"
 	RoleTeacher UserRole = "teacher"
 	RoleAdmin   UserRole = "admin"
+	RolePending UserRole = "pending"
 )
 
 const (
@@ -47,11 +49,11 @@ type LinkConfirmationNeeded struct {
 }
 
 type RegisterRequest struct {
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
+	Username  string   `json:"username"`
+	Email     string   `json:"email"`
+	Password  string   `json:"password"`
+	FirstName string   `json:"first_name"`
+	LastName  string   `json:"last_name"`
 	Bio       string   `json:"bio"`
 	Location  string   `json:"location"`
 	AvatarURL string   `json:"avatar_url"`
@@ -64,8 +66,9 @@ type LoginRequest struct {
 }
 
 type UpdateUserRequest struct {
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
+	FirstName string   `json:"first_name"`
+	LastName  string   `json:"last_name"`
+	Role      UserRole `json:"role"`
 }
 
 type VerifyEmailRequest struct {
