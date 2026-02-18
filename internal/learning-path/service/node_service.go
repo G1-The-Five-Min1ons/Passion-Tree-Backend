@@ -39,17 +39,29 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 		return apperror.NewBadRequest("at least one field (title or description) is required for update")
 	}
 
-	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
+	existingNode, err := s.nodeRepo.GetNodeByID(ctx, nodeID, "")
+
+	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "update failed: node not found", "node_id", nodeID)
 			return apperror.NewNotFound("cannot update: node id '%s' not found", nodeID)
 		}
-		if apperror.IsDuplicateKeyError(err) {
-			return apperror.NewConflict("node with this title already exists in this path")
-		}
 		
 		s.logger.ErrorContext(ctx, "database error during node update", "error", err, "node_id", nodeID)
 		return apperror.NewInternal("failed to update node %s: %w", nodeID, err)
+	}
+
+	if req.Title == "" {
+		req.Title = existingNode.Title
+	}
+	if req.Description == "" {
+		req.Description = existingNode.Description
+	}
+
+	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
+
+		s.logger.ErrorContext(ctx, "failed to update node", "error", err, "node_id", nodeID)
+		return apperror.NewInternal("failed to update node: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "node updated successfully", "node_id", nodeID)

@@ -87,21 +87,30 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 		return apperror.NewBadRequest("path_id is required")
 	}
 
-	if req.Title == "" &&
-		req.Objective == "" &&
-		req.Description == "" &&
-		req.CoverImgURL == "" &&
-		req.Publish_status == "" {
-		return apperror.NewBadRequest("request body cannot be empty")
-	}
-
-	if _, err := s.pathRepo.GetLearningPathByID(ctx, path_id); err != nil {
+	existingPath, err := s.pathRepo.GetLearningPathByID(ctx, path_id)
+	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "update failed: path not found", "path_id", path_id)
 			return apperror.NewNotFound("cannot update: path_id '%s' not found", path_id)
 		}
 		s.logger.ErrorContext(ctx, "database error during path verification", "error", err, "title", req.Title)
 		return apperror.NewInternal("failed to verify learning path: %w", err)
+	}
+
+	if req.Title == "" {
+		req.Title = existingPath.Title
+	}
+	if req.Objective == "" {
+		req.Objective = existingPath.Objective
+	}
+	if req.Description == "" {
+		req.Description = existingPath.Description
+	}
+	if req.CoverImgURL == "" {
+		req.CoverImgURL = existingPath.CoverImgURL
+	}
+	if req.Publish_status == "" {
+		req.Publish_status = existingPath.Publish_status 
 	}
 
 	if err := s.pathRepo.UpdateLearningPath(ctx, path_id, req); err != nil {
