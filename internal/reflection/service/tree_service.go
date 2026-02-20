@@ -23,7 +23,7 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 	if req.AlbumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
 	}
-	
+
 	// Create the tree (this will also create tree_node records)
 	treeID, err := s.refRepo.CreateTree(ctx, req)
 	if err != nil {
@@ -33,23 +33,23 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 		}
 		return nil, apperror.NewInternal("failed to create tree: %w", err)
 	}
-	
+
 	// Get the created tree to return full details
 	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to get tree after creation", "error", err, "tree_id", treeID)
 		return nil, apperror.NewInternal("failed to get tree after creation: %w", err)
 	}
-	
+
 	// Fetch tree nodes
 	nodes, err := s.refRepo.GetTreeNodesByTreeID(ctx, treeID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to fetch tree nodes", "error", err, "tree_id", treeID)
-		return nil, apperror.NewInternal(err.Error())
+		return nil, apperror.NewInternal("%s", err.Error())
 	}
 
 	s.logger.InfoContext(ctx, "tree created successfully", "tree_id", treeID, "nodes_count", len(nodes))
-	
+
 	return &model.TreeResponse{
 		TreeID:       tree.TreeID,
 		Title:        tree.Title,
@@ -71,7 +71,7 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 	if treeID == "" {
 		return nil, apperror.NewBadRequest("tree_id is required")
 	}
-	
+
 	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -82,7 +82,7 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 
 		return nil, apperror.NewInternal("database error fetching tree: %w", err)
 	}
-	
+
 	s.logger.InfoContext(ctx, "successfully retrieved tree", "tree_id", treeID)
 	return tree, nil
 }
@@ -93,7 +93,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 	if albumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
 	}
-	
+
 	// If nodes are requested, use optimized query
 	if includeNodes {
 		treesWithNodes, err := s.refRepo.GetTreesWithNodesByAlbumID(ctx, albumID)
@@ -105,16 +105,16 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 			s.logger.ErrorContext(ctx, "database error fetching album trees with nodes", "error", err, "album_id", albumID)
 			return nil, apperror.NewInternal("database error fetching album trees: %w", err)
 		}
-		
+
 		if len(treesWithNodes) == 0 {
 			s.logger.InfoContext(ctx, "album has an empty tree list", "album_id", albumID)
 			return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
 		}
-		
+
 		s.logger.InfoContext(ctx, "successfully retrieved album trees with nodes", "album_id", albumID, "count", len(treesWithNodes))
 		return treesWithNodes, nil
 	}
-	
+
 	// Default: return trees without nodes
 	trees, err := s.refRepo.GetTreesByAlbumID(ctx, albumID)
 	if err != nil {
@@ -125,12 +125,12 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 		s.logger.ErrorContext(ctx, "database error fetching album trees", "error", err, "album_id", albumID)
 		return nil, apperror.NewInternal("database error fetching album trees: %w", err)
 	}
-	
+
 	if len(trees) == 0 {
 		s.logger.InfoContext(ctx, "album has an empty tree list", "album_id", albumID)
 		return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
 	}
-	
+
 	s.logger.InfoContext(ctx, "successfully retrieved album trees", "album_id", albumID, "count", len(trees))
 	return trees, nil
 }
@@ -144,7 +144,7 @@ func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.U
 	if req.Title == "" {
 		return apperror.NewBadRequest("title is required")
 	}
-	
+
 	err := s.refRepo.UpdateTree(ctx, treeID, req)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -154,7 +154,7 @@ func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.U
 		s.logger.ErrorContext(ctx, "failed to update tree", "error", err, "tree_id", treeID)
 		return apperror.NewInternal("failed to update tree: %w", err)
 	}
-	
+
 	s.logger.InfoContext(ctx, "tree updated successfully", "tree_id", treeID)
 	return nil
 }
@@ -165,7 +165,7 @@ func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
 	if treeID == "" {
 		return apperror.NewBadRequest("tree_id is required")
 	}
-	
+
 	err := s.refRepo.DeleteTree(ctx, treeID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -174,7 +174,7 @@ func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
 		s.logger.ErrorContext(ctx, "failed to delete tree", "error", err, "tree_id", treeID)
 		return apperror.NewInternal("failed to delete tree: %w", err)
 	}
-	
+
 	s.logger.InfoContext(ctx, "tree deleted successfully", "tree_id", treeID)
 	return nil
 }
@@ -185,7 +185,7 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 	if treeID == "" {
 		return false, apperror.NewBadRequest("tree_id is required")
 	}
-	
+
 	// Get current tree state
 	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
 	if err != nil {
@@ -194,12 +194,12 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
-		return false, apperror.NewInternal(err.Error())
+		return false, apperror.NewInternal("%s", err.Error())
 	}
-	
+
 	// Toggle pause status (pause -> unpause, unpause -> pause)
 	newPauseStatus := !tree.IsPause
-	
+
 	// Update pause status
 	err = s.refRepo.PauseTree(ctx, treeID, newPauseStatus)
 	if err != nil {
@@ -207,9 +207,9 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "failed to pause/unpause tree", "error", err, "tree_id", treeID)
-		return false, apperror.NewInternal(err.Error())
+		return false, apperror.NewInternal("%s", err.Error())
 	}
-	
+
 	pauseStatus := "paused"
 	if !newPauseStatus {
 		pauseStatus = "unpaused"
