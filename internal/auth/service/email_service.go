@@ -13,6 +13,15 @@ import (
 	"github.com/mailersend/mailersend-go"
 )
 
+var smtpSendMail = smtp.SendMail
+
+// ExportSetSMTPSendMail exposes smtpSendMail for tests
+func ExportSetSMTPSendMail(mock func(addr string, a smtp.Auth, from string, to []string, msg []byte) error) func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	original := smtpSendMail
+	smtpSendMail = mock
+	return original
+}
+
 func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 	subject := "รหัสยืนยันตัวตน - Passion-Tree"
 	text := fmt.Sprintf("ยินดีต้อนรับสู่ Passion-Tree!\n\nรหัสยืนยันตัวตนของคุณคือ: %s\n\nรหัสนี้จะหมดอายุใน 15 นาที", token)
@@ -104,8 +113,8 @@ func (s *emailServiceImpl) sendViaGmail(to, subject, htmlBody string) error {
 
 	// 3. Authentication & Send
 	auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
-	err := smtp.SendMail("smtp.gmail.com:587", auth, from, []string{to}, message)
-	
+	err := smtpSendMail("smtp.gmail.com:587", auth, from, []string{to}, message)
+
 	if err != nil {
 		s.logger.Error("Gmail ultimate failure", "error", err)
 		return err
