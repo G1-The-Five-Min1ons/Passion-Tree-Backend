@@ -18,14 +18,14 @@ func TestCreateUser(t *testing.T) {
 		name          string
 		user          *model.User
 		profile       *model.Profile
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:    "Success",
 			user:    &model.User{Username: "farloss", Email: "thirapatth@gmail.com", FirstName: "Thiraphat", LastName: "Panthong", Password: "securepassword", Role: "student"},
 			profile: &model.Profile{},
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, nil // Ensure email is not taken
 				}
@@ -39,7 +39,7 @@ func TestCreateUser(t *testing.T) {
 			name:    "EmailAlreadyExists",
 			user:    &model.User{Username: "farloss", Email: "thirapatth@gmail.com", FirstName: "Thiraphat", LastName: "Panthong", Password: "securepassword", Role: "student"},
 			profile: &model.Profile{},
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{UserID: "existing-id"}, nil // Email is taken
 				}
@@ -50,7 +50,7 @@ func TestCreateUser(t *testing.T) {
 			name:    "DatabaseError",
 			user:    &model.User{Username: "farloss", Email: "error@example.com", FirstName: "Thiraphat", LastName: "Panthong", Password: "securepassword", Role: "student"},
 			profile: &model.Profile{},
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, nil
 				}
@@ -65,9 +65,9 @@ func TestCreateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestCreateUser case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			mockEmailSvc := &mockEmailService{}
@@ -94,13 +94,13 @@ func TestGetUserByID(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name: "Success",
 			id:   "user-1",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return &model.User{UserID: id, FirstName: "Test"}, &model.Profile{}, nil
 				}
@@ -110,7 +110,7 @@ func TestGetUserByID(t *testing.T) {
 		{
 			name: "NotFound",
 			id:   "user-2",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return nil, nil, nil
 				}
@@ -122,9 +122,9 @@ func TestGetUserByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestGetUserByID case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			mockEmailSvc := &mockEmailService{}
@@ -151,13 +151,13 @@ func TestGetUserByEmail(t *testing.T) {
 	tests := []struct {
 		name          string
 		email         string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:  "Success",
 			email: "found@example.com",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{Email: email}, nil
 				}
@@ -167,7 +167,7 @@ func TestGetUserByEmail(t *testing.T) {
 		{
 			name:  "NotFound",
 			email: "missing@example.com",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, nil
 				}
@@ -179,9 +179,9 @@ func TestGetUserByEmail(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestGetUserByEmail case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			mockEmailSvc := &mockEmailService{}
@@ -211,7 +211,7 @@ func TestUpdateUser(t *testing.T) {
 		firstName     string
 		lastName      string
 		role          string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
@@ -220,7 +220,7 @@ func TestUpdateUser(t *testing.T) {
 			firstName: "Updated",
 			lastName:  "Name",
 			role:      "admin",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return &model.User{UserID: id}, &model.Profile{}, nil
 				}
@@ -233,7 +233,7 @@ func TestUpdateUser(t *testing.T) {
 		{
 			name: "RepositoryError",
 			id:   "user-2",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return &model.User{UserID: id}, &model.Profile{}, nil
 				}
@@ -248,9 +248,9 @@ func TestUpdateUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestUpdateUser case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			mockEmailSvc := &mockEmailService{}
@@ -278,14 +278,14 @@ func TestDeleteUser(t *testing.T) {
 		name          string
 		id            string
 		password      string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:     "Success",
 			id:       "42611365-6415-4530-9346-3ee695d8b58d",
 			password: "correct_password",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				// Mocking password verification relies on hashing which is hard in basic testing without the real hash.
 				// In auth implementation, DeleteUser might just call Repo depending on the flow.
 				// Wait, let's verify what `DeleteUser` actually does.
@@ -307,7 +307,7 @@ func TestDeleteUser(t *testing.T) {
 			name:     "InvalidPassword",
 			id:       "42611365-6415-4530-9346-3ee695d8b58d",
 			password: "wrong_password",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return &model.User{UserID: id, Password: "$2a$10$vU1OjvFQhoRzw3MTZ9uNPejompP6k6I3I4YaAYQ3AKm43B5C5AbFa"}, nil, nil
 				}
@@ -319,9 +319,9 @@ func TestDeleteUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestDeleteUser case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			mockEmailSvc := &mockEmailService{}

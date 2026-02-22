@@ -18,7 +18,7 @@ func TestUpdateProfile(t *testing.T) {
 		name          string
 		userID        string
 		profile       *model.Profile
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
@@ -28,7 +28,7 @@ func TestUpdateProfile(t *testing.T) {
 				Bio:      "New Bio",
 				Location: "New Location",
 			},
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return &model.User{UserID: id}, &model.Profile{}, nil
 				}
@@ -44,7 +44,7 @@ func TestUpdateProfile(t *testing.T) {
 			profile: &model.Profile{
 				Bio: "Error Bio",
 			},
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.UpdateProfileFunc = func(ctx context.Context, userID string, profile *model.Profile) error {
 					return errors.New("db save failed")
 				}
@@ -56,9 +56,9 @@ func TestUpdateProfile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestUpdateProfile case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewUserService(mockRepo, nil, nil, nil, logger)

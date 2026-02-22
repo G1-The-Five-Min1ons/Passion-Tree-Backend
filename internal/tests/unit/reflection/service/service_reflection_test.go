@@ -61,7 +61,7 @@ func TestGetReflectionByID(t *testing.T) {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger) // aiClient nil
+			svc := service.NewService(mock, nil, logger)
 
 			_, err := svc.GetReflectionByID(context.Background(), tt.reflectID)
 
@@ -78,6 +78,86 @@ func TestGetReflectionByID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetAllReflections(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		mock := &repository_test.MockRefRepo{
+			GetAllReflectionsFunc: func(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
+				return []model.Reflection{{ReflectID: "r1"}}, nil
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		res, err := svc.GetAllReflections(context.Background(), model.GetReflectionsFilter{})
+		if err != nil || len(res) == 0 {
+			t.Errorf("Expected valid reflections list, got %v", err)
+		}
+	})
+
+	t.Run("DatabaseError", func(t *testing.T) {
+		mock := &repository_test.MockRefRepo{
+			GetAllReflectionsFunc: func(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
+				return nil, errors.New("db error")
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		_, err := svc.GetAllReflections(context.Background(), model.GetReflectionsFilter{})
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
+			t.Errorf("Expected an internal server error, got %v", err)
+		}
+	})
+}
+
+func TestUpdateReflection(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		mock := &repository_test.MockRefRepo{
+			UpdateReflectionFunc: func(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
+				return nil
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		req := model.UpdateReflectionRequest{LearningReflect: "Test", MoodReflect: "Happy"}
+		err := svc.UpdateReflection(context.Background(), "r1", req)
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+	})
+
+	t.Run("EmptyBody", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(nil, nil, logger)
+
+		err := svc.UpdateReflection(context.Background(), "ref-1", model.UpdateReflectionRequest{})
+		if err == nil || !strings.Contains(err.Error(), "learning_reflect is required") {
+			t.Errorf("Expected empty body error, got %v", err)
+		}
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		mock := &repository_test.MockRefRepo{
+			UpdateReflectionFunc: func(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
+				return sql.ErrNoRows
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		req := model.UpdateReflectionRequest{LearningReflect: "Test", MoodReflect: "Happy"}
+		err := svc.UpdateReflection(context.Background(), "r2", req)
+		if err == nil || !strings.Contains(err.Error(), "not found") {
+			t.Errorf("Expected not found error, got %v", err)
+		}
+	})
 }
 
 func TestDeleteReflection(t *testing.T) {
@@ -137,7 +217,6 @@ func TestDeleteReflection(t *testing.T) {
 
 func TestCreateReflection_NoAI(t *testing.T) {
 	t.Log("\033[36mExecuting TestCreateReflection_NoAI\033[0m")
-	// Test that it fails when AI service is not configured (nil aiClient)
 	mock := &repository_test.MockRefRepo{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	svc := service.NewService(mock, nil, logger)
@@ -149,7 +228,7 @@ func TestCreateReflection_NoAI(t *testing.T) {
 	}
 
 	_, err := svc.CreateReflection(context.Background(), req)
-	expectedError := "internal server error"
+	expectedError := "internal server error" // fails when AI is missing
 	if err == nil {
 		t.Errorf("Expected error '%s', got nil", expectedError)
 	} else if !strings.Contains(err.Error(), expectedError) {

@@ -29,14 +29,14 @@ func TestLogin(t *testing.T) {
 		name          string
 		identifier    string
 		password      string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:       "Success_Email_Unverified",
 			identifier: "test@example.com",
 			password:   "correct_password",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					// Dummy bcrypt hash for testing (cost 10, "correct_password")
 					return &model.User{
@@ -59,7 +59,7 @@ func TestLogin(t *testing.T) {
 			name:       "UserNotFound",
 			identifier: "unknown@example.com",
 			password:   "any",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) { return nil, nil }
 				r.GetUserByUsernameFunc = func(ctx context.Context, username string) (*model.User, error) { return nil, nil }
 			},
@@ -70,9 +70,9 @@ func TestLogin(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestLogin case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			mockEmailSvc := &mockEmailService{}
@@ -99,13 +99,13 @@ func TestLogout(t *testing.T) {
 	tests := []struct {
 		name          string
 		userID        string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:   "Success",
 			userID: "user-1",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.RevokeAllUserTokensFunc = func(ctx context.Context, userID string, tokenType string) error {
 					return nil
 				}
@@ -115,7 +115,7 @@ func TestLogout(t *testing.T) {
 		{
 			name:   "Failure",
 			userID: "user-2",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.RevokeAllUserTokensFunc = func(ctx context.Context, userID string, tokenType string) error {
 					return errors.New("db error")
 				}
@@ -127,9 +127,9 @@ func TestLogout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestLogout case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewUserService(mockRepo, nil, nil, nil, logger)
@@ -156,14 +156,14 @@ func TestGetActiveSessions(t *testing.T) {
 		name          string
 		userID        string
 		currentToken  string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:         "Success",
 			userID:       "user-1",
 			currentToken: "token-value",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				dev1 := "Device1"
 				dev2 := "Device2"
 				tNow := time.Now()
@@ -179,7 +179,7 @@ func TestGetActiveSessions(t *testing.T) {
 		{
 			name:   "Failure",
 			userID: "user-2",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetActiveUserSessionsFunc = func(ctx context.Context, userID string, tokenType string) ([]*model.Token, error) {
 					return nil, errors.New("db error")
 				}
@@ -191,9 +191,9 @@ func TestGetActiveSessions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestGetActiveSessions case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewUserService(mockRepo, nil, nil, nil, logger)
@@ -220,14 +220,14 @@ func TestLogoutSession(t *testing.T) {
 		name          string
 		userID        string
 		sessionID     string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:      "Success",
 			userID:    "user-1",
 			sessionID: "session-1",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.RevokeTokenByIDForUserFunc = func(ctx context.Context, tokenID string, userID string) error {
 					return nil
 				}
@@ -238,7 +238,7 @@ func TestLogoutSession(t *testing.T) {
 			name:      "Failure",
 			userID:    "user-2",
 			sessionID: "session-2",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.RevokeTokenByIDForUserFunc = func(ctx context.Context, tokenID string, userID string) error {
 					return errors.New("db disconnect")
 				}
@@ -250,9 +250,9 @@ func TestLogoutSession(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestLogoutSession case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewUserService(mockRepo, nil, nil, nil, logger)

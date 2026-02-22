@@ -11,6 +11,7 @@ import (
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/service"
+
 	repository_test "passiontree/internal/tests/unit/auth/repository"
 )
 
@@ -39,13 +40,13 @@ func TestForgotPassword(t *testing.T) {
 	tests := []struct {
 		name          string
 		email         string
-		mockSetup     func(*repository_test.MockRepository, *mockEmailService)
+		setup         func(*repository_test.Repository, *mockEmailService)
 		expectedError string
 	}{
 		{
 			name:  "Success",
 			email: "test@example.com",
-			mockSetup: func(r *repository_test.MockRepository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *mockEmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{UserID: "user-123", Email: email}, nil
 				}
@@ -73,7 +74,7 @@ func TestForgotPassword(t *testing.T) {
 		{
 			name:  "UserNotFound",
 			email: "unknown@example.com",
-			mockSetup: func(r *repository_test.MockRepository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *mockEmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, nil // User not found
 				}
@@ -83,7 +84,7 @@ func TestForgotPassword(t *testing.T) {
 		{
 			name:  "DatabaseError",
 			email: "error@example.com",
-			mockSetup: func(r *repository_test.MockRepository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *mockEmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, errors.New("db disconnect")
 				}
@@ -95,11 +96,11 @@ func TestForgotPassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestForgotPassword case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
+			mockRepo := &repository_test.Repository{}
 			mockEmailSvc := &mockEmailService{}
 
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo, mockEmailSvc)
+			if tt.setup != nil {
+				tt.setup(mockRepo, mockEmailSvc)
 			}
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -128,14 +129,14 @@ func TestResetPassword(t *testing.T) {
 		name          string
 		code          string
 		newPassword   string
-		mockSetup     func(*repository_test.MockRepository)
+		setup         func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:        "Success",
 			code:        "valid-code",
 			newPassword: "new-password-123",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetTokenByValueFunc = func(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error) {
 					return &model.Token{
 						TokenID:   "token-id",
@@ -161,7 +162,7 @@ func TestResetPassword(t *testing.T) {
 			name:        "ExpiredToken",
 			code:        "expired-code",
 			newPassword: "new-password-123",
-			mockSetup: func(r *repository_test.MockRepository) {
+			setup: func(r *repository_test.Repository) {
 				r.GetTokenByValueFunc = func(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error) {
 					return &model.Token{
 						TokenID:  "token-id",
@@ -177,9 +178,9 @@ func TestResetPassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestResetPassword case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
 			}
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -208,7 +209,7 @@ func TestChangePassword(t *testing.T) {
 		userID        string
 		oldPassword   string
 		newPassword   string
-		mockSetup     func(*repository_test.MockRepository)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
@@ -216,7 +217,7 @@ func TestChangePassword(t *testing.T) {
 			userID:      "u-1",
 			oldPassword: "old_password",
 			newPassword: "new_password",
-			mockSetup: func(r *repository_test.MockRepository) {
+			mockSetup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return nil, nil, nil
 				}
@@ -228,7 +229,7 @@ func TestChangePassword(t *testing.T) {
 			userID:      "u-2",
 			oldPassword: "wrong_old_password",
 			newPassword: "new_password",
-			mockSetup: func(r *repository_test.MockRepository) {
+			mockSetup: func(r *repository_test.Repository) {
 				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
 					return &model.User{UserID: id, Password: "$2a$10$K3ZbyyP5YGiIM9toMbyEH.eKkTWhd70fKrmXKVzjYFGb4O9vmm.rK"}, nil, nil
 				}
@@ -242,7 +243,7 @@ func TestChangePassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestChangePassword case: %s\033[0m", tt.name)
-			mockRepo := &repository_test.MockRepository{}
+			mockRepo := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mockRepo)
 			}
