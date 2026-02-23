@@ -18,7 +18,7 @@ type Repository struct {
 	GetUserByIDFunc               func(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	ResetPasswordWithTokenFunc    func(ctx context.Context, userID string, hashedPassword string, tokenID string) error
 	CreateUserFunc                func(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
-	UpdateUserFunc                func(ctx context.Context, id string, firstName string, lastName string, role string) error
+	UpdateUserFunc                func(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
 	DeleteUserFunc                func(ctx context.Context, id string) error
 	UpdateProfileFunc             func(ctx context.Context, userID string, profile *model.Profile) error
 	UpdatePasswordFunc            func(ctx context.Context, userID string, hashedPassword string) error
@@ -56,9 +56,9 @@ func (m *Repository) GetUserByUsername(ctx context.Context, username string) (*m
 	}
 	return nil, nil
 }
-func (m *Repository) UpdateUser(ctx context.Context, id string, firstName string, lastName string, role string) error {
+func (m *Repository) UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error {
 	if m.UpdateUserFunc != nil {
-		return m.UpdateUserFunc(ctx, id, firstName, lastName, role)
+		return m.UpdateUserFunc(ctx, id, username, firstName, lastName, role)
 	}
 	return nil
 }

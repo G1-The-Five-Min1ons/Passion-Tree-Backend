@@ -18,7 +18,7 @@ func TestCreateAlbum(t *testing.T) {
 	tests := []struct {
 		name          string
 		req           model.CreateAlbumRequest
-		mockSetup     func(*repository_test.MockRefRepo)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
@@ -27,7 +27,7 @@ func TestCreateAlbum(t *testing.T) {
 				AlbumName: "My Album",
 				UserID:    "user-1",
 			},
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.CreateAlbumFunc = func(ctx context.Context, req model.CreateAlbumRequest) (string, error) {
 					return "album1", nil
 				}
@@ -42,7 +42,7 @@ func TestCreateAlbum(t *testing.T) {
 			req: model.CreateAlbumRequest{
 				UserID: "user-1",
 			},
-			mockSetup:     func(*repository_test.MockRefRepo) {},
+			mockSetup:     func(m *repository_test.Repository) {},
 			expectedError: "album_name is required",
 		},
 		{
@@ -50,7 +50,7 @@ func TestCreateAlbum(t *testing.T) {
 			req: model.CreateAlbumRequest{
 				AlbumName: "My Album",
 			},
-			mockSetup:     func(*repository_test.MockRefRepo) {},
+			mockSetup:     func(m *repository_test.Repository) {},
 			expectedError: "user_id is required",
 		},
 		{
@@ -59,7 +59,7 @@ func TestCreateAlbum(t *testing.T) {
 				AlbumName: "My Album",
 				UserID:    "user-1",
 			},
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.CreateAlbumFunc = func(ctx context.Context, req model.CreateAlbumRequest) (string, error) {
 					return "", errors.New("db error")
 				}
@@ -74,7 +74,7 @@ func TestCreateAlbum(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestCreateAlbum case: %s\033[0m", tt.name)
-			mock := &repository_test.MockRefRepo{}
+			mock := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
@@ -100,13 +100,13 @@ func TestGetAlbumByID(t *testing.T) {
 	tests := []struct {
 		name          string
 		albumID       string
-		mockSetup     func(*repository_test.MockRefRepo)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:    "Success",
 			albumID: "album1",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetAlbumByIDFunc = func(ctx context.Context, albumID string) (*model.Album, error) {
 					return &model.Album{AlbumID: "album1"}, nil
 				}
@@ -116,13 +116,13 @@ func TestGetAlbumByID(t *testing.T) {
 		{
 			name:          "EmptyID",
 			albumID:       "",
-			mockSetup:     func(*repository_test.MockRefRepo) {},
+			mockSetup:     func(m *repository_test.Repository) {},
 			expectedError: "album_id is required",
 		},
 		{
 			name:    "NotFound",
 			albumID: "album2",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetAlbumByIDFunc = func(ctx context.Context, albumID string) (*model.Album, error) {
 					return nil, sql.ErrNoRows
 				}
@@ -132,7 +132,7 @@ func TestGetAlbumByID(t *testing.T) {
 		{
 			name:    "DatabaseError",
 			albumID: "album3",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetAlbumByIDFunc = func(ctx context.Context, albumID string) (*model.Album, error) {
 					return nil, errors.New("db failure")
 				}
@@ -144,7 +144,7 @@ func TestGetAlbumByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestGetAlbumByID case: %s\033[0m", tt.name)
-			mock := &repository_test.MockRefRepo{}
+			mock := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
@@ -170,13 +170,13 @@ func TestGetAlbumsByUserID(t *testing.T) {
 	tests := []struct {
 		name          string
 		userID        string
-		mockSetup     func(*repository_test.MockRefRepo)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:   "Success",
 			userID: "user1",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetAlbumsByUserIDFunc = func(ctx context.Context, userID string) ([]model.Album, error) {
 					return []model.Album{{AlbumID: "a1"}}, nil
 				}
@@ -186,13 +186,13 @@ func TestGetAlbumsByUserID(t *testing.T) {
 		{
 			name:          "EmptyUserID",
 			userID:        "",
-			mockSetup:     func(*repository_test.MockRefRepo) {},
+			mockSetup:     func(m *repository_test.Repository) {},
 			expectedError: "user_id is required",
 		},
 		{
 			name:   "DatabaseError",
 			userID: "user2",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetAlbumsByUserIDFunc = func(ctx context.Context, userID string) ([]model.Album, error) {
 					return nil, errors.New("db fail")
 				}
@@ -204,7 +204,7 @@ func TestGetAlbumsByUserID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestGetAlbumsByUserID case: %s\033[0m", tt.name)
-			mock := &repository_test.MockRefRepo{}
+			mock := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
@@ -231,14 +231,14 @@ func TestUpdateAlbum(t *testing.T) {
 		name          string
 		albumID       string
 		req           model.UpdateAlbumRequest
-		mockSetup     func(*repository_test.MockRefRepo)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:    "Success",
 			albumID: "album1",
 			req:     model.UpdateAlbumRequest{AlbumName: "new"},
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.UpdateAlbumFunc = func(ctx context.Context, albumID string, req model.UpdateAlbumRequest) error {
 					return nil
 				}
@@ -249,21 +249,21 @@ func TestUpdateAlbum(t *testing.T) {
 			name:          "EmptyBody",
 			albumID:       "album1",
 			req:           model.UpdateAlbumRequest{},
-			mockSetup:     func(*repository_test.MockRefRepo) {},
+			mockSetup:     func(m *repository_test.Repository) {},
 			expectedError: "album_name is required",
 		},
 		{
 			name:          "EmptyAlbumID",
 			albumID:       "",
 			req:           model.UpdateAlbumRequest{AlbumName: "new"},
-			mockSetup:     func(*repository_test.MockRefRepo) {},
+			mockSetup:     func(m *repository_test.Repository) {},
 			expectedError: "album_id is required",
 		},
 		{
 			name:    "NotFound",
 			albumID: "album2",
 			req:     model.UpdateAlbumRequest{AlbumName: "new"},
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.UpdateAlbumFunc = func(ctx context.Context, albumID string, req model.UpdateAlbumRequest) error {
 					return sql.ErrNoRows
 				}
@@ -274,7 +274,7 @@ func TestUpdateAlbum(t *testing.T) {
 			name:    "InternalError",
 			albumID: "album3",
 			req:     model.UpdateAlbumRequest{AlbumName: "new"},
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.UpdateAlbumFunc = func(ctx context.Context, albumID string, req model.UpdateAlbumRequest) error {
 					return errors.New("db err")
 				}
@@ -286,7 +286,7 @@ func TestUpdateAlbum(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestUpdateAlbum case: %s\033[0m", tt.name)
-			mock := &repository_test.MockRefRepo{}
+			mock := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
@@ -312,13 +312,13 @@ func TestDeleteAlbum(t *testing.T) {
 	tests := []struct {
 		name          string
 		albumID       string
-		mockSetup     func(*repository_test.MockRefRepo)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:    "Success",
 			albumID: "album1",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.DeleteAlbumFunc = func(ctx context.Context, albumID string) error {
 					return nil
 				}
@@ -328,13 +328,13 @@ func TestDeleteAlbum(t *testing.T) {
 		{
 			name:          "EmptyID",
 			albumID:       "",
-			mockSetup:     func(*repository_test.MockRefRepo) {},
+			mockSetup:     func(m *repository_test.Repository) {},
 			expectedError: "album_id is required",
 		},
 		{
 			name:    "NotFound",
 			albumID: "album2",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.DeleteAlbumFunc = func(ctx context.Context, albumID string) error {
 					return sql.ErrNoRows
 				}
@@ -344,7 +344,7 @@ func TestDeleteAlbum(t *testing.T) {
 		{
 			name:    "DatabaseError",
 			albumID: "album3",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.DeleteAlbumFunc = func(ctx context.Context, albumID string) error {
 					return errors.New("db error")
 				}
@@ -356,7 +356,7 @@ func TestDeleteAlbum(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestDeleteAlbum case: %s\033[0m", tt.name)
-			mock := &repository_test.MockRefRepo{}
+			mock := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}

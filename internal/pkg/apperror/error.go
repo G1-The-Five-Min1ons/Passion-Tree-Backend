@@ -88,7 +88,8 @@ func IsDuplicateKeyError(err error) bool {
 	return strings.Contains(errMsg, "duplicate key") ||
 		strings.Contains(errMsg, "unique constraint") ||
 		strings.Contains(errMsg, "violation of unique key") ||
-		strings.Contains(errMsg, "cannot insert duplicate")
+		strings.Contains(errMsg, "cannot insert duplicate") ||
+		strings.Contains(errMsg, "already exists")
 }
 
 func IsForeignKeyError(err error) bool {

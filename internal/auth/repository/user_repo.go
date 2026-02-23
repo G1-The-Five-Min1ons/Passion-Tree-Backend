@@ -154,11 +154,16 @@ func (r *repositoryImpl) GetUserByUsername(ctx context.Context, username string)
 
 // --- Updates & Deletion ---
 
-func (r *repositoryImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string, role string) error {
+func (r *repositoryImpl) UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error {
 	var updates []string
 	var args []interface{}
 	paramID := 1
 
+	if username != "" {
+		updates = append(updates, fmt.Sprintf("username=@p%d", paramID))
+		args = append(args, username)
+		paramID++
+	}
 	if firstName != "" {
 		updates = append(updates, fmt.Sprintf("first_name=@p%d", paramID))
 		args = append(args, firstName)

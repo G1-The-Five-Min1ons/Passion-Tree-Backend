@@ -7,7 +7,7 @@ import (
 )
 
 // MockRefRepo implements repository.RepositoryReflection
-type MockRefRepo struct {
+type Repository struct {
 	GetReflectionByIDFunc func(ctx context.Context, reflectID string) (*model.Reflection, error)
 	UpdateReflectionFunc  func(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error
 	DeleteReflectionFunc  func(ctx context.Context, reflectID string) error
@@ -40,31 +40,31 @@ type MockRefRepo struct {
 	GetNodesByPathIDFunc     func(ctx context.Context, pathID string) ([]model.TreeNode, error)
 }
 
-func (m *MockRefRepo) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
+func (m *Repository) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
 	if m.GetReflectionByIDFunc != nil {
 		return m.GetReflectionByIDFunc(ctx, reflectID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
+func (m *Repository) UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
 	if m.UpdateReflectionFunc != nil {
 		return m.UpdateReflectionFunc(ctx, reflectID, req)
 	}
 	return nil
 }
-func (m *MockRefRepo) DeleteReflection(ctx context.Context, reflectID string) error {
+func (m *Repository) DeleteReflection(ctx context.Context, reflectID string) error {
 	if m.DeleteReflectionFunc != nil {
 		return m.DeleteReflectionFunc(ctx, reflectID)
 	}
 	return nil
 }
-func (m *MockRefRepo) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
+func (m *Repository) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
 	if m.GetAllReflectionsFunc != nil {
 		return m.GetAllReflectionsFunc(ctx, filter)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) CreateReflection(ctx context.Context, req model.CreateReflectionRequest, summary, sentimentAnalysis string, primaryEmotion *string, strugglePoint string, aiConfidentScore, reflectionScore, weightedReflectionScore float64) (string, error) {
+func (m *Repository) CreateReflection(ctx context.Context, req model.CreateReflectionRequest, summary, sentimentAnalysis string, primaryEmotion *string, strugglePoint string, aiConfidentScore, reflectionScore, weightedReflectionScore float64) (string, error) {
 	if m.CreateReflectionFunc != nil {
 		return m.CreateReflectionFunc(ctx, req, summary, sentimentAnalysis, primaryEmotion, strugglePoint, aiConfidentScore, reflectionScore, weightedReflectionScore)
 	}
@@ -72,31 +72,31 @@ func (m *MockRefRepo) CreateReflection(ctx context.Context, req model.CreateRefl
 }
 
 // Album methods
-func (m *MockRefRepo) CreateAlbum(ctx context.Context, req model.CreateAlbumRequest) (string, error) {
+func (m *Repository) CreateAlbum(ctx context.Context, req model.CreateAlbumRequest) (string, error) {
 	if m.CreateAlbumFunc != nil {
 		return m.CreateAlbumFunc(ctx, req)
 	}
 	return "", nil
 }
-func (m *MockRefRepo) GetAlbumByID(ctx context.Context, albumID string) (*model.Album, error) {
+func (m *Repository) GetAlbumByID(ctx context.Context, albumID string) (*model.Album, error) {
 	if m.GetAlbumByIDFunc != nil {
 		return m.GetAlbumByIDFunc(ctx, albumID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) GetAlbumsByUserID(ctx context.Context, userID string) ([]model.Album, error) {
+func (m *Repository) GetAlbumsByUserID(ctx context.Context, userID string) ([]model.Album, error) {
 	if m.GetAlbumsByUserIDFunc != nil {
 		return m.GetAlbumsByUserIDFunc(ctx, userID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) UpdateAlbum(ctx context.Context, albumID string, req model.UpdateAlbumRequest) error {
+func (m *Repository) UpdateAlbum(ctx context.Context, albumID string, req model.UpdateAlbumRequest) error {
 	if m.UpdateAlbumFunc != nil {
 		return m.UpdateAlbumFunc(ctx, albumID, req)
 	}
 	return nil
 }
-func (m *MockRefRepo) DeleteAlbum(ctx context.Context, albumID string) error {
+func (m *Repository) DeleteAlbum(ctx context.Context, albumID string) error {
 	if m.DeleteAlbumFunc != nil {
 		return m.DeleteAlbumFunc(ctx, albumID)
 	}
@@ -104,43 +104,43 @@ func (m *MockRefRepo) DeleteAlbum(ctx context.Context, albumID string) error {
 }
 
 // Tree methods
-func (m *MockRefRepo) CreateTree(ctx context.Context, req model.CreateTreeRequest) (string, error) {
+func (m *Repository) CreateTree(ctx context.Context, req model.CreateTreeRequest) (string, error) {
 	if m.CreateTreeFunc != nil {
 		return m.CreateTreeFunc(ctx, req)
 	}
 	return "", nil
 }
-func (m *MockRefRepo) GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error) {
+func (m *Repository) GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error) {
 	if m.GetTreeByIDFunc != nil {
 		return m.GetTreeByIDFunc(ctx, treeID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error) {
+func (m *Repository) GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error) {
 	if m.GetTreesByAlbumIDFunc != nil {
 		return m.GetTreesByAlbumIDFunc(ctx, albumID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+func (m *Repository) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
 	if m.GetTreesWithNodesByAlbumIDFunc != nil {
 		return m.GetTreesWithNodesByAlbumIDFunc(ctx, albumID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
+func (m *Repository) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
 	if m.UpdateTreeFunc != nil {
 		return m.UpdateTreeFunc(ctx, treeID, req)
 	}
 	return nil
 }
-func (m *MockRefRepo) DeleteTree(ctx context.Context, treeID string) error {
+func (m *Repository) DeleteTree(ctx context.Context, treeID string) error {
 	if m.DeleteTreeFunc != nil {
 		return m.DeleteTreeFunc(ctx, treeID)
 	}
 	return nil
 }
-func (m *MockRefRepo) PauseTree(ctx context.Context, treeID string, isPause bool) error {
+func (m *Repository) PauseTree(ctx context.Context, treeID string, isPause bool) error {
 	if m.PauseTreeFunc != nil {
 		return m.PauseTreeFunc(ctx, treeID, isPause)
 	}
@@ -148,43 +148,43 @@ func (m *MockRefRepo) PauseTree(ctx context.Context, treeID string, isPause bool
 }
 
 // Tree Node methods
-func (m *MockRefRepo) AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
+func (m *Repository) AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
 	if m.AddSingleTreeNodeFunc != nil {
 		return m.AddSingleTreeNodeFunc(ctx, req)
 	}
 	return "", nil
 }
-func (m *MockRefRepo) GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error) {
+func (m *Repository) GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error) {
 	if m.GetTreeNodesByTreeIDFunc != nil {
 		return m.GetTreeNodesByTreeIDFunc(ctx, treeID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
+func (m *Repository) GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
 	if m.GetTreeNodeByIDFunc != nil {
 		return m.GetTreeNodeByIDFunc(ctx, treeNodeID)
 	}
 	return nil, nil
 }
-func (m *MockRefRepo) UpdateTreeNode(ctx context.Context, treeNodeID string, req model.UpdateTreeNodeRequest) error {
+func (m *Repository) UpdateTreeNode(ctx context.Context, treeNodeID string, req model.UpdateTreeNodeRequest) error {
 	if m.UpdateTreeNodeFunc != nil {
 		return m.UpdateTreeNodeFunc(ctx, treeNodeID, req)
 	}
 	return nil
 }
-func (m *MockRefRepo) DeleteTreeNode(ctx context.Context, treeNodeID string) error {
+func (m *Repository) DeleteTreeNode(ctx context.Context, treeNodeID string) error {
 	if m.DeleteTreeNodeFunc != nil {
 		return m.DeleteTreeNodeFunc(ctx, treeNodeID)
 	}
 	return nil
 }
-func (m *MockRefRepo) CreateTreeNodes(ctx context.Context, treeID string, pathID string) error {
+func (m *Repository) CreateTreeNodes(ctx context.Context, treeID string, pathID string) error {
 	if m.CreateTreeNodesFunc != nil {
 		return m.CreateTreeNodesFunc(ctx, treeID, pathID)
 	}
 	return nil
 }
-func (m *MockRefRepo) GetNodesByPathID(ctx context.Context, pathID string) ([]model.TreeNode, error) {
+func (m *Repository) GetNodesByPathID(ctx context.Context, pathID string) ([]model.TreeNode, error) {
 	if m.GetNodesByPathIDFunc != nil {
 		return m.GetNodesByPathIDFunc(ctx, pathID)
 	}

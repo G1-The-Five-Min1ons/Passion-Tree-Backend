@@ -23,7 +23,7 @@ func TestCreateTree(t *testing.T) {
 			PathID:       "path-1",
 		}
 
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			CreateTreeFunc: func(ctx context.Context, req model.CreateTreeRequest) (string, error) {
 				return "tree-1", nil
 			},
@@ -53,7 +53,7 @@ func TestCreateTree(t *testing.T) {
 	t.Run("MissingAlbumID", func(t *testing.T) {
 		req := model.CreateTreeRequest{Title: "T", Difficulties: "Easy", PathID: "p1"}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.MockRefRepo{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "album_id is required") {
@@ -63,7 +63,7 @@ func TestCreateTree(t *testing.T) {
 
 	t.Run("AlbumNotFound", func(t *testing.T) {
 		req := model.CreateTreeRequest{Title: "T", Difficulties: "Easy", PathID: "p1", AlbumID: "album-2"}
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetAlbumByIDFunc: func(ctx context.Context, albumID string) (*model.Album, error) {
 				return nil, sql.ErrNoRows
 			},
@@ -84,7 +84,7 @@ func TestCreateTree(t *testing.T) {
 
 func TestGetTreeByID(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
 				return &model.Tree{TreeID: treeID}, nil
 			},
@@ -99,7 +99,7 @@ func TestGetTreeByID(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
 				return nil, sql.ErrNoRows
 			},
@@ -116,7 +116,7 @@ func TestGetTreeByID(t *testing.T) {
 
 func TestGetTreesByAlbumID(t *testing.T) {
 	t.Run("WithoutNodes", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreesByAlbumIDFunc: func(ctx context.Context, albumID string) ([]model.Tree, error) {
 				return []model.Tree{{TreeID: "t1"}}, nil
 			},
@@ -136,7 +136,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 	})
 
 	t.Run("WithNodes", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
 				return []model.TreeResponse{{TreeID: "t2"}}, nil
 			},
@@ -157,7 +157,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 
 	t.Run("MissingAlbumID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.MockRefRepo{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
 		_, err := svc.GetTreesByAlbumID(context.Background(), "", false)
 		if err == nil || !strings.Contains(err.Error(), "album_id is required") {
 			t.Errorf("Expected validation error")
@@ -165,7 +165,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreesByAlbumIDFunc: func(ctx context.Context, albumID string) ([]model.Tree, error) {
 				return nil, errors.New("db limit")
 			},
@@ -182,7 +182,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 
 func TestUpdateTree(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			UpdateTreeFunc: func(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
 				return nil
 			},
@@ -198,7 +198,7 @@ func TestUpdateTree(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			UpdateTreeFunc: func(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
 				return sql.ErrNoRows
 			},
@@ -215,7 +215,7 @@ func TestUpdateTree(t *testing.T) {
 
 	t.Run("EmptyBody", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.MockRefRepo{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
 		err := svc.UpdateTree(context.Background(), "t2", model.UpdateTreeRequest{})
 		if err == nil || !strings.Contains(err.Error(), "title is required") {
 			t.Errorf("Expected empty body validation error, got %v", err)
@@ -225,7 +225,7 @@ func TestUpdateTree(t *testing.T) {
 
 func TestDeleteTree(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			DeleteTreeFunc: func(ctx context.Context, treeID string) error {
 				return nil
 			},
@@ -240,7 +240,7 @@ func TestDeleteTree(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			DeleteTreeFunc: func(ctx context.Context, treeID string) error {
 				return sql.ErrNoRows
 			},
@@ -257,7 +257,7 @@ func TestDeleteTree(t *testing.T) {
 
 func TestPauseTree(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			PauseTreeFunc: func(ctx context.Context, treeID string, isPause bool) error {
 				return nil
 			},
@@ -277,7 +277,7 @@ func TestPauseTree(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			PauseTreeFunc: func(ctx context.Context, treeID string, isPause bool) error {
 				return sql.ErrNoRows
 			},

@@ -18,13 +18,13 @@ func TestGetReflectionByID(t *testing.T) {
 	tests := []struct {
 		name          string
 		reflectID     string
-		mockSetup     func(*repository_test.MockRefRepo)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:      "Success",
 			reflectID: "r1",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetReflectionByIDFunc = func(ctx context.Context, reflectID string) (*model.Reflection, error) {
 					return &model.Reflection{ReflectID: "r1"}, nil
 				}
@@ -34,7 +34,7 @@ func TestGetReflectionByID(t *testing.T) {
 		{
 			name:      "NotFound",
 			reflectID: "r2",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetReflectionByIDFunc = func(ctx context.Context, reflectID string) (*model.Reflection, error) {
 					return nil, sql.ErrNoRows
 				}
@@ -44,7 +44,7 @@ func TestGetReflectionByID(t *testing.T) {
 		{
 			name:      "InternalError",
 			reflectID: "r3",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.GetReflectionByIDFunc = func(ctx context.Context, reflectID string) (*model.Reflection, error) {
 					return nil, errors.New("db fail")
 				}
@@ -56,7 +56,7 @@ func TestGetReflectionByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestGetReflectionByID case: %s\033[0m", tt.name)
-			mock := &repository_test.MockRefRepo{}
+			mock := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
@@ -82,7 +82,7 @@ func TestGetReflectionByID(t *testing.T) {
 
 func TestGetAllReflections(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetAllReflectionsFunc: func(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
 				return []model.Reflection{{ReflectID: "r1"}}, nil
 			},
@@ -98,7 +98,7 @@ func TestGetAllReflections(t *testing.T) {
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetAllReflectionsFunc: func(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
 				return nil, errors.New("db error")
 			},
@@ -116,7 +116,7 @@ func TestGetAllReflections(t *testing.T) {
 
 func TestUpdateReflection(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			UpdateReflectionFunc: func(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
 				return nil
 			},
@@ -143,7 +143,7 @@ func TestUpdateReflection(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			UpdateReflectionFunc: func(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
 				return sql.ErrNoRows
 			},
@@ -164,13 +164,13 @@ func TestDeleteReflection(t *testing.T) {
 	tests := []struct {
 		name          string
 		reflectID     string
-		mockSetup     func(*repository_test.MockRefRepo)
+		mockSetup     func(*repository_test.Repository)
 		expectedError string
 	}{
 		{
 			name:      "Success",
 			reflectID: "r1",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.DeleteReflectionFunc = func(ctx context.Context, reflectID string) error {
 					return nil
 				}
@@ -180,7 +180,7 @@ func TestDeleteReflection(t *testing.T) {
 		{
 			name:      "NotFound",
 			reflectID: "r2",
-			mockSetup: func(m *repository_test.MockRefRepo) {
+			mockSetup: func(m *repository_test.Repository) {
 				m.DeleteReflectionFunc = func(ctx context.Context, reflectID string) error {
 					return sql.ErrNoRows
 				}
@@ -191,7 +191,7 @@ func TestDeleteReflection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestDeleteReflection case: %s\033[0m", tt.name)
-			mock := &repository_test.MockRefRepo{}
+			mock := &repository_test.Repository{}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
@@ -217,7 +217,7 @@ func TestDeleteReflection(t *testing.T) {
 
 func TestCreateReflection_NoAI(t *testing.T) {
 	t.Log("\033[36mExecuting TestCreateReflection_NoAI\033[0m")
-	mock := &repository_test.MockRefRepo{}
+	mock := &repository_test.Repository{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	svc := service.NewService(mock, nil, logger)
 
@@ -238,7 +238,7 @@ func TestCreateReflection_NoAI(t *testing.T) {
 
 func TestCreateReflection_MissingFields(t *testing.T) {
 	t.Log("\033[36mExecuting TestCreateReflection_MissingFields\033[0m")
-	mock := &repository_test.MockRefRepo{}
+	mock := &repository_test.Repository{}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	svc := service.NewService(mock, nil, logger)
 

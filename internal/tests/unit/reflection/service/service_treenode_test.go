@@ -22,7 +22,7 @@ func TestCreateTreeNode(t *testing.T) {
 			TreeID:    "tree-1",
 		}
 
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			AddSingleTreeNodeFunc: func(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
 				return "node-1", nil
 			},
@@ -49,7 +49,7 @@ func TestCreateTreeNode(t *testing.T) {
 	t.Run("MissingNodeTitle", func(t *testing.T) {
 		req := model.CreateTreeNodeRequest{TreeID: "tree-1"}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.MockRefRepo{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
 
 		_, err := svc.CreateTreeNode(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "node_title is required") {
@@ -59,7 +59,7 @@ func TestCreateTreeNode(t *testing.T) {
 
 	t.Run("TreeNotFound", func(t *testing.T) {
 		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", NodeID: "n1", TreeID: "tree-2"}
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
 				return nil, sql.ErrNoRows
 			},
@@ -79,7 +79,7 @@ func TestCreateTreeNode(t *testing.T) {
 
 	t.Run("DatabaseError", func(t *testing.T) {
 		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", NodeID: "n1", TreeID: "tree-1"}
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
 				return &model.Tree{TreeID: treeID}, nil
 			},
@@ -103,7 +103,7 @@ func TestCreateTreeNode(t *testing.T) {
 
 func TestGetTreeNodesByTreeID(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeNodesByTreeIDFunc: func(ctx context.Context, treeID string) ([]model.TreeNode, error) {
 				return []model.TreeNode{{TreeNodeID: "node1"}}, nil
 			},
@@ -119,7 +119,7 @@ func TestGetTreeNodesByTreeID(t *testing.T) {
 
 	t.Run("MissingTreeID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.MockRefRepo{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
 
 		_, err := svc.GetTreeNodesByTreeID(context.Background(), "")
 		if err == nil || !strings.Contains(err.Error(), "tree_id is required") {
@@ -128,7 +128,7 @@ func TestGetTreeNodesByTreeID(t *testing.T) {
 	})
 
 	t.Run("DatabaseError", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeNodesByTreeIDFunc: func(ctx context.Context, treeID string) ([]model.TreeNode, error) {
 				return nil, errors.New("db limit")
 			},
@@ -145,7 +145,7 @@ func TestGetTreeNodesByTreeID(t *testing.T) {
 
 func TestGetTreeNodeByID(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeNodeByIDFunc: func(ctx context.Context, nodeID string) (*model.TreeNode, error) {
 				return &model.TreeNode{TreeNodeID: nodeID}, nil
 			},
@@ -160,7 +160,7 @@ func TestGetTreeNodeByID(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			GetTreeNodeByIDFunc: func(ctx context.Context, nodeID string) (*model.TreeNode, error) {
 				return nil, sql.ErrNoRows
 			},
@@ -177,7 +177,7 @@ func TestGetTreeNodeByID(t *testing.T) {
 
 func TestUpdateTreeNode(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			UpdateTreeNodeFunc: func(ctx context.Context, nodeID string, req model.UpdateTreeNodeRequest) error {
 				return nil
 			},
@@ -193,7 +193,7 @@ func TestUpdateTreeNode(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			UpdateTreeNodeFunc: func(ctx context.Context, nodeID string, req model.UpdateTreeNodeRequest) error {
 				return sql.ErrNoRows
 			},
@@ -210,7 +210,7 @@ func TestUpdateTreeNode(t *testing.T) {
 
 	t.Run("EmptyBody", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.MockRefRepo{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
 		err := svc.UpdateTreeNode(context.Background(), "n2", model.UpdateTreeNodeRequest{})
 		if err == nil || !strings.Contains(err.Error(), "node_title is required") {
 			t.Errorf("Expected empty body validation error")
@@ -220,7 +220,7 @@ func TestUpdateTreeNode(t *testing.T) {
 
 func TestDeleteTreeNode(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			DeleteTreeNodeFunc: func(ctx context.Context, nodeID string) error {
 				return nil
 			},
@@ -235,7 +235,7 @@ func TestDeleteTreeNode(t *testing.T) {
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
-		mock := &repository_test.MockRefRepo{
+		mock := &repository_test.Repository{
 			DeleteTreeNodeFunc: func(ctx context.Context, nodeID string) error {
 				return sql.ErrNoRows
 			},

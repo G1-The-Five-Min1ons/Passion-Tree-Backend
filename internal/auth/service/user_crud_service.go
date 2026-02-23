@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/mail"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
@@ -22,7 +23,11 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 	if user.Username == "" {
 		return "", apperror.NewBadRequest("username is required")
+	}	
+	if _, err := mail.ParseAddress(user.Email); err != nil {
+		return "", apperror.NewBadRequest("invalid email format")
 	}
+
 
 	// Check if email already exists
 	if existingUser, _ := s.repo.GetUserByEmail(ctx, user.Email); existingUser != nil {
@@ -33,7 +38,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	// Check if username already exists
 	if existingUser, _ := s.repo.GetUserByUsername(ctx, user.Username); existingUser != nil {
 		s.logger.WarnContext(ctx, "register failed username taken", "username", user.Username)
-		return "", apperror.NewConflict("username already taken")
+		return "", apperror.NewConflict("username already registered")
 	}
 
 	// Hash password
@@ -75,7 +80,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	if profile.LearningStreak == 0 {
 		profile.LearningStreak = 0
 	}
-	if profile.LearningCount == 0 {
+	if profile.LearningCount == 0 {	
 		profile.LearningCount = 0
 	}
 	if profile.HourLearned == 0 {
@@ -169,8 +174,8 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 	return user, nil
 }
 
-// UpdateUser updates user information (first_name, last_name, and optionally role)
-func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName string, lastName string, role string) error {
+// UpdateUser updates user information (first_name, last_name, username, and optionally role)
+func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error {
 	if id == "" {
 		return apperror.NewBadRequest("user_id is required")
 	}
@@ -185,9 +190,9 @@ func (s *userServiceImpl) UpdateUser(ctx context.Context, id string, firstName s
 		return apperror.NewNotFound("user with id '%s' not found", id)
 	}
 
-	if err := s.repo.UpdateUser(ctx, id, firstName, lastName, role); err != nil {
+	if err := s.repo.UpdateUser(ctx, id, username, firstName, lastName, role); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
-			return apperror.NewConflict("username already taken")
+			return apperror.NewConflict("username already exists")
 		}
 		return apperror.NewInternal("failed to update user: %w", err)
 	}
@@ -208,10 +213,10 @@ func (s *userServiceImpl) DeleteUser(ctx context.Context, id string, password st
 	// Get user and verify password
 	user, _, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
+		if user == nil {
+			return apperror.NewNotFound("user not found")
+		}
 		return apperror.NewInternal("failed to get user by ID: %w", err)
-	}
-	if user == nil {
-		return apperror.NewNotFound("user not found")
 	}
 
 	// Verify password before deletion
