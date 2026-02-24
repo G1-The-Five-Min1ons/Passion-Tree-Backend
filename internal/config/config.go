@@ -9,48 +9,51 @@ import (
 
 // Default configuration values
 const (
-	DefaultAzureSQLPort      = "1433"
-	DefaultAIServiceURL      = "http://ai-service:8000"
-	DefaultContainerLearning = "learning-paths"
-	DefaultContainerProfile  = "profile-imgs"
-	DefaultContainerReflect  = "reflect"
+	DefaultAzureSQLPort       = "1433"
+	DefaultAIServiceURL       = "http://ai-service:8000"
+	DefaultContainerLearning  = "learning-paths"
+	DefaultContainerProfile   = "profile-imgs"
+	DefaultContainerReflect   = "reflect"
+	DefaultContainerMaterials = "materials-nodes"
 )
 
 // Environment variable keys
 const (
-	EnvAzureSQLServer         = "AZURESQL_SERVER"
-	EnvAzureSQLUser           = "AZURESQL_USER"
-	EnvAzureSQLPassword       = "AZURESQL_PASSWORD"
-	EnvAzureSQLPort           = "AZURESQL_PORT"
-	EnvAzureSQLDatabase       = "AZURESQL_DATABASE"
-	EnvAIServiceURL           = "AI_SERVICE_URL"
-	EnvAzureStorageConnString = "AZURE_STORAGE_CONNECTION_STRING"
-	EnvContainerLearningPath  = "CONTAINER_LEARNING_PATH"
-	EnvContainerProfile       = "CONTAINER_PROFILE"
-	EnvContainerReflect       = "CONTAINER_REFLECT"
-	EnvSMTPHost               = "SMTP_HOST"
-	EnvSMTPPort               = "SMTP_PORT"
-	EnvSMTPUsername           = "SMTP_USERNAME"
-	EnvSMTPPassword           = "SMTP_PASSWORD"
-	EnvSMTPFromEmail          = "SMTP_FROM_EMAIL"
-	EnvMailerSendAPIKey       = "MAILERSEND_API_KEY"
-	EnvAppURL                 = "APP_URL"
+	EnvAzureSQLServer          = "AZURESQL_SERVER"
+	EnvAzureSQLUser            = "AZURESQL_USER"
+	EnvAzureSQLPassword        = "AZURESQL_PASSWORD"
+	EnvAzureSQLPort            = "AZURESQL_PORT"
+	EnvAzureSQLDatabase        = "AZURESQL_DATABASE"
+	EnvAIServiceURL            = "AI_SERVICE_URL"
+	EnvAzureStorageConnString  = "AZURE_STORAGE_CONNECTION_STRING"
+	EnvContainerLearningPath   = "CONTAINER_LEARNING_PATH"
+	EnvContainerProfile        = "CONTAINER_PROFILE"
+	EnvContainerReflect        = "CONTAINER_REFLECT"
+	EnvContainerMaterialsNodes = "CONTAINER_MATERIALS-NODES"
+	EnvSMTPHost                = "SMTP_HOST"
+	EnvSMTPPort                = "SMTP_PORT"
+	EnvSMTPUsername            = "SMTP_USERNAME"
+	EnvSMTPPassword            = "SMTP_PASSWORD"
+	EnvSMTPFromEmail           = "SMTP_FROM_EMAIL"
+	EnvMailerSendAPIKey        = "MAILERSEND_API_KEY"
+	EnvAppURL                  = "APP_URL"
 )
 
 type Config struct {
-	DBConnString           string
-	AIServiceURL           string
-	AzureStorageConnString string
-	ContainerLearningPath  string
-	ContainerProfile       string
-	ContainerReflect       string
-	SMTPHost               string
-	SMTPPort               string
-	SMTPUsername           string
-	SMTPPassword           string
-	SMTPFromEmail          string
-	MailerSendAPIKey       string
-	AppURL                 string
+	DBConnString            string
+	AIServiceURL            string
+	AzureStorageConnString  string
+	ContainerLearningPath   string
+	ContainerProfile        string
+	ContainerReflect        string
+	ContainerMaterialsNodes string
+	SMTPHost                string
+	SMTPPort                string
+	SMTPUsername            string
+	SMTPPassword            string
+	SMTPFromEmail           string
+	MailerSendAPIKey        string
+	AppURL                  string
 }
 
 // LoadDBConfig loads configuration from environment variables
@@ -59,18 +62,19 @@ func LoadDBConfig() (*Config, error) {
 	_ = godotenv.Load()
 
 	config := &Config{
-		AIServiceURL:           getEnvOrDefault(EnvAIServiceURL, DefaultAIServiceURL),
-		AzureStorageConnString: os.Getenv(EnvAzureStorageConnString),
-		ContainerLearningPath:  getEnvOrDefault(EnvContainerLearningPath, DefaultContainerLearning),
-		ContainerProfile:       getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
-		ContainerReflect:       getEnvOrDefault(EnvContainerReflect, DefaultContainerReflect),
-		SMTPHost:               os.Getenv(EnvSMTPHost),
-		SMTPPort:               getEnvOrDefault(EnvSMTPPort, "587"),
-		SMTPUsername:           os.Getenv(EnvSMTPUsername),
-		SMTPPassword:           os.Getenv(EnvSMTPPassword),
-		SMTPFromEmail:          os.Getenv(EnvSMTPFromEmail),
-		MailerSendAPIKey:       os.Getenv(EnvMailerSendAPIKey),
-		AppURL:                 getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
+		AIServiceURL:            getEnvOrDefault(EnvAIServiceURL, DefaultAIServiceURL),
+		AzureStorageConnString:  os.Getenv(EnvAzureStorageConnString),
+		ContainerLearningPath:   getEnvOrDefault(EnvContainerLearningPath, DefaultContainerLearning),
+		ContainerProfile:        getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
+		ContainerReflect:        getEnvOrDefault(EnvContainerReflect, DefaultContainerReflect),
+		ContainerMaterialsNodes: getEnvOrDefault(EnvContainerMaterialsNodes, DefaultContainerMaterials),
+		SMTPHost:                os.Getenv(EnvSMTPHost),
+		SMTPPort:                getEnvOrDefault(EnvSMTPPort, "587"),
+		SMTPUsername:            os.Getenv(EnvSMTPUsername),
+		SMTPPassword:            os.Getenv(EnvSMTPPassword),
+		SMTPFromEmail:           os.Getenv(EnvSMTPFromEmail),
+		MailerSendAPIKey:        os.Getenv(EnvMailerSendAPIKey),
+		AppURL:                  getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
 	}
 
 	// Build database connection string
