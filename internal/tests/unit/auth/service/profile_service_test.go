@@ -22,7 +22,45 @@ func TestUpdateProfile(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:   "Success",
+			name:          "MissingUserID",
+			userID:        "",
+			profile:       &model.Profile{Bio: "Test Bio"},
+			setup:         nil,
+			expectedError: "user_id is required",
+		},
+		{
+			name:          "NoFieldsToUpdate",
+			userID:        "user-1",
+			profile:       &model.Profile{},
+			setup:         nil,
+			expectedError: "no profile fields to update",
+		},
+		{
+			name:   "UserNotFound",
+			userID: "nonexistent-user",
+			profile: &model.Profile{
+				Bio: "Test Bio",
+			},
+			setup: func(r *repository_test.Repository) {
+				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+					return nil, nil, nil
+				}
+			},
+			expectedError: "user with id 'nonexistent-user' not found",
+		},
+		{
+			name:    "GetUserByIDInternalError",
+			userID:  "user-err",
+			profile: &model.Profile{Bio: "Test Bio"},
+			setup: func(r *repository_test.Repository) {
+				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+					return nil, nil, errors.New("connection failed")
+				}
+			},
+			expectedError: "internal server error", // ตามพฤติกรรมของ apperror.NewInternal
+		},
+		{
+			name:   "ProfileUpdateSuccess",
 			userID: "user-1",
 			profile: &model.Profile{
 				Bio:      "New Bio",

@@ -147,7 +147,7 @@ func TestCreateUser(t *testing.T) {
 				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			mockEmailSvc := &mockEmailService{}
+			mockEmailSvc := &EmailService{}
 			svc := service.NewUserService(mockRepo, mockEmailSvc, nil, nil, logger)
 
 			_, err := svc.CreateUser(context.Background(), tt.user, tt.profile)
@@ -220,7 +220,7 @@ func TestGetUserByID(t *testing.T) {
 				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			mockEmailSvc := &mockEmailService{}
+			mockEmailSvc := &EmailService{}
 			svc := service.NewUserService(mockRepo, mockEmailSvc, nil, nil, logger)
 
 			_, _, err := svc.GetUserByID(context.Background(), tt.id)
@@ -293,7 +293,7 @@ func TestGetUserByEmail(t *testing.T) {
 				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			mockEmailSvc := &mockEmailService{}
+			mockEmailSvc := &EmailService{}
 			svc := service.NewUserService(mockRepo, mockEmailSvc, nil, nil, logger)
 
 			_, err := svc.GetUserByEmail(context.Background(), tt.email)
@@ -398,7 +398,7 @@ func TestUpdateUser(t *testing.T) {
 				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			mockEmailSvc := &mockEmailService{}
+			mockEmailSvc := &EmailService{}
 			svc := service.NewUserService(mockRepo, mockEmailSvc, nil, nil, logger)
 
 			err := svc.UpdateUser(context.Background(), tt.id, tt.username, tt.firstName, tt.lastName, tt.role)
@@ -486,7 +486,7 @@ func TestDeleteUser(t *testing.T) {
 				tt.setup(mockRepo)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			mockEmailSvc := &mockEmailService{}
+			mockEmailSvc := &EmailService{}
 			svc := service.NewUserService(mockRepo, mockEmailSvc, nil, nil, logger)
 
 			err := svc.DeleteUser(context.Background(), tt.id, tt.password)

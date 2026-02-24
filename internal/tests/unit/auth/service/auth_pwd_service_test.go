@@ -16,37 +16,37 @@ import (
 )
 
 // mockEmailService
-type mockEmailService struct {
+type EmailService struct {
 	SendPasswordResetEmailFunc func(to, token string) error
 	SendVerificationEmailFunc  func(to, token string) error
 }
 
-func (m *mockEmailService) SendPasswordResetEmail(to, token string) error {
+func (m *EmailService) SendPasswordResetEmail(to, token string) error {
 	if m.SendPasswordResetEmailFunc != nil {
 		return m.SendPasswordResetEmailFunc(to, token)
 	}
 	return nil
 }
-func (m *mockEmailService) SendVerificationEmail(to, token string) error {
+func (m *EmailService) SendVerificationEmail(to, token string) error {
 	if m.SendVerificationEmailFunc != nil {
 		return m.SendVerificationEmailFunc(to, token)
 	}
 	return nil
 }
 
-func (m *mockEmailService) SendSecurityAlertEmail(to, userID string) error { return nil }
+func (m *EmailService) SendSecurityAlertEmail(to, userID string) error { return nil }
 
 func TestForgotPassword(t *testing.T) {
 	tests := []struct {
 		name          string
 		email         string
-		setup         func(*repository_test.Repository, *mockEmailService)
+		setup         func(*repository_test.Repository, *EmailService)
 		expectedError string
 	}{
 		{
 			name:  "Success",
 			email: "test@example.com",
-			setup: func(r *repository_test.Repository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{UserID: "user-123", Email: email}, nil
 				}
@@ -74,7 +74,7 @@ func TestForgotPassword(t *testing.T) {
 		{
 			name:  "UserNotFound",
 			email: "unknown@example.com",
-			setup: func(r *repository_test.Repository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, nil // User not found
 				}
@@ -84,7 +84,7 @@ func TestForgotPassword(t *testing.T) {
 		{
 			name:  "DatabaseError",
 			email: "error@example.com",
-			setup: func(r *repository_test.Repository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, errors.New("db disconnect")
 				}
@@ -97,7 +97,7 @@ func TestForgotPassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestForgotPassword case: %s\033[0m", tt.name)
 			mockRepo := &repository_test.Repository{}
-			mockEmailSvc := &mockEmailService{}
+			mockEmailSvc := &EmailService{}
 
 			if tt.setup != nil {
 				tt.setup(mockRepo, mockEmailSvc)

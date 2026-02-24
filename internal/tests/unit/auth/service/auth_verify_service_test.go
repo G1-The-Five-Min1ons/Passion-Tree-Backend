@@ -123,13 +123,13 @@ func TestResendVerificationEmail(t *testing.T) {
 	tests := []struct {
 		name          string
 		email         string
-		setup         func(*repository_test.Repository, *mockEmailService)
+		setup         func(*repository_test.Repository, *EmailService)
 		expectedError string
 	}{
 		{
 			name:  "Success_NotVerified",
 			email: "unverified@example.com",
-			setup: func(r *repository_test.Repository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{UserID: "user-1", Email: email, IsEmailVerified: false}, nil
 				}
@@ -145,7 +145,7 @@ func TestResendVerificationEmail(t *testing.T) {
 		{
 			name:  "AlreadyVerified",
 			email: "verified@example.com",
-			setup: func(r *repository_test.Repository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{UserID: "user-2", Email: email, IsEmailVerified: true}, nil
 				}
@@ -155,7 +155,7 @@ func TestResendVerificationEmail(t *testing.T) {
 		{
 			name:  "UserNotFound",
 			email: "notfound@example.com",
-			setup: func(r *repository_test.Repository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, nil // Returns nil for not found
 				}
@@ -165,7 +165,7 @@ func TestResendVerificationEmail(t *testing.T) {
 		{
 			name:  "DatabaseError",
 			email: "error@example.com",
-			setup: func(r *repository_test.Repository, e *mockEmailService) {
+			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return nil, errors.New("db down")
 				}
@@ -178,7 +178,7 @@ func TestResendVerificationEmail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestResendVerificationEmail case: %s\033[0m", tt.name)
 			mockRepo := &repository_test.Repository{}
-			mockEmailSvc := &mockEmailService{}
+			mockEmailSvc := &EmailService{}
 
 			if tt.setup != nil {
 				tt.setup(mockRepo, mockEmailSvc)

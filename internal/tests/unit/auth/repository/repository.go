@@ -29,6 +29,8 @@ type Repository struct {
 	RevokeAllUserTokensFunc       func(ctx context.Context, userID string, tokenType string) error
 	GetUserByUsernameFunc         func(ctx context.Context, username string) (*model.User, error)
 	ResetFailedLoginFunc          func(ctx context.Context, userID string) error
+	MarkTokenAsRotatedFunc        func(ctx context.Context, tokenValue string, tokenType string) error
+	SetRequire2FANextLoginFunc	  func(ctx context.Context, userID string, require2FA bool) error
 }
 
 // Implement RepositoryUser methods
@@ -99,7 +101,7 @@ func (m *Repository) VerifyEmailWithToken(ctx context.Context, userID string, to
 	return nil
 }
 func (m *Repository) UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error) {
-	return 0, nil
+    return 0, nil
 }
 func (m *Repository) ResetFailedLogin(ctx context.Context, userID string) error {
 	if m.ResetFailedLoginFunc != nil {
@@ -108,7 +110,10 @@ func (m *Repository) ResetFailedLogin(ctx context.Context, userID string) error 
 	return nil
 }
 func (m *Repository) SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error {
-	return nil
+    if m.SetRequire2FANextLoginFunc != nil {
+        return m.SetRequire2FANextLoginFunc(ctx, userID, require2FA)
+    }
+    return nil
 }
 
 // Implement RepositoryToken methods
@@ -144,7 +149,10 @@ func (m *Repository) RevokeAllUserTokens(ctx context.Context, userID string, tok
 }
 func (m *Repository) DeleteExpiredTokens(ctx context.Context) error { return nil }
 func (m *Repository) MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error {
-	return nil
+    if m.MarkTokenAsRotatedFunc != nil {
+        return m.MarkTokenAsRotatedFunc(ctx, tokenValue, tokenType)
+    }
+    return nil
 }
 func (m *Repository) GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error) {
 	if m.GetActiveUserSessionsFunc != nil {
