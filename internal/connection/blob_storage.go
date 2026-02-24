@@ -28,6 +28,7 @@ func InitBlobStorage(cfg *config.Config) (*storage.BlobService, error) {
 		"learning-paths": cfg.ContainerLearningPath,
 		"profile":        cfg.ContainerProfile,
 		"reflect":        cfg.ContainerReflect,
+		"materials-nodes": cfg.ContainerMaterialsNodes,
 	}
 
 	// 3. ส่งต่อ Client และ Config ไปให้ package storage จัดการต่อ
