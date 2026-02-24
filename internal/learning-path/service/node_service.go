@@ -12,6 +12,10 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 		return "", apperror.NewBadRequest("node title is required")
 	}
 
+	if req.Link_vdo != "" {
+		s.logger.InfoContext(ctx, "Link_vdo = ", "Link_vdo", req.Link_vdo)
+	}
+
 	id, err := s.nodeRepo.CreateNodeWithContent(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {

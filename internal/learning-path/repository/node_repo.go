@@ -16,8 +16,9 @@ func (r *repositoryImpl) CreateNode(ctx context.Context, req model.CreateNodeReq
 
 func (r *repositoryImpl) createNodeInternal(ctx context.Context, db DBTX, req model.CreateNodeRequest) (string, error) {
 	id := uuid.New().String()
-	query := `INSERT INTO node (node_id, title, description, path_id, sequence) VALUES (@p1, @p2, @p3, @p4, @p5)`
-	_, err := db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID, req.Sequence)
+	fmt.Println("==== CHECK LINK VDO ====", req.Link_vdo)
+	query := `INSERT INTO node (node_id, title, description, path_id, sequence, link_vdo) VALUES (@p1, @p2, @p3, @p4, @p5, @p6)`
+	_, err := db.ExecContext(ctx, query, id, req.Title, req.Description, req.PathID, req.Sequence, req.Link_vdo)
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateNode exec failed: %w", err)
 	}
@@ -37,7 +38,8 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 				CONVERT(VARCHAR(36), n.path_id) as path_id, 
 				n.sequence,
 				ISNULL(np.status, 'locked') as status,
-				np.complete
+				np.complete,
+				'null'as link_vdo
 			FROM node n
 			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
 			WHERE n.path_id = @p1 
@@ -54,7 +56,8 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 				CONVERT(VARCHAR(36), path_id) as path_id, 
 				sequence,
 				'null' as status,
-				'null' as complete
+				'null' as complete,
+				'null' as link_vdo
 			FROM node 
 			WHERE path_id = @p1 
 			ORDER BY sequence ASC`
@@ -71,7 +74,7 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 	var nodes []model.Node
 	for rows.Next() {
 		var n model.Node
-		if err := rows.Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID, &n.Sequence, &n.Status, &n.Complete); err != nil {
+		if err := rows.Scan(&n.NodeID, &n.Title, &n.Description, &n.PathID, &n.Sequence, &n.Status, &n.Complete, &n.Link_vdo); err != nil {
 			return nil, fmt.Errorf("repo.GetNodesByPathID scan failed: %w", err)
 		}
 		nodes = append(nodes, n)
@@ -174,7 +177,8 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID 
 				n.description, 
 				CONVERT(VARCHAR(36), n.path_id) as path_id,
 				ISNULL(np.status, 'locked') as status,
-				np.complete
+				np.complete,
+				n.link_vdo
 			FROM node n
 			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
 			WHERE n.node_id = @p1`
@@ -188,7 +192,8 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID 
 				description, 
 				CONVERT(VARCHAR(36), path_id) as path_id,
 				'null' as status,
-				'null' as complete
+				'null' as complete,
+				link_vdo
 			FROM node 
 			WHERE node_id = @p1`
 			
@@ -203,6 +208,7 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID 
 		&n.PathID, 
 		&n.Status,
 		&n.Complete,
+		&n.Link_vdo,
 	)
 
 	if err != nil {

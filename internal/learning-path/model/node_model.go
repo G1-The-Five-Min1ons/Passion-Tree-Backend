@@ -5,6 +5,7 @@ type CreateNodeRequest struct {
 	Description string                      `json:"description"`
 	PathID      string                      `json:"path_id" binding:"required"`
 	Sequence    string                      `json:"sequence" binding:"required"`
+	Link_vdo    string                      `json:"link_vdo" binding:"required"`
 	Materials   []CreateMaterialRequest     `json:"material,omitempty"`
 	Questions   []CreateQuestionWithChoices `json:"Question,omitempty"`
 }
@@ -20,8 +21,9 @@ type Node struct {
 	Description string         `json:"description"`
 	Sequence    int            `json:"sequence"`
 	PathID      string         `json:"path_id"`
+	Link_vdo    string         `json:"link_vdo" binding:"required"`
 	Status      string         `json:"status"`
-	Complete    string           `json:"complete"`
+	Complete    string         `json:"complete"`
 	Materials   []NodeMaterial `json:"materials,omitempty"`
 }
 
