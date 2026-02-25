@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"errors"
@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"passiontree/internal/auth/service"
 	"passiontree/internal/config"
 )
 
 func TestGenerateVerificationToken(t *testing.T) {
-	token, err := GenerateVerificationToken()
+	token, err := service.GenerateVerificationToken()
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -31,7 +32,7 @@ func TestGenerateVerificationToken(t *testing.T) {
 }
 
 func TestGetVerificationTokenExpiry(t *testing.T) {
-	expiry := GetVerificationTokenExpiry()
+	expiry := service.GetVerificationTokenExpiry()
 	expectedTime := time.Now().Add(15 * time.Minute)
 
 	// Since they might not occur exactly simultaneously, let's allow a delta of a second
@@ -46,11 +47,11 @@ func TestEmailServiceFallbackToSMTP(t *testing.T) {
 	// Setup generic SMTP mock
 	mockSMTPError := errors.New("mock smtp connection error")
 
-	originalSMTP := ExportSetSMTPSendMail(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	originalSMTP := service.ExportSetSMTPSendMail(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 		// Mock behavior to return an error just for evaluation
 		return mockSMTPError
 	})
-	defer ExportSetSMTPSendMail(originalSMTP)
+	defer service.ExportSetSMTPSendMail(originalSMTP)
 
 	cfg := &config.Config{
 		MailerSendAPIKey: "", // Purposefully empty to trigger fallback
@@ -60,7 +61,7 @@ func TestEmailServiceFallbackToSMTP(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	emailSvc := NewEmailService(cfg, logger)
+	emailSvc := service.NewEmailService(cfg, logger)
 
 	t.Run("SendVerificationEmail", func(t *testing.T) {
 		err := emailSvc.SendVerificationEmail("user@example.com", "123456")
@@ -101,11 +102,11 @@ func TestEmailServiceMailerSend(t *testing.T) {
 	// The HTTP call will fail due to unauthorized, and it should gracefully fallback to SMTP.
 
 	mockSMTPCalled := false
-	originalSMTP := ExportSetSMTPSendMail(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	originalSMTP := service.ExportSetSMTPSendMail(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 		mockSMTPCalled = true
 		return nil
 	})
-	defer ExportSetSMTPSendMail(originalSMTP)
+	defer service.ExportSetSMTPSendMail(originalSMTP)
 
 	cfg := &config.Config{
 		MailerSendAPIKey: "dummy-key-that-will-fail-on-network",
@@ -115,7 +116,7 @@ func TestEmailServiceMailerSend(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	emailSvc := NewEmailService(cfg, logger)
+	emailSvc := service.NewEmailService(cfg, logger)
 
 	err := emailSvc.SendVerificationEmail("user@example.com", "123456")
 

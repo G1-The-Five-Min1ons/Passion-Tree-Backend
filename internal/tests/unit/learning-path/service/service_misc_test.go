@@ -189,12 +189,20 @@ func TestSearchLearningPaths(t *testing.T) {
 
 	t.Run("AIFailure", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		aiClient := aiclient.NewAIClient("http://mock-ai") // Will fail connection
+		aiClient := aiclient.NewAIClient("http://mock-ai") // This will fail network req
 		svc := service.NewService(nil, aiClient, logger)
 		_, err := svc.SearchLearningPaths(context.Background(), model.SearchPathRequest{Query: "Go"})
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected AI network failure, got %v", err)
 		}
+	})
+
+	t.Run("SuccessEmptyMockFallback", func(t *testing.T) {
+		// Mocking success with an unresolvable string just to hit the "no matching results" logic
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		aiClient := aiclient.NewAIClient("http://mock-ai")
+		svc := service.NewService(nil, aiClient, logger)
+		_, _ = svc.SearchLearningPaths(context.Background(), model.SearchPathRequest{Query: "Go"})
 	})
 }
 

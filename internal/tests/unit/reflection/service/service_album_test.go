@@ -69,6 +69,35 @@ func TestCreateAlbum(t *testing.T) {
 			},
 			expectedError: "internal server error",
 		},
+		{
+			name: "ForeignKeyError",
+			req: model.CreateAlbumRequest{
+				AlbumName: "My Album",
+				UserID:    "user-1",
+			},
+			mockSetup: func(m *repository_test.Repository) {
+				m.CreateAlbumFunc = func(ctx context.Context, req model.CreateAlbumRequest) (string, error) {
+					return "", errors.New("foreign key constraint error")
+				}
+			},
+			expectedError: "invalid user_id: user does not exist",
+		},
+		{
+			name: "GetAlbumFailedAfterCreation",
+			req: model.CreateAlbumRequest{
+				AlbumName: "My Album",
+				UserID:    "user-1",
+			},
+			mockSetup: func(m *repository_test.Repository) {
+				m.CreateAlbumFunc = func(ctx context.Context, req model.CreateAlbumRequest) (string, error) {
+					return "album1", nil
+				}
+				m.GetAlbumByIDFunc = func(ctx context.Context, albumID string) (*model.Album, error) {
+					return nil, errors.New("db error")
+				}
+			},
+			expectedError: "internal server error",
+		},
 	}
 
 	for _, tt := range tests {
@@ -198,6 +227,26 @@ func TestGetAlbumsByUserID(t *testing.T) {
 				}
 			},
 			expectedError: "internal server error",
+		},
+		{
+			name:   "NoRowsFound",
+			userID: "user3",
+			mockSetup: func(m *repository_test.Repository) {
+				m.GetAlbumsByUserIDFunc = func(ctx context.Context, userID string) ([]model.Album, error) {
+					return nil, sql.ErrNoRows
+				}
+			},
+			expectedError: "",
+		},
+		{
+			name:   "NilResult",
+			userID: "user4",
+			mockSetup: func(m *repository_test.Repository) {
+				m.GetAlbumsByUserIDFunc = func(ctx context.Context, userID string) ([]model.Album, error) {
+					return nil, nil // user has an empty album list
+				}
+			},
+			expectedError: "",
 		},
 	}
 

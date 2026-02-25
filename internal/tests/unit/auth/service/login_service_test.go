@@ -547,3 +547,90 @@ func TestRefreshAccessToken(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateToken(t *testing.T) {
+	cfg := &config.Config{
+		JWTSecret:    "testsecret",
+		JWTAccessTTL: "1",
+	}
+	jwtSvc := jwt.NewService(cfg)
+
+	tests := []struct {
+		name          string
+		token         string
+		setup         func(*repository_test.Repository)
+		expectedError string
+	}{
+		{
+			name:          "EmptyToken",
+			token:         "",
+			expectedError: "token is required",
+		},
+		{
+			name:          "InvalidToken",
+			token:         "invalid.jwt.token",
+			expectedError: "invalid token",
+		},
+		{
+			name:  "UserNotFound",
+			token: "valid-token",
+			setup: func(r *repository_test.Repository) {
+				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+					return nil, nil, nil
+				}
+			},
+			expectedError: "user not found",
+		},
+		{
+			name:  "DatabaseError",
+			token: "valid-token",
+			setup: func(r *repository_test.Repository) {
+				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+					return nil, nil, errors.New("db error")
+				}
+			},
+			expectedError: "internal server error",
+		},
+		{
+			name:  "Success",
+			token: "valid-token",
+			setup: func(r *repository_test.Repository) {
+				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
+					return &model.User{UserID: id}, nil, nil
+				}
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("\033[36mExecuting TestValidateToken case: %s\033[0m", tt.name)
+			mockRepo := &repository_test.Repository{}
+			if tt.setup != nil {
+				tt.setup(mockRepo)
+			}
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			svc := service.NewUserService(mockRepo, nil, cfg, jwtSvc, logger)
+
+			testUser := &model.User{UserID: "u-1"}
+			if tt.token == "valid-token" {
+				tt.token, _ = jwtSvc.GenerateAccessToken(testUser)
+			}
+
+			_, err := svc.ValidateToken(context.Background(), tt.token)
+
+			if tt.expectedError == "" {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error containing '%s', got nil", tt.expectedError)
+				} else if !strings.Contains(err.Error(), tt.expectedError) {
+					t.Errorf("Expected error containing '%s', got '%s'", tt.expectedError, err.Error())
+				}
+			}
+		})
+	}
+}

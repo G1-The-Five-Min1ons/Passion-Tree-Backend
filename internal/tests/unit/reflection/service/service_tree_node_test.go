@@ -57,6 +57,45 @@ func TestCreateTreeNode(t *testing.T) {
 		}
 	})
 
+	t.Run("MissingNodeID", func(t *testing.T) {
+		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", TreeID: "tree-1"}
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+
+		_, err := svc.CreateTreeNode(context.Background(), req)
+		if err == nil || !strings.Contains(err.Error(), "node_id is required") {
+			t.Errorf("Expected node_id validation error, got %v", err)
+		}
+	})
+
+	t.Run("MissingTreeID", func(t *testing.T) {
+		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", NodeID: "n1"}
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+
+		_, err := svc.CreateTreeNode(context.Background(), req)
+		if err == nil || !strings.Contains(err.Error(), "tree_id is required") {
+			t.Errorf("Expected tree_id validation error, got %v", err)
+		}
+	})
+
+	t.Run("ForeignKeyError", func(t *testing.T) {
+		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", NodeID: "n1", TreeID: "tree-1"}
+		mock := &repository_test.Repository{
+			AddSingleTreeNodeFunc: func(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
+				return "", errors.New("foreign key constraint error")
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		_, err := svc.CreateTreeNode(context.Background(), req)
+		if err == nil || !strings.Contains(err.Error(), "invalid tree_id or node_id") {
+			t.Errorf("Expected invalid tree_id or node_id error, got %v", err)
+		}
+	})
+
 	t.Run("TreeNotFound", func(t *testing.T) {
 		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", NodeID: "n1", TreeID: "tree-2"}
 		mock := &repository_test.Repository{
@@ -88,6 +127,26 @@ func TestCreateTreeNode(t *testing.T) {
 			},
 			GetTreeNodeByIDFunc: func(ctx context.Context, nodeID string) (*model.TreeNode, error) {
 				return nil, sql.ErrNoRows
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		_, err := svc.CreateTreeNode(context.Background(), req)
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
+			t.Errorf("Expected internal server error, got %v", err)
+		}
+	})
+
+	t.Run("GetTreeNodeFailed", func(t *testing.T) {
+		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", NodeID: "n1", TreeID: "tree-1"}
+		mock := &repository_test.Repository{
+			AddSingleTreeNodeFunc: func(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
+				return "node1", nil
+			},
+			GetTreeNodeByIDFunc: func(ctx context.Context, nodeID string) (*model.TreeNode, error) {
+				return nil, errors.New("db error")
 			},
 		}
 
@@ -141,6 +200,24 @@ func TestGetTreeNodesByTreeID(t *testing.T) {
 			t.Errorf("Expected internal server error, got %v", err)
 		}
 	})
+
+	t.Run("EmptyList", func(t *testing.T) {
+		mock := &repository_test.Repository{
+			GetTreeNodesByTreeIDFunc: func(ctx context.Context, treeID string) ([]model.TreeNode, error) {
+				return []model.TreeNode{}, nil
+			},
+		}
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		nodes, err := svc.GetTreeNodesByTreeID(context.Background(), "t2")
+		if err != nil {
+			t.Errorf("Expected no error, got %v", err)
+		}
+		if len(nodes) != 0 {
+			t.Errorf("Expected empty list of nodes, got length %d", len(nodes))
+		}
+	})
 }
 
 func TestGetTreeNodeByID(t *testing.T) {
@@ -171,6 +248,31 @@ func TestGetTreeNodeByID(t *testing.T) {
 		_, err := svc.GetTreeNodeByID(context.Background(), "n2")
 		if err == nil || !strings.Contains(err.Error(), "not found") {
 			t.Errorf("Expected not found error, got %v", err)
+		}
+	})
+
+	t.Run("MissingNodeID", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+
+		_, err := svc.GetTreeNodeByID(context.Background(), "")
+		if err == nil || !strings.Contains(err.Error(), "tree_node_id is required") {
+			t.Errorf("Expected validation error")
+		}
+	})
+
+	t.Run("InternalError", func(t *testing.T) {
+		mock := &repository_test.Repository{
+			GetTreeNodeByIDFunc: func(ctx context.Context, nodeID string) (*model.TreeNode, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		_, err := svc.GetTreeNodeByID(context.Background(), "n2")
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
+			t.Errorf("Expected internal err, got %v", err)
 		}
 	})
 }
@@ -216,6 +318,31 @@ func TestUpdateTreeNode(t *testing.T) {
 			t.Errorf("Expected empty body validation error")
 		}
 	})
+
+	t.Run("MissingNodeID", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		err := svc.UpdateTreeNode(context.Background(), "", model.UpdateTreeNodeRequest{NodeTitle: "Edited"})
+		if err == nil || !strings.Contains(err.Error(), "tree_node_id is required") {
+			t.Errorf("Expected validation error")
+		}
+	})
+
+	t.Run("InternalError", func(t *testing.T) {
+		mock := &repository_test.Repository{
+			UpdateTreeNodeFunc: func(ctx context.Context, nodeID string, req model.UpdateTreeNodeRequest) error {
+				return errors.New("db limit")
+			},
+		}
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		req := model.UpdateTreeNodeRequest{NodeTitle: "Edited"}
+		err := svc.UpdateTreeNode(context.Background(), "n2", req)
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
+			t.Errorf("Expected internal err")
+		}
+	})
 }
 
 func TestDeleteTreeNode(t *testing.T) {
@@ -246,6 +373,30 @@ func TestDeleteTreeNode(t *testing.T) {
 		err := svc.DeleteTreeNode(context.Background(), "n2")
 		if err == nil || !strings.Contains(err.Error(), "not found") {
 			t.Errorf("Expected not found error, got %v", err)
+		}
+	})
+
+	t.Run("MissingNodeID", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		err := svc.DeleteTreeNode(context.Background(), "")
+		if err == nil || !strings.Contains(err.Error(), "tree_node_id is required") {
+			t.Errorf("Expected validation error")
+		}
+	})
+
+	t.Run("InternalError", func(t *testing.T) {
+		mock := &repository_test.Repository{
+			DeleteTreeNodeFunc: func(ctx context.Context, nodeID string) error {
+				return errors.New("db error")
+			},
+		}
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		err := svc.DeleteTreeNode(context.Background(), "n2")
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
+			t.Errorf("Expected internal err")
 		}
 	})
 }
