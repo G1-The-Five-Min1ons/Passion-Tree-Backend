@@ -2,105 +2,102 @@ package service
 
 import (
 	"context"
-	"Strings"
-	"passiontree/internal/recommendation/model"
+	"strconv"
+	"strings"
+
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/platform/aiclient"
+	"passiontree/internal/recommendation/model"
 )
 
-func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, user_id string) (*model.RecommendPathResponse, error) {
-	s.logger.InfoContext(ctx, "start generating personalized recommendation", "user_id", user_id)
-
-	// 1. ดึง Reflect ทุก Node ของ User
-	// (ต้อง cast repo ให้รองรับ interface ใหม่ หรือใส่รวมใน repositoryImpl ของคุณ)
-	reflections, err := s.recreflectRepo.(repository.RepositoryRecommendation).GetUserReflectionsAllNodes(ctx, user_id)
-	if err != nil {
-		return nil, apperror.NewInternal("failed to fetch user reflections: %w", err)
+func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error) {
+	if userID == "" || treeID == "" {
+		return nil, apperror.NewBadRequest("user_id and tree_id are required")
 	}
 
-	// 2. ถ้า User เป็นมือใหม่ (ไม่มี Reflect เลย) -> Cold Start Problem
+	s.logger.InfoContext(ctx, "generating recommendation from tree nodes", "user_id", userID, "tree_id", treeID)
+
+	reflections, currentPathID, err := s.recreflectRepo.GetUserReflectionsByTree(ctx, userID, treeID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to fetch tree reflections", "error", err.Error())
+		return nil, apperror.NewInternal("failed to fetch user reflections")
+	}
+
 	if len(reflections) == 0 {
-		s.logger.InfoContext(ctx, "no reflections found, returning default recommendation", "user_id", user_id)
-		// TODO: แนะนำ Path ยอดฮิต หรือ Path พื้นฐาน
 		return &model.RecommendPathResponse{
-			UserPersonaQuery: "New User",
+			UserPersonaQuery: "No historical data found in this tree.",
+			RecommendedPaths: []model.RecommendedPath{},
 		}, nil
 	}
 
-	// 3. Synthesize Data (สร้าง User Persona Vector Text)
 	var personaBuilder strings.Builder
-	var totalChallenge, totalProgress int
-	var tags []string
+	personaBuilder.WriteString("Find the best next learning path for a student who just finished a module with the following progress: ")
 
-	personaBuilder.WriteString("User is looking for a learning path. Historical feedback: ")
+	for _, ref := range reflections {
+		if ref.Summary != "" {
+			personaBuilder.WriteString(" [Topic Summary: ")
+			personaBuilder.WriteString(ref.Summary)
+			personaBuilder.WriteString(". Emotion: ")
+			personaBuilder.WriteString(ref.PrimaryEmotion)
 
-	// ลูปประกอบร่างข้อความจาก Reflect ย้อนหลัง (จำกัดแค่ 10 อันล่าสุดเพื่อไม่ให้ Noise เยอะไป)
-	limit := len(reflections)
-	if limit > 10 { limit = 10 }
-
-	for i := 0; i < limit; i++ {
-		ref := reflections[i]
-		totalChallenge += ref.ChallengeScore
-		totalProgress += ref.ProgressScore
-		
-		if ref.Tag != "" {
-			tags = append(tags, ref.Tag)
+			if ref.StrugglePoint != "" {
+				personaBuilder.WriteString(". Struggled with: ")
+				personaBuilder.WriteString(ref.StrugglePoint)
+			}
+			personaBuilder.WriteString("] ")
 		}
-		if ref.ReflectDescription != "" {
-			personaBuilder.WriteString(fmt.Sprintf("[%s], ", ref.ReflectDescription))
-		}
-	}
-
-	avgChallenge := float64(totalChallenge) / float64(limit)
-	
-	// สรุปพฤติกรรมความยาก (Inferring Difficulty Preference)
-	if avgChallenge > 180 {
-		personaBuilder.WriteString(" User prefers basic, fundamental, and easy-to-understand explanations.")
-	} else if avgChallenge < 80 {
-		personaBuilder.WriteString(" User prefers advanced, challenging, and complex project-based topics.")
 	}
 
 	userPersonaQuery := personaBuilder.String()
-	s.logger.InfoContext(ctx, "generated user persona", "query", userPersonaQuery, "avg_challenge", avgChallenge)
 
-	// 4. เรียกใช้ AI/Qdrant Client เพื่อ Search (สมมติว่า aiclient มีฟังก์ชัน SemanticSearch)
-	// ระบบจะแปลง userPersonaQuery เป็น Vector แล้วไปเทียบกับ Description ของ Learning Paths
-	searchReq := model.SearchPathRequest{
-		Query: userPersonaQuery,
-		Limit: 10,
+	aiReq := aiclient.SearchRequest{
+		Query:        userPersonaQuery,
+		TopK:         10,
+		ResourceType: "learning_paths",
 	}
-	
-	searchResult, err := s.aiClient.SearchLearningPaths(ctx, searchReq)
+
+	aiResp, err := s.aiClient.Search(ctx, aiReq)
 	if err != nil {
-		return nil, apperror.NewInternal("vector search failed: %w", err)
+		s.logger.ErrorContext(ctx, "vector search failed", "error", err.Error())
+		return nil, apperror.NewInternal("vector search failed")
 	}
 
-	// 5. Multi-Factor Ranking (ปรับคะแนนใหม่โดยนำ Behavior มา Weight)
 	var finalRecommendations []model.RecommendedPath
 
-	for _, path := range searchResult.Paths {
-		// สมมติ SearchResult คืนค่า Cosine Score มาให้ในตัวแปร Score
-		cosineScore := path.Score 
-		
-		// Weight 1: Cosine Similarity (ความหมายตรงกับ Reflect ไหม)
-		finalScore := cosineScore * 0.7 
+	for _, aiResult := range aiResp.Results {
+		var resultPathID string
+		if id, ok := aiResult.ID.(float64); ok {
+			resultPathID = strconv.Itoa(int(id))
+		} else if id, ok := aiResult.ID.(string); ok {
+			resultPathID = id
+		} else {
+			continue
+		}
 
-		// Weight 2: Behavior/Preference Boost (สมมติเทียบ Tag)
-		// ถ้า Path มี keyword ตรงกับ tag ที่ user เคยเรียน ให้คะแนนเพิ่ม
-		for _, tag := range tags {
-			if strings.Contains(strings.ToLower(path.Title), strings.ToLower(tag)) {
-				finalScore += 0.1 
-				break
+		if resultPathID == currentPathID {
+			continue
+		}
+
+		recPath := model.RecommendedPath{
+			PathID:              resultPathID,
+			RecommendationScore: aiResult.Score,
+			Reason:              "Based on your recent summaries and struggle points in the previous tree.",
+		}
+
+		if aiResult.Payload != nil {
+			if title, ok := aiResult.Payload["title"].(string); ok {
+				recPath.Title = title
+			}
+			if cover, ok := aiResult.Payload["cover_img_url"].(string); ok {
+				recPath.CoverImgURL = cover
+			}
+			if obj, ok := aiResult.Payload["objective"].(string); ok {
+				recPath.Objective = obj
 			}
 		}
 
-		finalRecommendations = append(finalRecommendations, model.RecommendedPath{
-			LearningPath:        path.LearningPath,
-			RecommendationScore: finalScore,
-			Reason:              fmt.Sprintf("Matches your learning style. Avg Challenge Score: %.1f", avgChallenge),
-		})
+		finalRecommendations = append(finalRecommendations, recPath)
 	}
-
-	// (Optional) Sort finalRecommendations ตาม finalScore ลงมาอีกที
 
 	return &model.RecommendPathResponse{
 		RecommendedPaths: finalRecommendations,
