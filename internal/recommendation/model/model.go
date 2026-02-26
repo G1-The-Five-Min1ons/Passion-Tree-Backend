@@ -1,22 +1,24 @@
 package model
 
 type UserReflection struct {
-	ReflectID          string `json:"reflect_id"`
-	ReflectDescription string `json:"reflect_description"`
-	Mood               string `json:"mood"`
-	Tag                string `json:"tag"`
-	ChallengeScore     int    `json:"challenge_score"` // tinyint ใน DB
-	ProgressScore      int    `json:"progress_score"`  // tinyint ใน DB
-	TreeNodeID         string `json:"tree_node_id"`
-}
-
-type RecommendPathResponse struct {
-	RecommendedPaths []RecommendedPath `json:"recommended_paths"`
-	UserPersonaQuery string            `json:"user_persona_query"` // บอกว่าระบบมอง User คนนี้เป็นยังไง (สำหรับ Debug/โชว์ UI)
+	ReflectID      string  `json:"reflect_id"`
+	Summary        string  `json:"summary"`
+	PrimaryEmotion string  `json:"primary_emotion"`
+	StrugglePoint  string  `json:"struggle_point"`
+	WeightedScore  float64 `json:"weighted_reflection_score"`
 }
 
 type RecommendedPath struct {
-	LearningPath
-	RecommendationScore float64 `json:"recommendation_score"` // คะแนนที่เกิดจาก Cosine + Skill Gap
-	Reason              string  `json:"reason"`               // เหตุผลที่แนะนำ
+	PathID              string  `json:"path_id"`
+	Title               string  `json:"title"`
+	Description         string  `json:"description,omitempty"`
+	CoverImgURL         string  `json:"cover_img_url,omitempty"`
+	Objective           string  `json:"objective,omitempty"`
+	RecommendationScore float64 `json:"recommendation_score"`
+	Reason              string  `json:"reason"`
+}
+
+type RecommendPathResponse struct {
+	UserPersonaQuery string            `json:"user_persona_query"`
+	RecommendedPaths []RecommendedPath `json:"recommended_paths"`
 }

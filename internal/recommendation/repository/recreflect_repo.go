@@ -2,42 +2,47 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"passiontree/internal/recommendation/model"
 )
 
-func (r *repositoryImpl) GetUserReflectionsAllNodes(ctx context.Context, user_id string, path_id string) ([]model.UserReflection, error) {
+func (r *repositoryImpl) GetUserReflectionsByTree(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error) {
 	query := `
 		SELECT 
-			CONVERT(VARCHAR(36), reflect_id) as reflect_id,
-			ISNULL(reflect_description, '') as reflect_description,
-			ISNULL(mood, '') as mood,
-			ISNULL(tag, '') as tag,
-			ISNULL(challenge_score, 0) as challenge_score,
-			ISNULL(progress_score, 0) as progress_score,
-			CONVERT(VARCHAR(36), tree_node_id) as tree_node_id
-		FROM dbo.Reflect
-		WHERE user_id = @p1 AND path_id = @p2
-		ORDER BY create_at DESC
+			CONVERT(VARCHAR(36), r.reflect_id) as reflect_id,
+			ISNULL(r.summary, '') as summary,
+			ISNULL(r.primary_emotion, '') as primary_emotion,
+			ISNULL(r.struggle_point, '') as struggle_point,
+			ISNULL(r.weighted_reflection_score, 0) as weighted_score,
+			CONVERT(VARCHAR(36), t.path_id) as current_path_id
+		FROM dbo.Reflect r
+		JOIN dbo.Tree_Node tn ON r.tree_node_id = tn.tree_node_id
+		JOIN dbo.Tree t ON tn.tree_id = t.tree_id
+		WHERE tn.tree_id = @p1
+		ORDER BY r.create_at ASC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, user_id, path_id)
+	rows, err := r.db.QueryContext(ctx, query, treeID, userID)
 	if err != nil {
-		return nil, fmt.Errorf("repo.GetUserReflectionsAllNodes query failed: %w", err)
+		return nil, "", errors.New("query context failed: " + err.Error())
 	}
 	defer rows.Close()
 
 	var reflections []model.UserReflection
+	var currentPathID string
+
 	for rows.Next() {
 		var ref model.UserReflection
+		var pathID string
 		if err := rows.Scan(
-			&ref.ReflectID, &ref.ReflectDescription, &ref.Mood, &ref.Tag, 
-			&ref.ChallengeScore, &ref.ProgressScore, &ref.TreeNodeID,
+			&ref.ReflectID, &ref.Summary, &ref.PrimaryEmotion,
+			&ref.StrugglePoint, &ref.WeightedScore, &pathID,
 		); err != nil {
-			return nil, fmt.Errorf("repo.GetUserReflectionsAllNodes scan failed: %w", err)
+			return nil, "", errors.New("row scanning failed: " + err.Error())
 		}
 		reflections = append(reflections, ref)
+		currentPathID = pathID
 	}
 
-	return reflections, nil
+	return reflections, currentPathID, nil
 }

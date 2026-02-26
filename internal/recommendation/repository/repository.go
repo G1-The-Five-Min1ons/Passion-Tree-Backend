@@ -8,7 +8,7 @@ import (
 )
 
 type RepositoryRecommendation interface {
-	GetUserReflectionsAllNodes(ctx context.Context, userID string, path_id string) ([]model.UserReflection, error)
+	GetUserReflectionsByTree(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error)
 }
 
 type DBTX interface {
