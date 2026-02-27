@@ -37,8 +37,8 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 				CONVERT(VARCHAR(36), n.path_id) as path_id, 
 				n.sequence,
 				ISNULL(np.status, 'locked') as status,
-				np.complete,
-				'null'as link_vdo
+				ISNULL(np.complete, 'null') as complete,
+				ISNULL(n.link_vdo, 'null') as link_vdo
 			FROM node n
 			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
 			WHERE n.path_id = @p1 
