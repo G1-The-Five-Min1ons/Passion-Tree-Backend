@@ -326,6 +326,7 @@ func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) (
 		if paths[i].Modules > 0 {
 			paths[i].ProgressPercent = (float64(paths[i].CompletedNodes) / float64(paths[i].Modules)) * 100
 
+			
 			if paths[i].CompletedNodes == paths[i].Modules {
 				paths[i].ProgressStatus = "Completed"
 			} else {

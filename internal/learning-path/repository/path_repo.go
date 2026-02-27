@@ -270,7 +270,7 @@ func (r *repositoryImpl) GetUserEnrolledPaths(ctx context.Context, userID string
 			SELECT n.path_id, COUNT(np.node_id) as completed
 			FROM node_progress np
 			JOIN node n ON np.node_id = n.node_id
-			WHERE np.user_id = @p1 AND np.status = 'completed'
+			WHERE np.user_id = @p1 AND np.complete = 'true'
 			GROUP BY n.path_id
 		) AS progress_count ON lp.path_id = progress_count.path_id
 
