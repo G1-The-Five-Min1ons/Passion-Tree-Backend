@@ -177,8 +177,8 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID 
 				n.description, 
 				CONVERT(VARCHAR(36), n.path_id) as path_id,
 				ISNULL(np.status, 'locked') as status,
-				np.complete,
-				n.link_vdo
+				ISNULL(np.complete, 'null') as complete,
+				ISNULL(n.link_vdo, 'null') as link_vdo
 			FROM node n
 			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
 			WHERE n.node_id = @p1`
@@ -193,7 +193,7 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID 
 				CONVERT(VARCHAR(36), path_id) as path_id,
 				'null' as status,
 				'null' as complete,
-				link_vdo
+				ISNULL(link_vdo, 'null') as link_vdo
 			FROM node 
 			WHERE node_id = @p1`
 			

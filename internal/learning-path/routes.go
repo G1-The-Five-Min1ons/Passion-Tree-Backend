@@ -20,6 +20,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	h := handler.NewHandler(svc, logger, storageClient)
 
 	// All reflection routes require JWT authentication
+	// protected := r.Group("/") //for dev
 	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
 
 	paths := protected.Group("/learningpaths")
