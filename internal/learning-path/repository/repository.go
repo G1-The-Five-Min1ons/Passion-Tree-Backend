@@ -35,10 +35,13 @@ type RepositoryNode interface {
 type RepositoryComment interface {
 	CreateComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error)
-	DeleteComment(ctx context.Context, commentID string) error
+	DeleteComment(ctx context.Context, commentID, userID string) error
 	CreateReaction(ctx context.Context, req model.CreateReactionRequest) error
 	GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
+	UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error)
+	// GetCommentOwner returns the user_id of the comment author — used for auto-mention on reply
+	GetCommentOwner(ctx context.Context, commentID string) (string, error)
 }
 
 type RepositoryQuiz interface {

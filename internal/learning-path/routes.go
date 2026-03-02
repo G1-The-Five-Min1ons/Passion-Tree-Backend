@@ -2,15 +2,16 @@ package learningpath
 
 import (
 	"log/slog"
+
 	"github.com/gofiber/fiber/v2"
 
 	"passiontree/internal/connection"
-	"passiontree/internal/pkg/jwt"
-	"passiontree/internal/pkg/middleware"
-	"passiontree/internal/pkg/storage"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/learning-path/service"
+	"passiontree/internal/pkg/jwt"
+	"passiontree/internal/pkg/middleware"
+	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
 )
 
@@ -78,8 +79,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 
 	comments := protected.Group("/learningpaths/comments")
 	{
-		comments.Post("/:comment_id/mentions", h.CreateMention)
+		comments.Put("/:comment_id", h.UpdateComment)
 		comments.Post("/:comment_id/reactions", h.CreateReaction)
 		comments.Delete("/:comment_id", h.DeleteComment)
+		// Mentions are created automatically on reply — no explicit endpoint needed
 	}
 }
