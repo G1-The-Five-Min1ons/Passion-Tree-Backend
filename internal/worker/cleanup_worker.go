@@ -41,7 +41,8 @@ func (w *CleanupWorker) RunCleanup() {
 	targets := []CleanupTarget{
 		{Folder: "learning-path", Table: "learning_paths", Column: "cover_img_url"},
 		{Folder: "profile", Table: "users", Column: "profile_img_url"},
-		// {Folder: "resume", Table: "user_resumes", Column: "file_url"}, // ตัวอย่าง: อนาคต
+		{Folder: "reflect", Table: "tree_album", Column: "cover_image_url"},
+		{Folder: "materials-nodes", Table: "tree_nodes", Column: "material_url"},
 	}
 
 	for _, target := range targets {

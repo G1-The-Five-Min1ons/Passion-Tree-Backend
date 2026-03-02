@@ -8,13 +8,12 @@ import (
 
 func (r *repositoryImpl) GetNextNodeID(ctx context.Context, userID string, pathID string) (string, error) {
 	query := `
-		SELECT n.node_id
+		SELECT TOP 1 n.node_id
 		FROM node n
-		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = ?
-		WHERE n.path_id = ?
+		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p1
+		WHERE n.path_id = @p2
 		AND (np.status IS NULL OR np.status != 'completed')
-		ORDER BY n.created_at ASC
-		LIMIT 1
+		ORDER BY n.sequence ASC
 	`
 
 	var nodeID string

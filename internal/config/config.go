@@ -12,8 +12,10 @@ import (
 const (
 	DefaultAzureSQLPort      = "1433"
 	DefaultAIServiceURL      = "http://ai-service:8000"
-	DefaultContainerLearning = "learning-path-cover-imgs"
-	DefaultContainerProfile  = "profile-imgs"
+	DefaultContainerLearning  = "learning-path-cover-imgs"
+	DefaultContainerProfile   = "profile-imgs"
+	DefaultContainerReflect   = "reflect"
+	DefaultContainerMaterials = "materials-nodes"
 	DefaultJWTAccessTTL      = "1"   // 1 hour 
     DefaultJWTRefreshTTL     = "168" // 7 days
     DefaultJWTRefreshAbsolute = "720" // 30 days
@@ -30,6 +32,8 @@ const (
 	EnvAzureStorageConnString = "AZURE_STORAGE_CONNECTION_STRING"
 	EnvContainerLearningPath  = "CONTAINER_LEARNING_PATH"
 	EnvContainerProfile       = "CONTAINER_PROFILE"
+	EnvContainerReflect       = "CONTAINER_REFLECT"
+	EnvContainerMaterials     = "CONTAINER_MATERIALS_NODES"
 	EnvSMTPHost               = "SMTP_HOST"
 	EnvSMTPPort               = "SMTP_PORT"
 	EnvSMTPUsername           = "SMTP_USERNAME"
@@ -61,8 +65,10 @@ type Config struct {
 	DBConnString           string
 	AIServiceURL           string
 	AzureStorageConnString string
-	ContainerLearningPath  string
-	ContainerProfile       string
+	ContainerLearningPath    string
+	ContainerProfile         string
+	ContainerReflect         string
+	ContainerMaterialsNodes  string
 	SMTPHost               string
 	SMTPPort               string
 	SMTPUsername           string
@@ -113,7 +119,9 @@ func LoadDBConfig() (*Config, error) {
 		JWTRefreshTTL: getEnvOrDefault(EnvJWTRefreshTTL, DefaultJWTRefreshTTL),
 		JWTRefreshAbsolute: getEnvOrDefault(EnvJWTRefreshAbsolute, DefaultJWTRefreshAbsolute),
 
-		ContainerProfile: getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
+		ContainerProfile:        getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
+		ContainerReflect:        getEnvOrDefault(EnvContainerReflect, DefaultContainerReflect),
+		ContainerMaterialsNodes: getEnvOrDefault(EnvContainerMaterials, DefaultContainerMaterials),
 		SMTPHost:         os.Getenv(EnvSMTPHost),
 		SMTPPort:         getEnvOrDefault(EnvSMTPPort, "587"),
 		SMTPUsername:     os.Getenv(EnvSMTPUsername),

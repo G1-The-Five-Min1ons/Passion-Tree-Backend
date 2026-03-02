@@ -8,23 +8,20 @@ import (
 
 func (r *repositoryImpl) GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error) {
 	query := `
-		SELECT 
-    		target_path.path_id,
-    		n.node_id
-		FROM (
-    		SELECT path_id
-    		FROM path_enroll
-    		WHERE user_id = ?
-    		ORDER BY update_at DESC
-    		LIMIT 1
-		) AS target_path
-		JOIN node n ON target_path.path_id = n.path_id
-		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = ? 
-		WHERE 
-    		(np.status IS NULL OR np.status != 'completed')
-		ORDER BY 
-    		n.created_at ASC 
-		LIMIT 1;`
+		WITH NextNodes AS (
+			SELECT 
+				n.path_id,
+				n.node_id,
+				ROW_NUMBER() OVER(PARTITION BY n.path_id ORDER BY n.sequence ASC) as rn
+			FROM path_enroll pe
+			JOIN node n ON pe.path_id = n.path_id
+			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
+			WHERE pe.user_id = @p1
+			  AND (np.status IS NULL OR np.status != 'Completed')
+		)
+		SELECT path_id, node_id
+		FROM NextNodes
+		WHERE rn = 1;`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, userID)
 	if err != nil {

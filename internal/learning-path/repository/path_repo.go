@@ -12,7 +12,7 @@ import (
 
 func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
 	query := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
+		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, ISNULL(cover_img_url, '') AS cover_img_url, ISNULL(objective, '') AS objective, ISNULL(description, '') AS description, ISNULL(avg_rating, 0.0) AS avg_rating, ISNULL(publish_status, 'draft') AS publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
 		FROM learning_path`
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -39,7 +39,7 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 
 func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error) {
 	pathQuery := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, cover_img_url, objective, description, avg_rating, publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
+		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, ISNULL(cover_img_url, '') AS cover_img_url, ISNULL(objective, '') AS objective, ISNULL(description, '') AS description, ISNULL(avg_rating, 0.0) AS avg_rating, ISNULL(publish_status, 'draft') AS publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
 		FROM learning_path 
 		WHERE path_id = @p1`
 
@@ -118,16 +118,16 @@ func (r *repositoryImpl) GetLearningPathEnrollmentStatus(ctx context.Context, pa
 }
 
 func (r *repositoryImpl) UpdateLearningPathImage(ctx context.Context, pathID string, coverImgURL string) error {
-    query := `UPDATE learning_path SET cover_img_url = @p1, update_at = GETDATE() WHERE path_id = @p2`
-    
-    res, err := r.db.ExecContext(ctx, query, coverImgURL, pathID)
-    if err != nil {
-        return fmt.Errorf("repo.UpdateLearningPathImage failed [id=%s]: %w", pathID, err)
-    }
+	query := `UPDATE learning_path SET cover_img_url = @p1, update_at = GETDATE() WHERE path_id = @p2`
 
-    rows, _ := res.RowsAffected()
-    if rows == 0 {
-        return sql.ErrNoRows
-    }
-    return nil
+	res, err := r.db.ExecContext(ctx, query, coverImgURL, pathID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdateLearningPathImage failed [id=%s]: %w", pathID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
