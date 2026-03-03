@@ -19,25 +19,6 @@ type UpdatePathRequest struct {
 	Publish_status string `json:"publish_status"`
 }
 
-type StartPathRequest struct {
-	UserID string `json:"user_id" binding:"required"`
-}
-
-type LearningPaths struct {
-	PathID        string
-	Title         string
-	Description   string
-	Instructor    string
-	Students      int
-	Modules       int
-	Rating        float64
-	CoverImgURL   string
-	Objective     string
-	PublishStatus string
-	CreatedAt     *time.Time
-	UpdatedAt     *time.Time
-}
-
 type LearningPath struct {
 	PathID         string     `json:"path_id"`
 	Title          string     `json:"title"`

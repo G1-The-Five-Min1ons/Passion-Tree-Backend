@@ -9,7 +9,7 @@ import (
 
 // MockRepo for LearningPath
 type Repopository struct {
-	GetAllLearningPathFunc              func(ctx context.Context) ([]model.LearningPaths, error)
+	GetAllLearningPathFunc              func(ctx context.Context) ([]model.LearningPath, error)
 	GetLearningPathByIDFunc             func(ctx context.Context, path_id string) (*model.LearningPath, error)
 	CreateLearningPathFunc              func(ctx context.Context, req model.CreatePathRequest) (string, error)
 	UpdateLearningPathFunc              func(ctx context.Context, path_id string, req model.UpdatePathRequest) error
@@ -55,7 +55,7 @@ type Repopository struct {
 	GetNextNodeIDFunc      func(ctx context.Context, userID string, pathID string) (string, error)
 }
 
-func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.LearningPaths, error) {
+func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
 	if m.GetAllLearningPathFunc != nil {
 		return m.GetAllLearningPathFunc(ctx)
 	}

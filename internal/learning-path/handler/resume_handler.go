@@ -5,13 +5,17 @@ import (
 	"time"
 
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetResume(c *fiber.Ctx) error {
-	userID := c.Query("user_id")
 	pathID := c.Query("path_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
 	if userID == "" {
 		return h.handleError(c, apperror.NewBadRequest("user_id is required"))
@@ -21,8 +25,8 @@ func (h *Handler) GetResume(c *fiber.Ctx) error {
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
-    defer cancel()
-	
+	defer cancel()
+
 	resp, err := h.resumeSvc.GetResumeNode(ctx, userID, pathID)
 	if err != nil {
 		return h.handleError(c, err)

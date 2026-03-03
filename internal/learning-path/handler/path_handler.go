@@ -4,6 +4,7 @@ import (
 	"context"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 	"strings"
 	"time"
 
@@ -152,25 +153,26 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 
 func (h *Handler) Start(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
-	defer cancel()
 
-	var req model.StartPathRequest
-	if err := c.BodyParser(&req); err != nil {
-		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
-	}
-
-	if err := h.pathSvc.StartPath(ctx, pathID, req.UserID); err != nil {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "user enrolled in learning path successfully", "user_id", req.UserID, "path_id", pathID)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.pathSvc.StartPath(ctx, pathID, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "user enrolled in learning path successfully", "user_id", userID, "path_id", pathID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "User enrolled in learning path successfully",
 		"data": fiber.Map{
-			"user_id": req.UserID,
+			"user_id": userID,
 			"path_id": pathID,
 		},
 	})
@@ -178,13 +180,14 @@ func (h *Handler) Start(c *fiber.Ctx) error {
 
 func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	userID := c.Query("user_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
-
-	if userID == "" {
-		return h.handleError(c, apperror.NewBadRequest("user_id is required"))
-	}
 
 	status, err := h.pathSvc.GetEnrollmentStatus(ctx, pathID, userID)
 	if err != nil {
@@ -202,13 +205,14 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 
 func (h *Handler) GetPathProgress(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	userID := c.Query("user_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
-
-	if userID == "" {
-		return h.handleError(c, apperror.NewBadRequest("user_id is required"))
-	}
 
 	progress, err := h.pathSvc.GetPathProgress(ctx, pathID, userID)
 	if err != nil {
@@ -274,8 +278,11 @@ func (h *Handler) UpdateCoverImage(c *fiber.Ctx) error {
 }
 
 func (h *Handler) GetMyPaths(c *fiber.Ctx) error {
-	userID := c.Query("user_id")
-	
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 

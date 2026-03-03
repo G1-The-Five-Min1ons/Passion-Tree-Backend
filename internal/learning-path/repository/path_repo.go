@@ -11,21 +11,21 @@ import (
 	"github.com/google/uuid"
 )
 
-func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.LearningPaths, error) {
+func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
 	query := `
 		SELECT 
    			CONVERT(VARCHAR(36), lp.path_id) as id, 
     		lp.title, 
-    		lp.description,
+    		ISNULL(lp.description, 'null') as description,
     		u.first_name as instructor,
     		ISNULL(pe_count.total_students, 0) as student,
 			ISNULL(n_count.total_nodes, 0) as modules,
-			lp.avg_rating,
-    		lp.cover_img_url, 
-    		lp.objective,
-    		lp.publish_status, 
-    		lp.create_at, 
-    		lp.update_at
+			ISNULL(lp.avg_rating, 0) as avg_rating,
+    		ISNULL(lp.cover_img_url, 'null') as cover_img_url, 
+    		ISNULL(lp.objective, 'null') as objective,
+    		ISNULL(lp.publish_status, 'null') as publish_status, 
+    		ISNULL(lp.create_at, GETDATE()) as create_at, 
+    		ISNULL(lp.update_at, GETDATE()) as update_at
 		FROM learning_path AS lp 
 		JOIN users AS u ON lp.creator_id = u.user_id
 		LEFT JOIN (
@@ -46,9 +46,9 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 	}
 	defer rows.Close()
 
-	var paths []model.LearningPaths
+	var paths []model.LearningPath
 	for rows.Next() {
-		var p model.LearningPaths
+		var p model.LearningPath
 		if err := rows.Scan(
 			&p.PathID,
 			&p.Title,
@@ -59,7 +59,7 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 			&p.Rating,
 			&p.CoverImgURL,
 			&p.Objective,
-			&p.PublishStatus,
+			&p.Publish_status,
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		); err != nil {

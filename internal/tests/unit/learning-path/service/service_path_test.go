@@ -103,8 +103,8 @@ func TestGetPaths(t *testing.T) {
 		{
 			name: "Success",
 			setup: func(m *repository_test.Repopository) {
-				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPaths, error) {
-					return []model.LearningPaths{
+				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPath, error) {
+					return []model.LearningPath{
 						{PathID: "1", Title: "Path 1"},
 						{PathID: "2", Title: "Path 2"},
 					}, nil
@@ -116,7 +116,7 @@ func TestGetPaths(t *testing.T) {
 		{
 			name: "Error",
 			setup: func(m *repository_test.Repopository) {
-				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPaths, error) {
+				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPath, error) {
 					return nil, errors.New("db fail")
 				}
 			},

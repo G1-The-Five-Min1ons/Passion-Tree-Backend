@@ -25,46 +25,27 @@ func (r *repositoryImpl) createNodeInternal(ctx context.Context, db DBTX, req mo
 }
 
 func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
-	var query string
-	var args []interface{}
-
+	var dbUserID sql.NullString
 	if userID != "" {
-		query = `
-			SELECT 
-				CONVERT(VARCHAR(36), n.node_id) as node_id, 
-				n.title, 
-				n.description, 
-				CONVERT(VARCHAR(36), n.path_id) as path_id, 
-				n.sequence,
-				ISNULL(np.status, 'locked') as status,
-				ISNULL(np.complete, 'null') as complete,
-				ISNULL(n.link_vdo, 'null') as link_vdo
-			FROM node n
-			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
-			WHERE n.path_id = @p1 
-			ORDER BY n.sequence ASC`
-		
-		args = []interface{}{pathID, userID}
-
-	} else {
-		query = `
-			SELECT 
-				CONVERT(VARCHAR(36), node_id) as node_id, 
-				title, 
-				description, 
-				CONVERT(VARCHAR(36), path_id) as path_id, 
-				sequence,
-				'null' as status,
-				'null' as complete,
-				'null' as link_vdo
-			FROM node 
-			WHERE path_id = @p1 
-			ORDER BY sequence ASC`
-			
-		args = []interface{}{pathID}
+		dbUserID = sql.NullString{String: userID, Valid: true}
 	}
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	query := `
+		SELECT 
+			CONVERT(VARCHAR(36), n.node_id) as node_id, 
+			n.title, 
+			n.description, 
+			CONVERT(VARCHAR(36), n.path_id) as path_id, 
+			n.sequence,
+			CASE WHEN @p2 IS NULL THEN 'locked' ELSE ISNULL(np.status, 'locked') END as status,
+			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(np.complete, 'null') END as complete,
+			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(n.link_vdo, 'null') END as link_vdo
+		FROM node n
+		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
+		WHERE n.path_id = @p1 
+		ORDER BY n.sequence ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, pathID, dbUserID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetNodesByPathID query failed: %w", err)
 	}
@@ -165,46 +146,30 @@ func (r *repositoryImpl) DeleteMaterial(ctx context.Context, materialID string) 
 }
 
 func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
-	var query string
-	var args []interface{}
-
+	var dbUserID sql.NullString
 	if userID != "" {
-		query = `
-			SELECT 
-				CONVERT(VARCHAR(36), n.node_id) as node_id, 
-				n.title, 
-				n.description, 
-				CONVERT(VARCHAR(36), n.path_id) as path_id,
-				ISNULL(np.status, 'locked') as status,
-				ISNULL(np.complete, 'null') as complete,
-				ISNULL(n.link_vdo, 'null') as link_vdo
-			FROM node n
-			LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
-			WHERE n.node_id = @p1`
-		
-		args = []interface{}{nodeID, userID}
-	} else {
-		query = `
-			SELECT 
-				CONVERT(VARCHAR(36), node_id) as node_id, 
-				title, 
-				description, 
-				CONVERT(VARCHAR(36), path_id) as path_id,
-				'null' as status,
-				'null' as complete,
-				ISNULL(link_vdo, 'null') as link_vdo
-			FROM node 
-			WHERE node_id = @p1`
-			
-		args = []interface{}{nodeID}
+		dbUserID = sql.NullString{String: userID, Valid: true}
 	}
 
+	query := `
+		SELECT 
+			CONVERT(VARCHAR(36), n.node_id) as node_id, 
+			n.title, 
+			n.description, 
+			CONVERT(VARCHAR(36), n.path_id) as path_id,
+			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(np.status, 'locked') END as status,
+			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(np.complete, 'null') END as complete,
+			ISNULL(n.link_vdo, 'null') as link_vdo
+		FROM node n
+		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
+		WHERE n.node_id = @p1`
+
 	var n model.Node
-	err := r.db.QueryRowContext(ctx, query, args...).Scan(
-		&n.NodeID, 
-		&n.Title, 
-		&n.Description, 
-		&n.PathID, 
+	err := r.db.QueryRowContext(ctx, query, nodeID, dbUserID).Scan(
+		&n.NodeID,
+		&n.Title,
+		&n.Description,
+		&n.PathID,
 		&n.Status,
 		&n.Complete,
 		&n.Link_vdo,

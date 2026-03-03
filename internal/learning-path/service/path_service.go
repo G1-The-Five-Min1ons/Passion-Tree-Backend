@@ -7,15 +7,12 @@ import (
 	"strconv"
 	"strings"
 
+	"passiontree/internal/config"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 )
 
-const (
-	ContainerLearningPath = "learning-path"
-)
-
-func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPaths, error) {
+func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
 
 	paths, err := s.pathRepo.GetAllLearningPath(ctx)
 	if err != nil {
@@ -55,13 +52,14 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 		return "", apperror.NewBadRequest("cover_image_url is required")
 	}
 
+	cfg, err := config.LoadDBConfig()
 	// Validate Image Source & Existence
-	// if !strings.Contains(req.CoverImgURL, ContainerLearningPath) {
-	// 	return "", apperror.NewBadRequest("invalid image URL source")
-	// }
-	// if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, ContainerLearningPath); err != nil {
-	// 	return "", apperror.NewBadRequest("image validation failed: %v", err)
-	// }
+	if !strings.Contains(req.CoverImgURL, cfg.ContainerLearningPath) {
+		return "", apperror.NewBadRequest("invalid image URL source")
+	}
+	if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, cfg.ContainerLearningPath); err != nil {
+		return "", apperror.NewBadRequest("image validation failed: %v", err)
+	}
 
 	id, err := s.pathRepo.CreateLearningPath(ctx, req)
 	if err != nil {
@@ -110,7 +108,7 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 		req.CoverImgURL = existingPath.CoverImgURL
 	}
 	if req.Publish_status == "" {
-		req.Publish_status = existingPath.Publish_status 
+		req.Publish_status = existingPath.Publish_status
 	}
 
 	if err := s.pathRepo.UpdateLearningPath(ctx, path_id, req); err != nil {
@@ -326,7 +324,6 @@ func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) (
 		if paths[i].Modules > 0 {
 			paths[i].ProgressPercent = (float64(paths[i].CompletedNodes) / float64(paths[i].Modules)) * 100
 
-			
 			if paths[i].CompletedNodes == paths[i].Modules {
 				paths[i].ProgressStatus = "Completed"
 			} else {

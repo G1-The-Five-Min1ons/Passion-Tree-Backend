@@ -6,13 +6,19 @@ import (
 
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	userID := c.Query("user_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
@@ -146,7 +152,7 @@ func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 	}
 
 	h.logger.InfoContext(ctx, "material deleted successfully", "material_id", material_id)
-	
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Material has been deleted successfully",
@@ -182,7 +188,12 @@ func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 
 func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
-	userID := c.Query("user_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
@@ -202,7 +213,11 @@ func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 
 func (h *Handler) StartNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	userID := c.Query("user_id") 
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -223,7 +238,11 @@ func (h *Handler) StartNode(c *fiber.Ctx) error {
 
 func (h *Handler) CompleteNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-	userID := c.Query("user_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
