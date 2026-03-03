@@ -2,8 +2,8 @@ package recommendation
 
 import (
 	"database/sql"
-	
-	"passiontree/internal/connection" 
+
+	"passiontree/internal/connection"
 )
 
 type Repository interface {
@@ -18,16 +18,15 @@ type repository struct {
 
 func NewRepository(ds connection.Database) Repository {
 	return &repository{
-		db: ds.GetDB(), 
+		db: ds.GetDB(),
 	}
 }
 
 func (r *repository) GetPopularItems() ([]RecommendedItem, error) {
 	query := `
-		SELECT path_id
+		SELECT TOP 10 path_id
 		FROM learning_path lp
 		ORDER BY avg_rating DESC 
-		LIMIT 10
 	`
 	rows, err := r.db.Query(query)
 	if err != nil {
