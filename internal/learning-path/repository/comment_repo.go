@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"passiontree/internal/learning-path/model"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,21 +34,73 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 	defer rows.Close()
 
 	var comments []model.NodeComment
+	var commentIDs []string
 	for rows.Next() {
 		var c model.NodeComment
 		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &c.EditAt, &c.NodeID, &c.ParentID); err != nil {
 			continue
 		}
-		reactions, _ := r.GetReactionsByCommentID(ctx, c.CommentID)
-		c.Reactions = reactions
 		comments = append(comments, c)
+		commentIDs = append(commentIDs, c.CommentID)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("repo.GetCommentsByNodeID row iteration failed: %w", err)
 	}
 
+	if len(commentIDs) == 0 {
+		return comments, nil
+	}
+
+	// Batch fetch all reactions in a single query — avoids N+1
+	reactionsMap, err := r.batchGetReactionsByCommentIDs(ctx, commentIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range comments {
+		if reacts, ok := reactionsMap[comments[i].CommentID]; ok {
+			comments[i].Reactions = reacts
+		}
+	}
+
 	return comments, nil
+}
+
+// batchGetReactionsByCommentIDs fetches reactions for multiple comment IDs in one query.
+func (r *repositoryImpl) batchGetReactionsByCommentIDs(ctx context.Context, commentIDs []string) (map[string][]model.CommentReaction, error) {
+	// Build parameterized IN clause: @p1, @p2, ...
+	placeholders := make([]string, len(commentIDs))
+	args := make([]interface{}, len(commentIDs))
+	for i, id := range commentIDs {
+		placeholders[i] = fmt.Sprintf("@p%d", i+1)
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(
+		`SELECT reaction_id, reaction_type, comment_id FROM comment_reaction WHERE comment_id IN (%s)`,
+		strings.Join(placeholders, ","),
+	)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("repo.batchGetReactionsByCommentIDs: query failed: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string][]model.CommentReaction)
+	for rows.Next() {
+		var rc model.CommentReaction
+		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID); err != nil {
+			continue
+		}
+		result[rc.CommentID] = append(result[rc.CommentID], rc)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.batchGetReactionsByCommentIDs row iteration failed: %w", err)
+	}
+
+	return result, nil
 }
 
 func (r *repositoryImpl) DeleteComment(ctx context.Context, commentID, userID string) error {

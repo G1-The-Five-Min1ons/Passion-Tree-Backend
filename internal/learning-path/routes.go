@@ -82,6 +82,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		comments.Put("/:comment_id", h.UpdateComment)
 		comments.Post("/:comment_id/reactions", h.CreateReaction)
 		comments.Delete("/:comment_id", h.DeleteComment)
-		// Mentions are created automatically on reply — no explicit endpoint needed
+		// Manual mention — triggered when user types @ to tag someone explicitly
+		comments.Post("/:comment_id/mentions", h.CreateMention)
 	}
 }
