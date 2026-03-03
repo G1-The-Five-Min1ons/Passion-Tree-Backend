@@ -34,10 +34,12 @@ type Repopository struct {
 	// Mock hooks for Comment
 	CreateCommentFunc           func(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeIDFunc     func(ctx context.Context, nodeID string) ([]model.NodeComment, error)
-	DeleteCommentFunc           func(ctx context.Context, commentID string) error
+	DeleteCommentFunc           func(ctx context.Context, commentID, userID string) error
 	CreateReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) error
 	GetReactionsByCommentIDFunc func(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMentionFunc           func(ctx context.Context, req model.CreateMentionRequest) (string, error)
+	GetCommentOwnerFunc         func(ctx context.Context, commentID string) (string, error)
+	UpdateCommentFunc           func(ctx context.Context, userID, messageID, message string) (bool, error)
 
 	// Mock hooks for Quiz
 	CreateQuestionFunc         func(ctx context.Context, req model.CreateQuestionRequest) (string, error)
@@ -185,9 +187,9 @@ func (m *Repopository) GetCommentsByNodeID(ctx context.Context, nodeID string) (
 	}
 	return nil, nil
 }
-func (m *Repopository) DeleteComment(ctx context.Context, commentID string) error {
+func (m *Repopository) DeleteComment(ctx context.Context, commentID, userID string) error {
 	if m.DeleteCommentFunc != nil {
-		return m.DeleteCommentFunc(ctx, commentID)
+		return m.DeleteCommentFunc(ctx, commentID, userID)
 	}
 	return nil
 }
@@ -208,6 +210,18 @@ func (m *Repopository) CreateMention(ctx context.Context, req model.CreateMentio
 		return m.CreateMentionFunc(ctx, req)
 	}
 	return "", nil
+}
+func (m *Repopository) GetCommentOwner(ctx context.Context, commentID string) (string, error) {
+	if m.GetCommentOwnerFunc != nil {
+		return m.GetCommentOwnerFunc(ctx, commentID)
+	}
+	return "", nil
+}
+func (m *Repopository) UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error) {
+	if m.UpdateCommentFunc != nil {
+		return m.UpdateCommentFunc(ctx, userID, messageID, message)
+	}
+	return false, nil
 }
 
 // Implement RepositoryQuiz
