@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"passiontree/internal/learning-path/model"
 	"strings"
 	"time"
@@ -38,7 +39,7 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 	for rows.Next() {
 		var c model.NodeComment
 		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &c.EditAt, &c.NodeID, &c.ParentID); err != nil {
-			r.logger.WarnContext(ctx, "GetCommentsByNodeID: failed to scan row", "error", err)
+			slog.WarnContext(ctx, "GetCommentsByNodeID: failed to scan row", "error", err)
 			continue
 		}
 		comments = append(comments, c)
@@ -92,7 +93,7 @@ func (r *repositoryImpl) batchGetReactionsByCommentIDs(ctx context.Context, comm
 	for rows.Next() {
 		var rc model.CommentReaction
 		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID); err != nil {
-			r.logger.WarnContext(ctx, "batchGetReactionsByCommentIDs: failed to scan row", "error", err)
+			slog.WarnContext(ctx, "batchGetReactionsByCommentIDs: failed to scan row", "error", err)
 			continue
 		}
 		result[rc.CommentID] = append(result[rc.CommentID], rc)
@@ -176,7 +177,7 @@ func (r *repositoryImpl) GetReactionsByCommentID(ctx context.Context, commentID 
 	for rows.Next() {
 		var rc model.CommentReaction
 		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID); err != nil {
-			r.logger.WarnContext(ctx, "GetReactionsByCommentID: failed to scan row", "error", err)
+			slog.WarnContext(ctx, "GetReactionsByCommentID: failed to scan row", "error", err)
 			continue
 		}
 		reactions = append(reactions, rc)
