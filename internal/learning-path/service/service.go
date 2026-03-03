@@ -88,6 +88,11 @@ type serviceImpl struct {
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
+	if aiClient == nil {
+		slog.Warn("[DEBUG] Warning: aiClient passed to NewService is NIL!")
+	} else {
+		slog.Info("[DEBUG] aiClient successfully passed to NewService", "aiClient", aiClient)
+	}
 	return &serviceImpl{
 		pathRepo:    repo,
 		nodeRepo:    repo,
