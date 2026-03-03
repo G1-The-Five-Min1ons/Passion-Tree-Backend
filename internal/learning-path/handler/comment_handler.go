@@ -45,6 +45,9 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "comment created", "comment_id", id, "user_id", userID, "node_id", req.NodeID)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"user_id":    userID,
 		"comment_id": id,
@@ -78,17 +81,18 @@ func (h *Handler) UpdateComment(c *fiber.Ctx) error {
 	if err := h.commentSvc.UpdateComment(ctx, userID, commentID, req.Message); err != nil {
 		return h.handleError(c, err)
 	}
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"success": true, "message": "Comment updated successfully"})
-}
 
-// GetComment returns a single comment by ID (not yet fully implemented).
-func (h *Handler) GetComment(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
-}
+	h.logger.InfoContext(ctx, "comment updated", "comment_id", commentID, "user_id", userID)
 
-// GetReplies returns replies to a comment (not yet fully implemented).
-func (h *Handler) GetReplies(c *fiber.Ctx) error {
-	return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "Not implemented"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Comment updated successfully",
+		"data": fiber.Map{
+			"comment_id": commentID,
+			"user_id":    userID,
+			"message":    req.Message,
+		},
+	})
 }
 
 // DeleteComment deletes a comment. Only the token owner can delete their own comment.
@@ -104,6 +108,9 @@ func (h *Handler) DeleteComment(c *fiber.Ctx) error {
 	if err := h.commentSvc.RemoveComment(ctx, userID, commentID); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "comment deleted", "comment_id", commentID, "user_id", userID)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Comment deleted successfully",
@@ -131,6 +138,9 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	if err := h.commentSvc.AddReaction(ctx, req); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "reaction added", "comment_id", commentID)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Reaction added successfully",
@@ -165,6 +175,9 @@ func (h *Handler) CreateMention(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "mention created", "mention_id", id, "comment_id", req.CommentID)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "Mention created successfully",
