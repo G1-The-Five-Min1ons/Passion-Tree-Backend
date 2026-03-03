@@ -33,7 +33,7 @@ const (
 	EnvContainerLearningPath   = "CONTAINER_LEARNING_PATH"
 	EnvContainerProfile        = "CONTAINER_PROFILE"
 	EnvContainerReflect        = "CONTAINER_REFLECT"
-	EnvContainerMaterialsNodes = "CONTAINER_MATERIALS-NODES"
+	EnvContainerMaterialsNodes = "CONTAINER_MATERIALS_NODES"
 	EnvSMTPHost                = "SMTP_HOST"
 	EnvSMTPPort                = "SMTP_PORT"
 	EnvSMTPUsername            = "SMTP_USERNAME"
