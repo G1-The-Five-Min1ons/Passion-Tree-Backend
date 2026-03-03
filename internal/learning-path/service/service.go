@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/pkg/storage"
@@ -44,7 +44,7 @@ type ServiceComment interface {
 	AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error)
 	RemoveComment(ctx context.Context, userID, commentID string) error
-	UpdateComment(ctx context.Context, userID, commentID, message string) (bool, error)
+	UpdateComment(ctx context.Context, userID, commentID, message string) error
 	AddReaction(ctx context.Context, req model.CreateReactionRequest) error
 	AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 }
@@ -85,57 +85,6 @@ type serviceImpl struct {
 	logger      *slog.Logger
 	aiClient    *aiclient.AIClient
 	storage     *storage.BlobService
-}
-
-// ServiceComment implementation for serviceImpl
-func (s *serviceImpl) AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error) {
-	// If this is a reply, validate the parent exists BEFORE inserting
-	var parentOwnerID string
-	if req.ParentID != nil && *req.ParentID != "" {
-		ownerID, err := s.commentRepo.GetCommentOwner(ctx, *req.ParentID)
-		if err != nil {
-			return "", fmt.Errorf("parent comment not found: %w", err)
-		}
-		parentOwnerID = ownerID
-	}
-
-	commentID, err := s.commentRepo.CreateComment(ctx, req)
-	if err != nil {
-		return "", err
-	}
-
-	// Auto-mention the parent comment's author when replying to someone else
-	if parentOwnerID != "" && parentOwnerID != req.UserID {
-		mentionReq := model.CreateMentionRequest{
-			MentionerUserID: req.UserID,
-			MentionedUserID: parentOwnerID,
-			CommentID:       commentID,
-		}
-		// Best-effort: reply is still successful even if mention insert fails
-		_, _ = s.commentRepo.CreateMention(ctx, mentionReq)
-	}
-
-	return commentID, nil
-}
-
-func (s *serviceImpl) GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error) {
-	return s.commentRepo.GetCommentsByNodeID(ctx, nodeID)
-}
-
-func (s *serviceImpl) RemoveComment(ctx context.Context, userID, commentID string) error {
-	return s.commentRepo.DeleteComment(ctx, commentID, userID)
-}
-
-func (s *serviceImpl) UpdateComment(ctx context.Context, userID, commentID, message string) (bool, error) {
-	return s.commentRepo.UpdateComment(ctx, userID, commentID, message)
-}
-
-func (s *serviceImpl) AddReaction(ctx context.Context, req model.CreateReactionRequest) error {
-	return s.commentRepo.CreateReaction(ctx, req)
-}
-
-func (s *serviceImpl) AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error) {
-	return s.commentRepo.CreateMention(ctx, req)
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {

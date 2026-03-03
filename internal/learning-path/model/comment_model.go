@@ -10,6 +10,10 @@ type CreateCommentRequest struct {
 	ParentID *string `json:"parent_id"`
 }
 
+type UpdateCommentRequest struct {
+	Message string `json:"message"`
+}
+
 type CreateReactionRequest struct {
 	ReactionType string `json:"reaction_type" binding:"required"`
 	CommentID    string `json:"comment_id" binding:"required"`

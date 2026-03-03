@@ -1,9 +1,8 @@
 package handler
 
 import (
-	"strings"
-
 	"passiontree/internal/learning-path/model"
+	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
@@ -14,7 +13,7 @@ func (h *Handler) GetComments(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 	comments, err := h.commentSvc.GetNodeComments(ctx, c.Params("node_id"))
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -30,24 +29,21 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	// Extract user_id from the validated JWT token
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized: " + err.Error()})
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
 
 	var req model.CreateCommentRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 	// Populate user_id from the token, not from the body
 	req.UserID = userID
- 	// Populate node_id from the URL param, not from the body
+	// Populate node_id from the URL param, not from the body
 	req.NodeID = c.Params("node_id")
 
 	id, err := h.commentSvc.AddComment(ctx, req)
 	if err != nil {
-		if strings.Contains(err.Error(), "parent comment not found") {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"user_id":    userID,
@@ -60,12 +56,6 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateCommentRequest represents the body for updating a comment.
-// comment_id comes from the URL param; user_id from the JWT token.
-type UpdateCommentRequest struct {
-	Message string `json:"message"`
-}
-
 // UpdateComment updates a comment. Only the token owner can update their own comment.
 // Returns 403 if the comment belongs to another user.
 func (h *Handler) UpdateComment(c *fiber.Ctx) error {
@@ -74,23 +64,19 @@ func (h *Handler) UpdateComment(c *fiber.Ctx) error {
 
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized: " + err.Error()})
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
 
-	var req UpdateCommentRequest
+	var req model.UpdateCommentRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 	if req.Message == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "message is required"})
+		return h.handleError(c, apperror.NewBadRequest("message is required"))
 	}
 
-	updated, err := h.commentSvc.UpdateComment(ctx, userID, commentID, req.Message)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
-	}
-	if !updated {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "forbidden: comment not found or not owned by you"})
+	if err := h.commentSvc.UpdateComment(ctx, userID, commentID, req.Message); err != nil {
+		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"success": true, "message": "Comment updated successfully"})
 }
@@ -112,11 +98,11 @@ func (h *Handler) DeleteComment(c *fiber.Ctx) error {
 
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized: " + err.Error()})
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
 
 	if err := h.commentSvc.RemoveComment(ctx, userID, commentID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -133,17 +119,17 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 
 	if _, err := middleware.GetUserIDFromContext(c); err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized: " + err.Error()})
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
 
 	var req model.CreateReactionRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 	req.CommentID = commentID
 
 	if err := h.commentSvc.AddReaction(ctx, req); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -161,15 +147,15 @@ func (h *Handler) CreateMention(c *fiber.Ctx) error {
 
 	mentionerID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized: " + err.Error()})
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
 
 	var req model.CreateMentionRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 	if req.MentionedUserID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "mentioned_user_id is required"})
+		return h.handleError(c, apperror.NewBadRequest("mentioned_user_id is required"))
 	}
 
 	req.MentionerUserID = mentionerID
@@ -177,7 +163,7 @@ func (h *Handler) CreateMention(c *fiber.Ctx) error {
 
 	id, err := h.commentSvc.AddMention(ctx, req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return h.handleError(c, err)
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,

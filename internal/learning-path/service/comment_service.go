@@ -2,28 +2,32 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"strings"
+
 	"passiontree/internal/learning-path/model"
-	"passiontree/internal/learning-path/repository"
+	"passiontree/internal/pkg/apperror"
 )
 
-func (s *commentServiceImpl) AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error) {
+func (s *serviceImpl) AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error) {
 	// user_id and node_id are set from JWT token / URL param by the handler
 
 	// If this is a reply, validate the parent exists BEFORE inserting
 	// to avoid FK constraint errors from the DB
 	var parentOwnerID string
 	if req.ParentID != nil && *req.ParentID != "" {
-		ownerID, err := s.repo.GetCommentOwner(ctx, *req.ParentID)
+		ownerID, err := s.commentRepo.GetCommentOwner(ctx, *req.ParentID)
 		if err != nil {
-			return "", fmt.Errorf("parent comment not found: %w", err)
+			return "", apperror.NewNotFound("parent comment not found")
 		}
 		parentOwnerID = ownerID
 	}
 
-	commentID, err := s.repo.CreateComment(ctx, req)
+	commentID, err := s.commentRepo.CreateComment(ctx, req)
 	if err != nil {
-		return "", err
+		if apperror.IsForeignKeyError(err) {
+			return "", apperror.NewBadRequest("invalid node_id: node does not exist")
+		}
+		return "", apperror.NewInternal("failed to create comment: %v", err)
 	}
 
 	// Auto-mention the parent comment's author when this is a reply to someone else
@@ -34,37 +38,57 @@ func (s *commentServiceImpl) AddComment(ctx context.Context, req model.CreateCom
 			CommentID:       commentID,
 		}
 		// Best-effort: don't fail the reply if mention insert fails
-		_, _ = s.repo.CreateMention(ctx, mentionReq)
+		_, _ = s.commentRepo.CreateMention(ctx, mentionReq)
 	}
 
 	return commentID, nil
 }
 
-func (s *commentServiceImpl) GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error) {
-	return s.repo.GetCommentsByNodeID(ctx, nodeID)
+func (s *serviceImpl) GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error) {
+	comments, err := s.commentRepo.GetCommentsByNodeID(ctx, nodeID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to retrieve comments: %v", err)
+	}
+	return comments, nil
 }
 
-func (s *commentServiceImpl) RemoveComment(ctx context.Context, userID, commentID string) error {
-	return s.repo.DeleteComment(ctx, commentID, userID)
+func (s *serviceImpl) RemoveComment(ctx context.Context, userID, commentID string) error {
+	err := s.commentRepo.DeleteComment(ctx, commentID, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found or not owned by user") {
+			return apperror.NewForbidden("comment not found or not owned by you")
+		}
+		return apperror.NewInternal("failed to delete comment: %v", err)
+	}
+	return nil
 }
 
-func (s *commentServiceImpl) UpdateComment(ctx context.Context, userID, commentID, message string) (bool, error) {
-	// user_id is sourced from JWT token by the handler
-	return s.repo.UpdateComment(ctx, userID, commentID, message)
+func (s *serviceImpl) UpdateComment(ctx context.Context, userID, commentID, message string) error {
+	updated, err := s.commentRepo.UpdateComment(ctx, userID, commentID, message)
+	if err != nil {
+		return apperror.NewInternal("failed to update comment: %v", err)
+	}
+	if !updated {
+		return apperror.NewForbidden("comment not found or not owned by you")
+	}
+	return nil
 }
 
-func (s *commentServiceImpl) AddReaction(ctx context.Context, req model.CreateReactionRequest) error {
-	return s.repo.CreateReaction(ctx, req)
+func (s *serviceImpl) AddReaction(ctx context.Context, req model.CreateReactionRequest) error {
+	err := s.commentRepo.CreateReaction(ctx, req)
+	if err != nil {
+		if apperror.IsDuplicateKeyError(err) {
+			return apperror.NewConflict("reaction already exists")
+		}
+		return apperror.NewInternal("failed to add reaction: %v", err)
+	}
+	return nil
 }
 
-func (s *commentServiceImpl) AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error) {
-	return s.repo.CreateMention(ctx, req)
-}
-
-type commentServiceImpl struct {
-	repo repository.RepositoryComment
-}
-
-func NewCommentService(repo repository.RepositoryComment) ServiceComment {
-	return &commentServiceImpl{repo: repo}
+func (s *serviceImpl) AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error) {
+	id, err := s.commentRepo.CreateMention(ctx, req)
+	if err != nil {
+		return "", apperror.NewInternal("failed to create mention: %v", err)
+	}
+	return id, nil
 }
