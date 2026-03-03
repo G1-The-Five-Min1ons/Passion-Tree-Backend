@@ -230,7 +230,7 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 		return nil, apperror.NewInternal("AI learning path generation failed for topic '%s': %w", topic, err)
 	}
 
-	nodes := parseAINodes(rawResponse.Result)
+	nodes := ParseAINodes(rawResponse.Result)
 
 	s.logger.InfoContext(ctx, "AI path generation successful", "topic", topic, "nodes_generated", len(nodes))
 
@@ -240,7 +240,7 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 	}, nil
 }
 
-func parseAINodes(rawResult string) []model.GeneratedNode {
+func ParseAINodes(rawResult string) []model.GeneratedNode {
 	var nodes []model.GeneratedNode
 	segments := strings.Split(rawResult, ",")
 	re := regexp.MustCompile(`Node\s+(\d+):\s+(.+)`)

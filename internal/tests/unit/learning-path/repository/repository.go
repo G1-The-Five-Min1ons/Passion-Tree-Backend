@@ -9,7 +9,7 @@ import (
 
 // MockRepo for LearningPath
 type Repopository struct {
-	GetAllLearningPathFunc              func(ctx context.Context) ([]model.LearningPath, error)
+	GetAllLearningPathFunc              func(ctx context.Context) ([]model.LearningPaths, error) // แก้ไข type return ให้ตรงกับของจริง
 	GetLearningPathByIDFunc             func(ctx context.Context, path_id string) (*model.LearningPath, error)
 	CreateLearningPathFunc              func(ctx context.Context, req model.CreatePathRequest) (string, error)
 	UpdateLearningPathFunc              func(ctx context.Context, path_id string, req model.UpdatePathRequest) error
@@ -18,18 +18,21 @@ type Repopository struct {
 	GetLearningPathEnrollmentStatusFunc func(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetUserPathProgressFunc             func(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	UpdateLearningPathImageFunc         func(ctx context.Context, pathID string, coverImgURL string) error
+	GetUserEnrolledPathsFunc            func(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) // ฟังก์ชันใหม่
 
 	// Mock hooks for Node
-	GetNodeByIDFunc           func(ctx context.Context, nodeID string) (*model.Node, error)
-	CreateNodeFunc            func(ctx context.Context, req model.CreateNodeRequest) (string, error)
-	GetNodesByPathIDFunc      func(ctx context.Context, pathID string) ([]model.Node, error)
-	UpdateNodeFunc            func(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
-	DeleteNodeFunc            func(ctx context.Context, nodeID string) error
-	CreateMaterialFunc        func(ctx context.Context, req model.CreateMaterialRequest) (string, error)
-	GetMaterialsByNodeIDFunc  func(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
-	DeleteMaterialFunc        func(ctx context.Context, materialID string) error
-	UpdateNodeSequenceFunc    func(ctx context.Context, nodeIDs []string) error
-	CreateNodeWithContentFunc func(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	GetNodeByIDFunc                  func(ctx context.Context, nodeID string, userID string) (*model.Node, error) // เพิ่ม userID
+	CreateNodeFunc                   func(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	GetNodesByPathIDFunc             func(ctx context.Context, pathID string, userID string) ([]model.Node, error) // เพิ่ม userID
+	UpdateNodeFunc                   func(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
+	DeleteNodeFunc                   func(ctx context.Context, nodeID string) error
+	CreateMaterialFunc               func(ctx context.Context, req model.CreateMaterialRequest) (string, error)
+	GetMaterialsByNodeIDFunc         func(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
+	DeleteMaterialFunc               func(ctx context.Context, materialID string) error
+	UpdateNodeSequenceFunc           func(ctx context.Context, nodeIDs []string) error
+	CreateNodeWithContentFunc        func(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	UpdateNodeProgressStatusFunc     func(ctx context.Context, nodeID string, userID string) error // ฟังก์ชันใหม่
+	UpdateNodeProgressCompletionFunc func(ctx context.Context, nodeID string, userID string) error // ฟังก์ชันใหม่
 
 	// Mock hooks for Comment
 	CreateCommentFunc           func(ctx context.Context, req model.CreateCommentRequest) (string, error)
@@ -52,7 +55,7 @@ type Repopository struct {
 	GetNextNodeIDFunc      func(ctx context.Context, userID string, pathID string) (string, error)
 }
 
-func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
+func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.LearningPaths, error) {
 	if m.GetAllLearningPathFunc != nil {
 		return m.GetAllLearningPathFunc(ctx)
 	}
@@ -106,14 +109,20 @@ func (m *Repopository) UpdateLearningPathImage(ctx context.Context, pathID strin
 	}
 	return nil
 }
+func (m *Repopository) GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) {
+	if m.GetUserEnrolledPathsFunc != nil {
+		return m.GetUserEnrolledPathsFunc(ctx, userID)
+	}
+	return nil, nil
+}
 
 // Implement Database interface
 func (m *Repopository) GetDB() repository.Database { return nil }
 
 // Implement RepositoryNode
-func (m *Repopository) GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error) {
+func (m *Repopository) GetNodeByID(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 	if m.GetNodeByIDFunc != nil {
-		return m.GetNodeByIDFunc(ctx, nodeID)
+		return m.GetNodeByIDFunc(ctx, nodeID, userID)
 	}
 	return nil, nil
 }
@@ -123,9 +132,9 @@ func (m *Repopository) CreateNode(ctx context.Context, req model.CreateNodeReque
 	}
 	return "", nil
 }
-func (m *Repopository) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
+func (m *Repopository) GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
 	if m.GetNodesByPathIDFunc != nil {
-		return m.GetNodesByPathIDFunc(ctx, pathID)
+		return m.GetNodesByPathIDFunc(ctx, pathID, userID)
 	}
 	return nil, nil
 }
@@ -170,6 +179,18 @@ func (m *Repopository) CreateNodeWithContent(ctx context.Context, req model.Crea
 		return m.CreateNodeWithContentFunc(ctx, req)
 	}
 	return "", nil
+}
+func (m *Repopository) UpdateNodeProgressStatus(ctx context.Context, nodeID string, userID string) error {
+	if m.UpdateNodeProgressStatusFunc != nil {
+		return m.UpdateNodeProgressStatusFunc(ctx, nodeID, userID)
+	}
+	return nil
+}
+func (m *Repopository) UpdateNodeProgressCompletion(ctx context.Context, nodeID string, userID string) error {
+	if m.UpdateNodeProgressCompletionFunc != nil {
+		return m.UpdateNodeProgressCompletionFunc(ctx, nodeID, userID)
+	}
+	return nil
 }
 
 // Implement RepositoryComment

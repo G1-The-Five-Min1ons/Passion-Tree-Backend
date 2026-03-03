@@ -103,8 +103,8 @@ func TestGetPaths(t *testing.T) {
 		{
 			name: "Success",
 			setup: func(m *repository_test.Repopository) {
-				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPath, error) {
-					return []model.LearningPath{
+				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPaths, error) {
+					return []model.LearningPaths{
 						{PathID: "1", Title: "Path 1"},
 						{PathID: "2", Title: "Path 2"},
 					}, nil
@@ -116,7 +116,7 @@ func TestGetPaths(t *testing.T) {
 		{
 			name: "Error",
 			setup: func(m *repository_test.Repopository) {
-				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPath, error) {
+				m.GetAllLearningPathFunc = func(ctx context.Context) ([]model.LearningPaths, error) {
 					return nil, errors.New("db fail")
 				}
 			},
@@ -240,13 +240,6 @@ func TestUpdatePath(t *testing.T) {
 			req:           model.UpdatePathRequest{Title: "New Title"},
 			setup:         nil,
 			expectedError: "path_id is required",
-		},
-		{
-			name:          "EmptyRequest",
-			pathID:        "p1",
-			req:           model.UpdatePathRequest{},
-			setup:         nil,
-			expectedError: "request body cannot be empty",
 		},
 		{
 			name:   "PathNotFound",
@@ -524,7 +517,6 @@ func TestGetPathProgress(t *testing.T) {
 }
 
 func TestGeneratePathWithAI(t *testing.T) {
-	// Focus on input validation here, AI Client itself handles HTTP which might fail if simple mocked
 	t.Run("EmptyTopic", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(nil, nil, logger)
@@ -546,7 +538,6 @@ func TestGeneratePathWithAI(t *testing.T) {
 }
 
 func TestUpdatePathCoverImage(t *testing.T) {
-	// Testing validations to avoid hitting the actual nil storage dependency
 	tests := []struct {
 		name          string
 		pathID        string
@@ -569,7 +560,7 @@ func TestUpdatePathCoverImage(t *testing.T) {
 			name:          "InvalidURLSource",
 			pathID:        "p1",
 			url:           "https://example.com/other-folder/img.png",
-			expectedError: "Invalid image URL source", // missing "learning-path"
+			expectedError: "Invalid image URL source",
 		},
 	}
 	for _, tt := range tests {

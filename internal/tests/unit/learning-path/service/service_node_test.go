@@ -107,6 +107,10 @@ func TestEditNode(t *testing.T) {
 			nodeID: "n1",
 			req:    model.UpdateNodeRequest{Title: "Updated Intro"},
 			setup: func(m *repository_test.Repopository) {
+				// เพิ่ม userID ใน mock
+				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
+					return &model.Node{NodeID: nodeID}, nil
+				}
 				m.UpdateNodeFunc = func(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error {
 					return nil
 				}
@@ -132,8 +136,9 @@ func TestEditNode(t *testing.T) {
 			nodeID: "n1",
 			req:    model.UpdateNodeRequest{Title: "Updated"},
 			setup: func(m *repository_test.Repopository) {
-				m.UpdateNodeFunc = func(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error {
-					return sql.ErrNoRows
+				// เพิ่ม userID ใน mock
+				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
+					return nil, sql.ErrNoRows
 				}
 			},
 			expectedError: "cannot update: node id 'n1' not found",
@@ -396,7 +401,8 @@ func TestGetNodeDetails(t *testing.T) {
 			name:   "Success",
 			nodeID: "n1",
 			setup: func(m *repository_test.Repopository) {
-				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string) (*model.Node, error) {
+				// เพิ่ม userID ใน mock
+				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 					return &model.Node{NodeID: nodeID}, nil
 				}
 			},
@@ -412,7 +418,8 @@ func TestGetNodeDetails(t *testing.T) {
 			name:   "NotFound",
 			nodeID: "n2",
 			setup: func(m *repository_test.Repopository) {
-				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string) (*model.Node, error) {
+				// เพิ่ม userID ใน mock
+				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 					return nil, sql.ErrNoRows
 				}
 			},
@@ -429,7 +436,8 @@ func TestGetNodeDetails(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewService(mock, nil, logger)
 
-			_, err := svc.GetNodeDetails(context.Background(), tt.nodeID)
+			// เติม userID (เช่น "u1") ในส่วนของ Test Call
+			_, err := svc.GetNodeDetails(context.Background(), tt.nodeID, "u1")
 			if tt.expectedError == "" {
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
@@ -455,7 +463,8 @@ func TestGetNodesByPathID(t *testing.T) {
 			name:   "Success",
 			pathID: "p1",
 			setup: func(m *repository_test.Repopository) {
-				m.GetNodesByPathIDFunc = func(ctx context.Context, pathID string) ([]model.Node, error) {
+				// เพิ่ม userID ใน mock
+				m.GetNodesByPathIDFunc = func(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
 					return []model.Node{{NodeID: "n1"}, {NodeID: "n2"}}, nil
 				}
 			},
@@ -472,7 +481,8 @@ func TestGetNodesByPathID(t *testing.T) {
 			name:   "DatabaseError",
 			pathID: "p2",
 			setup: func(m *repository_test.Repopository) {
-				m.GetNodesByPathIDFunc = func(ctx context.Context, pathID string) ([]model.Node, error) {
+				// เพิ่ม userID ใน mock
+				m.GetNodesByPathIDFunc = func(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
 					return nil, apperror.NewInternal("db error")
 				}
 			},
@@ -490,7 +500,8 @@ func TestGetNodesByPathID(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewService(mock, nil, logger)
 
-			nodes, err := svc.GetNodesByPathID(context.Background(), tt.pathID)
+			// เติม userID ในส่วนของ Test Call
+			nodes, err := svc.GetNodesByPathID(context.Background(), tt.pathID, "u1")
 			if tt.expectedError == "" {
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
