@@ -36,9 +36,8 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
-	// Populate user_id from the token, not from the body
+
 	req.UserID = userID
-	// Populate node_id from the URL param, not from the body
 	req.NodeID = c.Params("node_id")
 
 	id, err := h.commentSvc.AddComment(ctx, req)
@@ -46,16 +45,18 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "comment created", "comment_id", id, "user_id", userID, "node_id", req.NodeID)
+	h.logger.InfoContext(ctx, "comment created successfully", "comment_id", id, "user_id", userID, "node_id", req.NodeID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"user_id":    userID,
-		"comment_id": id,
-		"message":    req.Message,
-		"create_at":  nil,
-		"edit_at":    nil,
-		"node_id":    req.NodeID,
-		"parent_id":  req.ParentID,
+		"success": true,
+		"message": "Comment created successfully",
+		"data": fiber.Map{
+			"comment_id": id,
+			"message":    req.Message,
+			"user_id":    userID,
+			"node_id":    req.NodeID,
+			"parent_id":  req.ParentID,
+		},
 	})
 }
 
@@ -82,7 +83,7 @@ func (h *Handler) UpdateComment(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "comment updated", "comment_id", commentID, "user_id", userID)
+	h.logger.InfoContext(ctx, "comment updated successfully", "comment_id", commentID, "user_id", userID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -109,7 +110,7 @@ func (h *Handler) DeleteComment(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "comment deleted", "comment_id", commentID, "user_id", userID)
+	h.logger.InfoContext(ctx, "comment deleted successfully", "comment_id", commentID, "user_id", userID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -133,13 +134,19 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
+	if req.ReactionType == "" {
+		return h.handleError(c, apperror.NewBadRequest("reaction_type is required"))
+	}
+	if !model.IsValidReactionType(req.ReactionType) {
+		return h.handleError(c, apperror.NewBadRequest("invalid reaction_type: must be one of like, love, haha, wow, sad, angry"))
+	}
 	req.CommentID = commentID
 
 	if err := h.commentSvc.AddReaction(ctx, req); err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "reaction added", "comment_id", commentID)
+	h.logger.InfoContext(ctx, "reaction added successfully", "comment_id", commentID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -176,15 +183,15 @@ func (h *Handler) CreateMention(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "mention created", "mention_id", id, "comment_id", req.CommentID)
+	h.logger.InfoContext(ctx, "mention created successfully", "mention_id", id, "comment_id", req.CommentID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "Mention created successfully",
 		"data": fiber.Map{
-			"mention_id":       id,
-			"comment_id":       req.CommentID,
-			"mentioner_id":     mentionerID,
+			"mention_id":        id,
+			"comment_id":        req.CommentID,
+			"mentioner_id":      mentionerID,
 			"mentioned_user_id": req.MentionedUserID,
 		},
 	})

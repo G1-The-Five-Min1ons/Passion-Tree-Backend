@@ -14,9 +14,34 @@ type UpdateCommentRequest struct {
 	Message string `json:"message"`
 }
 
+// Allowed reaction types
+const (
+	ReactionLike   = "like"
+	ReactionLove   = "love"
+	ReactionHaha   = "haha"
+	ReactionWow    = "wow"
+	ReactionSad    = "sad"
+	ReactionAngry  = "angry"
+)
+
+// AllowedReactionTypes is the set of valid reaction types.
+var AllowedReactionTypes = map[string]bool{
+	ReactionLike:  true,
+	ReactionLove:  true,
+	ReactionHaha:  true,
+	ReactionWow:   true,
+	ReactionSad:   true,
+	ReactionAngry: true,
+}
+
+// IsValidReactionType checks whether the given reaction type is allowed.
+func IsValidReactionType(rt string) bool {
+	return AllowedReactionTypes[rt]
+}
+
 type CreateReactionRequest struct {
-	ReactionType string `json:"reaction_type" binding:"required"`
-	CommentID    string `json:"comment_id" binding:"required"`
+	ReactionType string `json:"reaction_type"`
+	CommentID    string `json:"-"`
 }
 
 type CreateMentionRequest struct {

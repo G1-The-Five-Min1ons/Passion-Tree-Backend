@@ -75,6 +75,10 @@ func (s *serviceImpl) UpdateComment(ctx context.Context, userID, commentID, mess
 }
 
 func (s *serviceImpl) AddReaction(ctx context.Context, req model.CreateReactionRequest) error {
+	if !model.IsValidReactionType(req.ReactionType) {
+		return apperror.NewBadRequest("invalid reaction_type: must be one of like, love, haha, wow, sad, angry")
+	}
+
 	err := s.commentRepo.CreateReaction(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
