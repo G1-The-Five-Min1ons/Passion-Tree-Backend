@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"passiontree/internal/learning-path/model"
 	"strings"
 	"time"
@@ -39,7 +38,7 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 	for rows.Next() {
 		var c model.NodeComment
 		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &c.EditAt, &c.NodeID, &c.ParentID); err != nil {
-			slog.WarnContext(ctx, "GetCommentsByNodeID: failed to scan row", "error", err)
+			r.logger.WarnContext(ctx, "GetCommentsByNodeID: failed to scan row", "error", err)
 			continue
 		}
 		comments = append(comments, c)
@@ -93,7 +92,7 @@ func (r *repositoryImpl) batchGetReactionsByCommentIDs(ctx context.Context, comm
 	for rows.Next() {
 		var rc model.CommentReaction
 		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID); err != nil {
-			slog.WarnContext(ctx, "batchGetReactionsByCommentIDs: failed to scan row", "error", err)
+			r.logger.WarnContext(ctx, "batchGetReactionsByCommentIDs: failed to scan row", "error", err)
 			continue
 		}
 		result[rc.CommentID] = append(result[rc.CommentID], rc)
@@ -113,7 +112,6 @@ func (r *repositoryImpl) DeleteComment(ctx context.Context, commentID, userID st
 	}
 	defer tx.Rollback()
 
-	// 1. Delete mentions on all replies
 	_, err = tx.ExecContext(ctx, `
 		DELETE FROM Comment_Mention 
 		WHERE comment_id IN (
@@ -123,7 +121,6 @@ func (r *repositoryImpl) DeleteComment(ctx context.Context, commentID, userID st
 		return fmt.Errorf("repo.DeleteComment: delete reply mentions failed: %w", err)
 	}
 
-	// 2. Delete reactions on all replies
 	_, err = tx.ExecContext(ctx, `
 		DELETE FROM comment_reaction 
 		WHERE comment_id IN (
@@ -133,25 +130,21 @@ func (r *repositoryImpl) DeleteComment(ctx context.Context, commentID, userID st
 		return fmt.Errorf("repo.DeleteComment: delete reply reactions failed: %w", err)
 	}
 
-	// 3. Delete all replies
 	_, err = tx.ExecContext(ctx, `DELETE FROM Node_Comment WHERE parent_id = @p1`, commentID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteComment: delete replies failed: %w", err)
 	}
 
-	// 4. Delete mentions on the parent comment
 	_, err = tx.ExecContext(ctx, `DELETE FROM Comment_Mention WHERE comment_id = @p1`, commentID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteComment: delete parent mentions failed: %w", err)
 	}
 
-	// 5. Delete reactions on the parent comment
 	_, err = tx.ExecContext(ctx, `DELETE FROM comment_reaction WHERE comment_id = @p1`, commentID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteComment: delete parent reactions failed: %w", err)
 	}
 
-	// 6. Delete the parent comment (ownership enforced here)
 	res, err := tx.ExecContext(ctx, `DELETE FROM Node_Comment WHERE comment_id = @p1 AND user_id = @p2`, commentID, userID)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteComment: delete parent failed: %w", err)
@@ -183,7 +176,7 @@ func (r *repositoryImpl) GetReactionsByCommentID(ctx context.Context, commentID 
 	for rows.Next() {
 		var rc model.CommentReaction
 		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID); err != nil {
-			slog.WarnContext(ctx, "GetReactionsByCommentID: failed to scan row", "error", err)
+			r.logger.WarnContext(ctx, "GetReactionsByCommentID: failed to scan row", "error", err)
 			continue
 		}
 		reactions = append(reactions, rc)

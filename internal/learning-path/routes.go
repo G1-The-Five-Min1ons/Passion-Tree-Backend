@@ -16,7 +16,7 @@ import (
 )
 
 func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, jwtService *jwt.Service, logger *slog.Logger, storageClient *storage.BlobService) {
-	repo := repository.NewRepository(db)
+	repo := repository.NewRepository(db, logger)
 	svc := service.NewService(repo, aiClient, logger)
 	h := handler.NewHandler(svc, logger, storageClient)
 

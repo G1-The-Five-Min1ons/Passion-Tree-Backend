@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"log/slog"
 	"passiontree/internal/connection"
 	"passiontree/internal/learning-path/model"
 )
@@ -83,11 +84,13 @@ type Repository interface {
 }
 
 type repositoryImpl struct {
-	db Database
+	db     Database
+	logger *slog.Logger
 }
 
-func NewRepository(ds connection.Database) Repository {
+func NewRepository(ds connection.Database, logger *slog.Logger) Repository {
 	return &repositoryImpl{
-		db: ds.GetDB(),
+		db:     ds.GetDB(),
+		logger: logger,
 	}
 }
