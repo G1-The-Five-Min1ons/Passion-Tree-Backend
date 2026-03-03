@@ -45,7 +45,7 @@ type ServiceComment interface {
 	GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error)
 	RemoveComment(ctx context.Context, userID, commentID string) error
 	UpdateComment(ctx context.Context, userID, commentID, message string) error
-	AddReaction(ctx context.Context, req model.CreateReactionRequest) error
+	ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 }
 

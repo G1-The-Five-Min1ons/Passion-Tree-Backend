@@ -126,7 +126,8 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	commentID := c.Params("comment_id")
 	ctx := c.UserContext()
 
-	if _, err := middleware.GetUserIDFromContext(c); err != nil {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
 		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
 
@@ -141,18 +142,25 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid reaction_type: must be one of like, love, haha, wow, sad, angry"))
 	}
 	req.CommentID = commentID
+	req.UserID = userID
 
-	if err := h.commentSvc.AddReaction(ctx, req); err != nil {
+	added, err := h.commentSvc.ToggleReaction(ctx, req)
+	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "reaction added successfully", "comment_id", commentID)
+	msg := "Reaction removed successfully"
+	if added {
+		msg = "Reaction added successfully"
+	}
+	h.logger.InfoContext(ctx, msg, "comment_id", commentID, "user_id", userID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Reaction added successfully",
+		"message": msg,
 		"data": fiber.Map{
 			"comment_id": commentID,
+			"added":      added,
 		},
 	})
 }

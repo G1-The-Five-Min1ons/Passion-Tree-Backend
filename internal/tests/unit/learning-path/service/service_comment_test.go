@@ -220,7 +220,6 @@ func TestUpdateComment(t *testing.T) {
 		commentID      string
 		message        string
 		setup          func(*repository_test.Repopository)
-		expectedResult bool
 		expectedError  string
 	}{
 		{
@@ -233,7 +232,6 @@ func TestUpdateComment(t *testing.T) {
 					return true, nil
 				}
 			},
-			expectedResult: true,
 			expectedError:  "",
 		},
 		{
@@ -246,8 +244,7 @@ func TestUpdateComment(t *testing.T) {
 					return false, nil
 				}
 			},
-			expectedResult: false,
-			expectedError:  "",
+			expectedError:  "comment not found or not owned by you",
 		},
 		{
 			name:      "Error",
@@ -259,7 +256,6 @@ func TestUpdateComment(t *testing.T) {
 					return false, errors.New("db error")
 				}
 			},
-			expectedResult: false,
 			expectedError:  "db error",
 		},
 	}
@@ -273,13 +269,10 @@ func TestUpdateComment(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewService(mock, nil, logger)
 
-			updated, err := svc.UpdateComment(context.Background(), tt.userID, tt.commentID, tt.message)
+			err := svc.UpdateComment(context.Background(), tt.userID, tt.commentID, tt.message)
 			if tt.expectedError == "" {
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
-				}
-				if updated != tt.expectedResult {
-					t.Errorf("Expected updated=%v, got %v", tt.expectedResult, updated)
 				}
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.expectedError) {

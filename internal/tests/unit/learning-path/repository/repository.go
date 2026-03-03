@@ -35,7 +35,7 @@ type Repopository struct {
 	CreateCommentFunc           func(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeIDFunc     func(ctx context.Context, nodeID string) ([]model.NodeComment, error)
 	DeleteCommentFunc           func(ctx context.Context, commentID, userID string) error
-	CreateReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) error
+	ToggleReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	GetReactionsByCommentIDFunc func(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMentionFunc           func(ctx context.Context, req model.CreateMentionRequest) (string, error)
 	GetCommentOwnerFunc         func(ctx context.Context, commentID string) (string, error)
@@ -193,11 +193,11 @@ func (m *Repopository) DeleteComment(ctx context.Context, commentID, userID stri
 	}
 	return nil
 }
-func (m *Repopository) CreateReaction(ctx context.Context, req model.CreateReactionRequest) error {
-	if m.CreateReactionFunc != nil {
-		return m.CreateReactionFunc(ctx, req)
+func (m *Repopository) ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error) {
+	if m.ToggleReactionFunc != nil {
+		return m.ToggleReactionFunc(ctx, req)
 	}
-	return nil
+	return false, nil
 }
 func (m *Repopository) GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error) {
 	if m.GetReactionsByCommentIDFunc != nil {

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -27,7 +28,21 @@ func (r *repositoryImpl) CreateComment(ctx context.Context, req model.CreateComm
 }
 
 func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error) {
-	query := `SELECT user_id, comment_id, message, create_at, edit_at, node_id, parent_id FROM Node_Comment WHERE node_id = @p1`
+	query := `
+		SELECT 
+			CONVERT(VARCHAR(36), c.user_id), 
+			CONVERT(VARCHAR(36), c.comment_id), 
+			c.message, 
+			c.create_at, 
+			c.edit_at, 
+			CONVERT(VARCHAR(36), c.node_id), 
+			CONVERT(VARCHAR(36), c.parent_id),
+			COALESCE(u.first_name + ' ' + u.last_name, 'Unknown User')
+		FROM Node_Comment c
+		LEFT JOIN users u ON c.user_id = u.user_id
+		WHERE c.node_id = @p1
+		ORDER BY c.create_at ASC
+	`
 	rows, err := r.db.QueryContext(ctx, query, nodeID)
 	if err != nil {
 		return nil, err
@@ -38,7 +53,7 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 	var commentIDs []string
 	for rows.Next() {
 		var c model.NodeComment
-		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &c.EditAt, &c.NodeID, &c.ParentID); err != nil {
+		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &c.EditAt, &c.NodeID, &c.ParentID, &c.UserName); err != nil {
 			return nil, fmt.Errorf("repo.GetCommentsByNodeID scan failed: %w", err)
 		}
 		comments = append(comments, c)
@@ -78,7 +93,7 @@ func (r *repositoryImpl) batchGetReactionsByCommentIDs(ctx context.Context, comm
 	}
 
 	query := fmt.Sprintf(
-		`SELECT reaction_id, reaction_type, comment_id FROM comment_reaction WHERE comment_id IN (%s)`,
+		`SELECT CONVERT(VARCHAR(36), reaction_id), reaction_type, CONVERT(VARCHAR(36), comment_id), CONVERT(VARCHAR(36), user_id) FROM comment_reaction WHERE comment_id IN (%s)`,
 		strings.Join(placeholders, ","),
 	)
 
@@ -91,8 +106,12 @@ func (r *repositoryImpl) batchGetReactionsByCommentIDs(ctx context.Context, comm
 	result := make(map[string][]model.CommentReaction)
 	for rows.Next() {
 		var rc model.CommentReaction
-		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID); err != nil {
+		var nullableUserID sql.NullString
+		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID, &nullableUserID); err != nil {
 			return nil, fmt.Errorf("repo.batchGetReactionsByCommentIDs scan failed: %w", err)
+		}
+		if nullableUserID.Valid {
+			rc.UserID = nullableUserID.String
 		}
 		result[rc.CommentID] = append(result[rc.CommentID], rc)
 	}
@@ -162,15 +181,29 @@ func (r *repositoryImpl) DeleteComment(ctx context.Context, commentID, userID st
 	return tx.Commit()
 }
 
-func (r *repositoryImpl) CreateReaction(ctx context.Context, req model.CreateReactionRequest) error {
-	id := uuid.New().String()
-	query := `INSERT INTO comment_reaction (reaction_id, reaction_type, comment_id) VALUES (@p1, @p2, @p3)`
-	_, err := r.db.ExecContext(ctx, query, id, req.ReactionType, req.CommentID)
-	return err
+func (r *repositoryImpl) ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error) {
+	// First check if user already reacted
+	var existingReactionID string
+	err := r.db.QueryRowContext(ctx, `SELECT CONVERT(VARCHAR(36), reaction_id) FROM comment_reaction WHERE comment_id = @p1 AND user_id = @p2`, req.CommentID, req.UserID).Scan(&existingReactionID)
+
+	if err == sql.ErrNoRows {
+		// Doesn't exist, insert
+		id := uuid.New().String()
+		query := `INSERT INTO comment_reaction (reaction_id, reaction_type, comment_id, user_id) VALUES (@p1, @p2, @p3, @p4)`
+		_, err := r.db.ExecContext(ctx, query, id, req.ReactionType, req.CommentID, req.UserID)
+		return true, err // true means added
+	} else if err != nil {
+		return false, err
+	}
+
+	// Exists, so delete it
+	query := `DELETE FROM comment_reaction WHERE reaction_id = @p1`
+	_, err = r.db.ExecContext(ctx, query, existingReactionID)
+	return false, err // false means removed
 }
 
 func (r *repositoryImpl) GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error) {
-	query := `SELECT reaction_id, reaction_type, comment_id FROM comment_reaction WHERE comment_id = @p1`
+	query := `SELECT CONVERT(VARCHAR(36), reaction_id), reaction_type, CONVERT(VARCHAR(36), comment_id), CONVERT(VARCHAR(36), user_id) FROM comment_reaction WHERE comment_id = @p1`
 	rows, err := r.db.QueryContext(ctx, query, commentID)
 	if err != nil {
 		return nil, err
@@ -180,8 +213,12 @@ func (r *repositoryImpl) GetReactionsByCommentID(ctx context.Context, commentID 
 	var reactions []model.CommentReaction
 	for rows.Next() {
 		var rc model.CommentReaction
-		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID); err != nil {
+		var nullableUserID sql.NullString
+		if err := rows.Scan(&rc.ReactionID, &rc.ReactionType, &rc.CommentID, &nullableUserID); err != nil {
 			return nil, fmt.Errorf("repo.GetReactionsByCommentID scan failed: %w", err)
+		}
+		if nullableUserID.Valid {
+			rc.UserID = nullableUserID.String
 		}
 		reactions = append(reactions, rc)
 	}

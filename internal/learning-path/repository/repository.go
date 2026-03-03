@@ -36,7 +36,7 @@ type RepositoryComment interface {
 	CreateComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error)
 	DeleteComment(ctx context.Context, commentID, userID string) error
-	CreateReaction(ctx context.Context, req model.CreateReactionRequest) error
+	ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 	UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error)

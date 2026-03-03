@@ -74,19 +74,19 @@ func (s *serviceImpl) UpdateComment(ctx context.Context, userID, commentID, mess
 	return nil
 }
 
-func (s *serviceImpl) AddReaction(ctx context.Context, req model.CreateReactionRequest) error {
+func (s *serviceImpl) ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error) {
 	if !model.IsValidReactionType(req.ReactionType) {
-		return apperror.NewBadRequest("invalid reaction_type: must be one of like, love, haha, wow, sad, angry")
+		return false, apperror.NewBadRequest("invalid reaction_type: must be one of like, love, haha, wow, sad, angry")
 	}
 
-	err := s.commentRepo.CreateReaction(ctx, req)
+	added, err := s.commentRepo.ToggleReaction(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
-			return apperror.NewConflict("reaction already exists")
+			return false, apperror.NewConflict("reaction already exists")
 		}
-		return apperror.NewInternal("failed to add reaction: %v", err)
+		return false, apperror.NewInternal("failed to toggle reaction: %v", err)
 	}
-	return nil
+	return added, nil
 }
 
 func (s *serviceImpl) AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error) {

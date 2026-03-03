@@ -16,12 +16,12 @@ type UpdateCommentRequest struct {
 
 // Allowed reaction types
 const (
-	ReactionLike   = "like"
-	ReactionLove   = "love"
-	ReactionHaha   = "haha"
-	ReactionWow    = "wow"
-	ReactionSad    = "sad"
-	ReactionAngry  = "angry"
+	ReactionLike  = "like"
+	ReactionLove  = "love"
+	ReactionHaha  = "haha"
+	ReactionWow   = "wow"
+	ReactionSad   = "sad"
+	ReactionAngry = "angry"
 )
 
 // AllowedReactionTypes is the set of valid reaction types.
@@ -40,6 +40,7 @@ func IsValidReactionType(rt string) bool {
 }
 
 type CreateReactionRequest struct {
+	UserID       string `json:"-"`
 	ReactionType string `json:"reaction_type"`
 	CommentID    string `json:"-"`
 }
@@ -54,6 +55,7 @@ type CreateMentionRequest struct {
 }
 type NodeComment struct {
 	UserID    string            `json:"user_id"`
+	UserName  string            `json:"user_name,omitempty"`
 	CommentID string            `json:"comment_id"`
 	Message   string            `json:"message"`
 	CreatedAt time.Time         `json:"create_at"`
@@ -68,6 +70,7 @@ type CommentReaction struct {
 	ReactionID   string `json:"reaction_id"`
 	ReactionType string `json:"reaction_type"`
 	CommentID    string `json:"comment_id"`
+	UserID       string `json:"user_id,omitempty"` // Added to track who reacted
 }
 
 type CommentMention struct {
