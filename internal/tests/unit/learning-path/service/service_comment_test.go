@@ -14,6 +14,7 @@ import (
 )
 
 func TestAddComment(t *testing.T) {
+	parentID := "p1"
 	tests := []struct {
 		name          string
 		req           model.CreateCommentRequest
@@ -21,8 +22,8 @@ func TestAddComment(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name: "Success",
-			req:  model.CreateCommentRequest{Content: "Great!"},
+			name: "Success - no parent",
+			req:  model.CreateCommentRequest{Message: "Great!"},
 			setup: func(m *repository_test.Repopository) {
 				m.CreateCommentFunc = func(ctx context.Context, req model.CreateCommentRequest) (string, error) {
 					return "c1", nil
@@ -31,8 +32,42 @@ func TestAddComment(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name: "Error",
-			req:  model.CreateCommentRequest{Content: "Great!"},
+			name: "Success - reply with auto-mention",
+			req: model.CreateCommentRequest{
+				Message:  "Replying!",
+				UserID:   "user-2",
+				ParentID: &parentID,
+			},
+			setup: func(m *repository_test.Repopository) {
+				m.GetCommentOwnerFunc = func(ctx context.Context, commentID string) (string, error) {
+					return "user-1", nil // different owner → mention should be triggered
+				}
+				m.CreateCommentFunc = func(ctx context.Context, req model.CreateCommentRequest) (string, error) {
+					return "c2", nil
+				}
+				m.CreateMentionFunc = func(ctx context.Context, req model.CreateMentionRequest) (string, error) {
+					return "m1", nil
+				}
+			},
+			expectedError: "",
+		},
+		{
+			name: "Error - parent not found",
+			req: model.CreateCommentRequest{
+				Message:  "Replying!",
+				UserID:   "user-2",
+				ParentID: &parentID,
+			},
+			setup: func(m *repository_test.Repopository) {
+				m.GetCommentOwnerFunc = func(ctx context.Context, commentID string) (string, error) {
+					return "", errors.New("not found")
+				}
+			},
+			expectedError: "parent comment not found",
+		},
+		{
+			name: "Error - db error on create",
+			req:  model.CreateCommentRequest{Message: "Great!"},
 			setup: func(m *repository_test.Repopository) {
 				m.CreateCommentFunc = func(ctx context.Context, req model.CreateCommentRequest) (string, error) {
 					return "", errors.New("db error")
@@ -126,15 +161,17 @@ func TestGetNodeComments(t *testing.T) {
 func TestRemoveComment(t *testing.T) {
 	tests := []struct {
 		name          string
+		userID        string
 		commentID     string
 		setup         func(*repository_test.Repopository)
 		expectedError string
 	}{
 		{
 			name:      "Success",
+			userID:    "user-1",
 			commentID: "c1",
 			setup: func(m *repository_test.Repopository) {
-				m.DeleteCommentFunc = func(ctx context.Context, commentID string) error {
+				m.DeleteCommentFunc = func(ctx context.Context, commentID, userID string) error {
 					return nil
 				}
 			},
@@ -142,9 +179,10 @@ func TestRemoveComment(t *testing.T) {
 		},
 		{
 			name:      "Error",
+			userID:    "user-1",
 			commentID: "c1",
 			setup: func(m *repository_test.Repopository) {
-				m.DeleteCommentFunc = func(ctx context.Context, commentID string) error {
+				m.DeleteCommentFunc = func(ctx context.Context, commentID, userID string) error {
 					return errors.New("db error")
 				}
 			},
@@ -161,10 +199,87 @@ func TestRemoveComment(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewService(mock, nil, logger)
 
-			err := svc.RemoveComment(context.Background(), tt.commentID)
+			err := svc.RemoveComment(context.Background(), tt.userID, tt.commentID)
 			if tt.expectedError == "" {
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
+				}
+			} else {
+				if err == nil || !strings.Contains(err.Error(), tt.expectedError) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.expectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestUpdateComment(t *testing.T) {
+	tests := []struct {
+		name           string
+		userID         string
+		commentID      string
+		message        string
+		setup          func(*repository_test.Repopository)
+		expectedResult bool
+		expectedError  string
+	}{
+		{
+			name:      "Success - comment updated",
+			userID:    "user-1",
+			commentID: "c1",
+			message:   "edited content",
+			setup: func(m *repository_test.Repopository) {
+				m.UpdateCommentFunc = func(ctx context.Context, userID, messageID, message string) (bool, error) {
+					return true, nil
+				}
+			},
+			expectedResult: true,
+			expectedError:  "",
+		},
+		{
+			name:      "Success - not owner, no update",
+			userID:    "user-2",
+			commentID: "c1",
+			message:   "edited content",
+			setup: func(m *repository_test.Repopository) {
+				m.UpdateCommentFunc = func(ctx context.Context, userID, messageID, message string) (bool, error) {
+					return false, nil
+				}
+			},
+			expectedResult: false,
+			expectedError:  "",
+		},
+		{
+			name:      "Error",
+			userID:    "user-1",
+			commentID: "c1",
+			message:   "edited content",
+			setup: func(m *repository_test.Repopository) {
+				m.UpdateCommentFunc = func(ctx context.Context, userID, messageID, message string) (bool, error) {
+					return false, errors.New("db error")
+				}
+			},
+			expectedResult: false,
+			expectedError:  "db error",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("\033[36mExecuting TestUpdateComment case: %s\033[0m", tt.name)
+			mock := &repository_test.Repopository{}
+			if tt.setup != nil {
+				tt.setup(mock)
+			}
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			svc := service.NewService(mock, nil, logger)
+
+			updated, err := svc.UpdateComment(context.Background(), tt.userID, tt.commentID, tt.message)
+			if tt.expectedError == "" {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+				if updated != tt.expectedResult {
+					t.Errorf("Expected updated=%v, got %v", tt.expectedResult, updated)
 				}
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.expectedError) {
