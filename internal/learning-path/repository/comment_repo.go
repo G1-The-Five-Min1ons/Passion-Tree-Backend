@@ -53,9 +53,20 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 	var commentIDs []string
 	for rows.Next() {
 		var c model.NodeComment
-		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &c.EditAt, &c.NodeID, &c.ParentID, &c.UserName); err != nil {
+		var nullableEditAt sql.NullTime
+		var nullableParentID sql.NullString
+
+		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &nullableEditAt, &c.NodeID, &nullableParentID, &c.UserName); err != nil {
 			return nil, fmt.Errorf("repo.GetCommentsByNodeID scan failed: %w", err)
 		}
+
+		if nullableEditAt.Valid {
+			c.EditAt = &nullableEditAt.Time
+		}
+		if nullableParentID.Valid {
+			c.ParentID = &nullableParentID.String
+		}
+
 		comments = append(comments, c)
 		commentIDs = append(commentIDs, c.CommentID)
 	}
