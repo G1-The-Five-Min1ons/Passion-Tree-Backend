@@ -38,11 +38,14 @@ type ServiceNode interface {
 	RemoveMaterial(ctx context.Context, materialID string) error
 	ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error
 	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
+	StartNode(ctx context.Context, nodeID string, userID string) error
+	CompleteNode(ctx context.Context, nodeID string, userID string) error
 }
 
 type ServiceComment interface {
 	AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error)
+	GetPathComments(ctx context.Context, pathID string) ([]model.NodeComment, error)
 	RemoveComment(ctx context.Context, userID, commentID string) error
 	UpdateComment(ctx context.Context, userID, commentID, message string) error
 	ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error)

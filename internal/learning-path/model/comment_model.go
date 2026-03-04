@@ -5,9 +5,10 @@ import "time"
 type CreateCommentRequest struct {
 	// UserID is populated server-side from the JWT token; clients must NOT send it
 	UserID   string  `json:"-"`
-	NodeID   string  `json:"node_id"`
+	NodeID   *string `json:"node_id,omitempty"`
+	PathID   *string `json:"path_id,omitempty"`
 	Message  string  `json:"message"`
-	ParentID *string `json:"parent_id"`
+	ParentID *string `json:"parent_id,omitempty"`
 }
 
 type UpdateCommentRequest struct {
@@ -59,9 +60,10 @@ type NodeComment struct {
 	CommentID string            `json:"comment_id"`
 	Message   string            `json:"message"`
 	CreatedAt time.Time         `json:"create_at"`
-	EditAt    *time.Time        `json:"edit_at"`
-	NodeID    string            `json:"node_id"`
-	ParentID  *string           `json:"parent_id"`
+	EditAt    *time.Time        `json:"edit_at,omitempty"`
+	NodeID    *string           `json:"node_id,omitempty"`
+	PathID    *string           `json:"path_id,omitempty"`
+	ParentID  *string           `json:"parent_id,omitempty"`
 	Reactions []CommentReaction `json:"reactions,omitempty"`
 	Mentions  []CommentMention  `json:"mentions,omitempty"`
 }

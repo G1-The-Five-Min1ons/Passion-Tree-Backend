@@ -39,6 +39,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Post("/:path_id/nodes", h.CreateNode)
 		paths.Post("/generate", h.Generate)
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
+		paths.Get("/:path_id/comments", h.GetPathComments)
+		paths.Post("/:path_id/comments", h.CreatePathComment)
 	}
 
 	nodes := protected.Group("/learningpaths/nodes")
@@ -52,6 +54,10 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		nodes.Get("/:node_id/questions", h.GetQuestions)
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
 		nodes.Delete("/materials/:material_id", h.DeleteMaterial)
+
+		// Node progress routes
+		nodes.Put("/:node_id/start", h.StartNodeStatus)
+		nodes.Put("/:node_id/complete", h.CompleteNodeStatus)
 	}
 
 	questions := protected.Group("/learningpaths/questions")

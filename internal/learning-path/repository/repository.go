@@ -25,6 +25,7 @@ type RepositoryNode interface {
 	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
 	UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
 	DeleteNode(ctx context.Context, nodeID string) error
+	UpdateNodeProgress(ctx context.Context, nodeID string, userID string, status string) error
 	CreateMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
 	GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
 	DeleteMaterial(ctx context.Context, materialID string) error
@@ -35,6 +36,7 @@ type RepositoryNode interface {
 type RepositoryComment interface {
 	CreateComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error)
+	GetCommentsByPathID(ctx context.Context, pathID string) ([]model.NodeComment, error)
 	DeleteComment(ctx context.Context, commentID, userID string) error
 	ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error)

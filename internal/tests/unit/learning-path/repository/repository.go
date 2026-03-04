@@ -34,6 +34,7 @@ type Repopository struct {
 	// Mock hooks for Comment
 	CreateCommentFunc           func(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeIDFunc     func(ctx context.Context, nodeID string) ([]model.NodeComment, error)
+	GetCommentsByPathIDFunc     func(ctx context.Context, pathID string) ([]model.NodeComment, error)
 	DeleteCommentFunc           func(ctx context.Context, commentID, userID string) error
 	ToggleReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	GetReactionsByCommentIDFunc func(ctx context.Context, commentID string) ([]model.CommentReaction, error)
@@ -184,6 +185,12 @@ func (m *Repopository) CreateComment(ctx context.Context, req model.CreateCommen
 func (m *Repopository) GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error) {
 	if m.GetCommentsByNodeIDFunc != nil {
 		return m.GetCommentsByNodeIDFunc(ctx, nodeID)
+	}
+	return nil, nil
+}
+func (m *Repopository) GetCommentsByPathID(ctx context.Context, pathID string) ([]model.NodeComment, error) {
+	if m.GetCommentsByPathIDFunc != nil {
+		return m.GetCommentsByPathIDFunc(ctx, pathID)
 	}
 	return nil, nil
 }

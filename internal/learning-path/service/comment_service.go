@@ -52,6 +52,14 @@ func (s *serviceImpl) GetNodeComments(ctx context.Context, nodeID string) ([]mod
 	return comments, nil
 }
 
+func (s *serviceImpl) GetPathComments(ctx context.Context, pathID string) ([]model.NodeComment, error) {
+	comments, err := s.commentRepo.GetCommentsByPathID(ctx, pathID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to retrieve comments: %v", err)
+	}
+	return comments, nil
+}
+
 func (s *serviceImpl) RemoveComment(ctx context.Context, userID, commentID string) error {
 	err := s.commentRepo.DeleteComment(ctx, commentID, userID)
 	if err != nil {

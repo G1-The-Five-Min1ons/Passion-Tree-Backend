@@ -22,8 +22,18 @@ func (r *repositoryImpl) CreateComment(ctx context.Context, req model.CreateComm
 		parentID = *req.ParentID
 	}
 
-	query := `INSERT INTO Node_Comment (comment_id, user_id, node_id, message, parent_id, create_at) VALUES (@p1, @p2, @p3, @p4, @p5, @p6)`
-	_, err := r.db.ExecContext(ctx, query, id, req.UserID, req.NodeID, req.Message, parentID, now)
+	var nodeID interface{}
+	if req.NodeID != nil && *req.NodeID != "" {
+		nodeID = *req.NodeID
+	}
+
+	var pathID interface{}
+	if req.PathID != nil && *req.PathID != "" {
+		pathID = *req.PathID
+	}
+
+	query := `INSERT INTO Node_Comment (comment_id, user_id, node_id, path_id, message, parent_id, create_at) VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7)`
+	_, err := r.db.ExecContext(ctx, query, id, req.UserID, nodeID, pathID, req.Message, parentID, now)
 	return id, err
 }
 
@@ -36,6 +46,7 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 			c.create_at, 
 			c.edit_at, 
 			CONVERT(VARCHAR(36), c.node_id), 
+			CONVERT(VARCHAR(36), c.path_id),
 			CONVERT(VARCHAR(36), c.parent_id),
 			COALESCE(u.first_name + ' ' + u.last_name, 'Unknown User')
 		FROM Node_Comment c
@@ -54,14 +65,22 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 	for rows.Next() {
 		var c model.NodeComment
 		var nullableEditAt sql.NullTime
+		var nullableNodeID sql.NullString
+		var nullablePathID sql.NullString
 		var nullableParentID sql.NullString
 
-		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &nullableEditAt, &c.NodeID, &nullableParentID, &c.UserName); err != nil {
+		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &nullableEditAt, &nullableNodeID, &nullablePathID, &nullableParentID, &c.UserName); err != nil {
 			return nil, fmt.Errorf("repo.GetCommentsByNodeID scan failed: %w", err)
 		}
 
 		if nullableEditAt.Valid {
 			c.EditAt = &nullableEditAt.Time
+		}
+		if nullableNodeID.Valid {
+			c.NodeID = &nullableNodeID.String
+		}
+		if nullablePathID.Valid {
+			c.PathID = &nullablePathID.String
 		}
 		if nullableParentID.Valid {
 			c.ParentID = &nullableParentID.String
@@ -73,6 +92,81 @@ func (r *repositoryImpl) GetCommentsByNodeID(ctx context.Context, nodeID string)
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("repo.GetCommentsByNodeID row iteration failed: %w", err)
+	}
+
+	if len(commentIDs) == 0 {
+		return comments, nil
+	}
+
+	// Batch fetch all reactions in a single query — avoids N+1
+	reactionsMap, err := r.batchGetReactionsByCommentIDs(ctx, commentIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range comments {
+		if reacts, ok := reactionsMap[comments[i].CommentID]; ok {
+			comments[i].Reactions = reacts
+		}
+	}
+
+	return comments, nil
+}
+
+func (r *repositoryImpl) GetCommentsByPathID(ctx context.Context, pathID string) ([]model.NodeComment, error) {
+	query := `
+		SELECT 
+			CONVERT(VARCHAR(36), c.user_id), 
+			CONVERT(VARCHAR(36), c.comment_id), 
+			c.message, 
+			c.create_at, 
+			c.edit_at, 
+			CONVERT(VARCHAR(36), c.node_id), 
+			CONVERT(VARCHAR(36), c.path_id),
+			CONVERT(VARCHAR(36), c.parent_id),
+			COALESCE(u.first_name + ' ' + u.last_name, 'Unknown User')
+		FROM Node_Comment c
+		LEFT JOIN users u ON c.user_id = u.user_id
+		WHERE c.path_id = @p1
+		ORDER BY c.create_at ASC
+	`
+	rows, err := r.db.QueryContext(ctx, query, pathID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var comments []model.NodeComment
+	var commentIDs []string
+	for rows.Next() {
+		var c model.NodeComment
+		var nullableEditAt sql.NullTime
+		var nullableNodeID sql.NullString
+		var nullablePathID sql.NullString
+		var nullableParentID sql.NullString
+
+		if err := rows.Scan(&c.UserID, &c.CommentID, &c.Message, &c.CreatedAt, &nullableEditAt, &nullableNodeID, &nullablePathID, &nullableParentID, &c.UserName); err != nil {
+			return nil, fmt.Errorf("repo.GetCommentsByPathID scan failed: %w", err)
+		}
+
+		if nullableEditAt.Valid {
+			c.EditAt = &nullableEditAt.Time
+		}
+		if nullableNodeID.Valid {
+			c.NodeID = &nullableNodeID.String
+		}
+		if nullablePathID.Valid {
+			c.PathID = &nullablePathID.String
+		}
+		if nullableParentID.Valid {
+			c.ParentID = &nullableParentID.String
+		}
+
+		comments = append(comments, c)
+		commentIDs = append(commentIDs, c.CommentID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetCommentsByPathID row iteration failed: %w", err)
 	}
 
 	if len(commentIDs) == 0 {

@@ -22,6 +22,20 @@ func (h *Handler) GetComments(c *fiber.Ctx) error {
 	})
 }
 
+// GetPathComments returns all comments for a learning path. Public read-only.
+func (h *Handler) GetPathComments(c *fiber.Ctx) error {
+	ctx := c.UserContext()
+	comments, err := h.commentSvc.GetPathComments(ctx, c.Params("path_id"))
+	if err != nil {
+		return h.handleError(c, err)
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Path comments retrieved successfully",
+		"data":    comments,
+	})
+}
+
 // CreateComment creates a comment. The user_id is taken from the JWT token.
 func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	ctx := c.UserContext()
@@ -38,14 +52,15 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	}
 
 	req.UserID = userID
-	req.NodeID = c.Params("node_id")
+	nodeID := c.Params("node_id")
+	req.NodeID = &nodeID
 
 	id, err := h.commentSvc.AddComment(ctx, req)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "comment created successfully", "comment_id", id, "user_id", userID, "node_id", req.NodeID)
+	h.logger.InfoContext(ctx, "comment created successfully", "comment_id", id, "user_id", userID, "node_id", nodeID)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
@@ -54,7 +69,46 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 			"comment_id": id,
 			"message":    req.Message,
 			"user_id":    userID,
-			"node_id":    req.NodeID,
+			"node_id":    nodeID,
+			"parent_id":  req.ParentID,
+		},
+	})
+}
+
+// CreatePathComment creates a comment for a learning path. The user_id is taken from the JWT token.
+func (h *Handler) CreatePathComment(c *fiber.Ctx) error {
+	ctx := c.UserContext()
+
+	// Extract user_id from the validated JWT token
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
+	}
+
+	var req model.CreateCommentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	req.UserID = userID
+	pathID := c.Params("path_id")
+	req.PathID = &pathID
+
+	id, err := h.commentSvc.AddComment(ctx, req)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "path comment created successfully", "comment_id", id, "user_id", userID, "path_id", pathID)
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
+		"message": "Path comment created successfully",
+		"data": fiber.Map{
+			"comment_id": id,
+			"message":    req.Message,
+			"user_id":    userID,
+			"path_id":    pathID,
 			"parent_id":  req.ParentID,
 		},
 	})
