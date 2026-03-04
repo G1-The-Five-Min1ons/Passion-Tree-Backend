@@ -80,15 +80,16 @@ type Service interface {
 }
 
 type serviceImpl struct {
-	pathRepo    repository.RepositoryLearningPath
-	nodeRepo    repository.RepositoryNode
-	commentRepo repository.RepositoryComment
-	quizRepo    repository.RepositoryQuiz
-	historyRepo repository.RepositoryHistory
-	resumeRepo  repository.RepositoryResume
-	logger      *slog.Logger
-	aiClient    *aiclient.AIClient
-	storage     *storage.BlobService
+	pathRepo     repository.RepositoryLearningPath
+	nodeRepo     repository.RepositoryNode
+	commentRepo  repository.RepositoryComment
+	quizRepo     repository.RepositoryQuiz
+	historyRepo  repository.RepositoryHistory
+	resumeRepo   repository.RepositoryResume
+	progressRepo repository.RepositoryProgress
+	logger       *slog.Logger
+	aiClient     *aiclient.AIClient
+	storage      *storage.BlobService
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
@@ -98,14 +99,15 @@ func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger 
 		slog.Info("[DEBUG] aiClient successfully passed to NewService", "aiClient", aiClient)
 	}
 	return &serviceImpl{
-		pathRepo:    repo,
-		nodeRepo:    repo,
-		commentRepo: repo,
-		quizRepo:    repo,
-		historyRepo: repo,
-		resumeRepo:  repo,
-		logger:      logger,
-		aiClient:    aiClient,
-		storage:     nil,
+		pathRepo:     repo,
+		nodeRepo:     repo,
+		commentRepo:  repo,
+		quizRepo:     repo,
+		historyRepo:  repo,
+		resumeRepo:   repo,
+		progressRepo: repo,
+		logger:       logger,
+		aiClient:     aiClient,
+		storage:      nil,
 	}
 }

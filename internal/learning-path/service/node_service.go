@@ -50,7 +50,7 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 			s.logger.WarnContext(ctx, "update failed: node not found", "node_id", nodeID)
 			return apperror.NewNotFound("cannot update: node id '%s' not found", nodeID)
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during node update", "error", err, "node_id", nodeID)
 		return apperror.NewInternal("failed to update node %s: %w", nodeID, err)
 	}
@@ -160,7 +160,7 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string, userID 
 	if nodeID == "" {
 		return nil, apperror.NewBadRequest("node_id is required")
 	}
-	
+
 	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -202,9 +202,6 @@ func (s *serviceImpl) StartNode(ctx context.Context, nodeID string, userID strin
 	}
 
 	if err := s.nodeRepo.UpdateNodeProgressStatus(ctx, nodeID, userID); err != nil {
-		if err == sql.ErrNoRows {
-			return apperror.NewNotFound("node progress not found or user not enrolled")
-		}
 		s.logger.ErrorContext(ctx, "failed to start node", "error", err, "node_id", nodeID, "user_id", userID)
 		return apperror.NewInternal("failed to start node: %w", err)
 	}
@@ -219,11 +216,25 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 	}
 
 	if err := s.nodeRepo.UpdateNodeProgressCompletion(ctx, nodeID, userID); err != nil {
-		if err == sql.ErrNoRows {
-			return apperror.NewNotFound("node progress not found or user not enrolled")
-		}
 		s.logger.ErrorContext(ctx, "failed to complete node", "error", err, "node_id", nodeID, "user_id", userID)
 		return apperror.NewInternal("failed to complete node: %w", err)
+	}
+
+	// Fetch node details to get pathID
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
+	if err == nil && node != nil {
+		// Calculate the parent path's new completion state
+		progress, err := s.progressRepo.GetUserPathProgress(ctx, node.PathID, userID)
+		if err == nil && progress != nil {
+			if progress.TotalNodes > 0 && progress.CompletedNodes >= progress.TotalNodes {
+				// Mark path enrollment fully completed in database
+				if err := s.pathRepo.UpdatePathEnrollmentCompletion(ctx, node.PathID, userID); err != nil {
+					s.logger.ErrorContext(ctx, "failed to update path enrollment completion", "error", err, "path_id", node.PathID, "user_id", userID)
+				} else {
+					s.logger.InfoContext(ctx, "path fully completed", "path_id", node.PathID, "user_id", userID)
+				}
+			}
+		}
 	}
 
 	s.logger.InfoContext(ctx, "node completed successfully", "node_id", nodeID, "user_id", userID)

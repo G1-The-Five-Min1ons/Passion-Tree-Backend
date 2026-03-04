@@ -54,11 +54,13 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 
 	cfg, err := config.LoadDBConfig()
 	// Validate Image Source & Existence
-	if !strings.Contains(req.CoverImgURL, cfg.ContainerLearningPath) {
-		return "", apperror.NewBadRequest("invalid image URL source")
-	}
-	if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, cfg.ContainerLearningPath); err != nil {
-		return "", apperror.NewBadRequest("image validation failed: %v", err)
+	if cfg != nil && s.storage != nil {
+		if !strings.Contains(req.CoverImgURL, cfg.ContainerLearningPath) {
+			return "", apperror.NewBadRequest("invalid image URL source")
+		}
+		if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, cfg.ContainerLearningPath); err != nil {
+			return "", apperror.NewBadRequest("image validation failed: %v", err)
+		}
 	}
 
 	id, err := s.pathRepo.CreateLearningPath(ctx, req)
@@ -161,11 +163,21 @@ func (s *serviceImpl) StartPath(ctx context.Context, path_id string, user_id str
 		return apperror.NewBadRequest("path_id is required")
 	}
 
+	// Check if user is already enrolled to prevent duplicate rows in path_enroll
+	existing, err := s.pathRepo.GetLearningPathEnrollmentStatus(ctx, path_id, user_id)
+	if err != nil && err != sql.ErrNoRows {
+		return apperror.NewInternal("failed to check enrollment status: %w", err)
+	}
+	if existing != nil {
+		s.logger.WarnContext(ctx, "user already enrolled, skipping duplicate enrollment", "user_id", user_id, "path_id", path_id)
+		return apperror.NewConflict("user is already enrolled in this learning path")
+	}
+
 	s.logger.InfoContext(ctx, "enrolling user in path", "user_id", user_id, "path_id", path_id)
 
 	if err := s.pathRepo.EnrollLearningPathUser(ctx, path_id, user_id); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
-			s.logger.WarnContext(ctx, "user already enrolled", "user_id", user_id, "path_id", path_id)
+			s.logger.WarnContext(ctx, "user already enrolled (DB constraint)", "user_id", user_id, "path_id", path_id)
 			return apperror.NewConflict("user is already enrolled in this learning path")
 		}
 		return apperror.NewInternal("failed to enroll user '%s' in path '%s': %w", user_id, path_id, err)
@@ -318,21 +330,6 @@ func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) (
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to get enrolled paths", "error", err)
 		return nil, apperror.NewInternal("failed to retrieve enrolled paths")
-	}
-
-	for i := range paths {
-		if paths[i].Modules > 0 {
-			paths[i].ProgressPercent = (float64(paths[i].CompletedNodes) / float64(paths[i].Modules)) * 100
-
-			if paths[i].CompletedNodes == paths[i].Modules {
-				paths[i].ProgressStatus = "Completed"
-			} else {
-				paths[i].ProgressStatus = "In Progress"
-			}
-		} else {
-			paths[i].ProgressPercent = 0
-			paths[i].ProgressStatus = "In Progress"
-		}
 	}
 
 	return paths, nil

@@ -73,7 +73,7 @@ func TestAddComment(t *testing.T) {
 					return "", errors.New("db error")
 				}
 			},
-			expectedError: "db error",
+			expectedError: "internal server error",
 		},
 	}
 	for _, tt := range tests {
@@ -128,7 +128,7 @@ func TestGetNodeComments(t *testing.T) {
 				}
 			},
 			expectedLen:   0,
-			expectedError: "db error",
+			expectedError: "internal server error",
 		},
 	}
 	for _, tt := range tests {
@@ -186,7 +186,7 @@ func TestRemoveComment(t *testing.T) {
 					return errors.New("db error")
 				}
 			},
-			expectedError: "db error",
+			expectedError: "internal server error",
 		},
 	}
 	for _, tt := range tests {
@@ -215,12 +215,12 @@ func TestRemoveComment(t *testing.T) {
 
 func TestUpdateComment(t *testing.T) {
 	tests := []struct {
-		name           string
-		userID         string
-		commentID      string
-		message        string
-		setup          func(*repository_test.Repopository)
-		expectedError  string
+		name          string
+		userID        string
+		commentID     string
+		message       string
+		setup         func(*repository_test.Repopository)
+		expectedError string
 	}{
 		{
 			name:      "Success - comment updated",
@@ -232,7 +232,7 @@ func TestUpdateComment(t *testing.T) {
 					return true, nil
 				}
 			},
-			expectedError:  "",
+			expectedError: "",
 		},
 		{
 			name:      "Success - not owner, no update",
@@ -244,7 +244,7 @@ func TestUpdateComment(t *testing.T) {
 					return false, nil
 				}
 			},
-			expectedError:  "comment not found or not owned by you",
+			expectedError: "comment not found or not owned by you",
 		},
 		{
 			name:      "Error",
@@ -256,7 +256,7 @@ func TestUpdateComment(t *testing.T) {
 					return false, errors.New("db error")
 				}
 			},
-			expectedError:  "db error",
+			expectedError: "internal server error",
 		},
 	}
 	for _, tt := range tests {
@@ -294,8 +294,8 @@ func TestAddReaction(t *testing.T) {
 			name: "Success",
 			req:  model.CreateReactionRequest{ReactionType: "like"},
 			setup: func(m *repository_test.Repopository) {
-				m.CreateReactionFunc = func(ctx context.Context, req model.CreateReactionRequest) error {
-					return nil
+				m.ToggleReactionFunc = func(ctx context.Context, req model.CreateReactionRequest) (bool, error) {
+					return true, nil
 				}
 			},
 			expectedError: "",
@@ -304,11 +304,11 @@ func TestAddReaction(t *testing.T) {
 			name: "Error",
 			req:  model.CreateReactionRequest{ReactionType: "like"},
 			setup: func(m *repository_test.Repopository) {
-				m.CreateReactionFunc = func(ctx context.Context, req model.CreateReactionRequest) error {
-					return errors.New("db error")
+				m.ToggleReactionFunc = func(ctx context.Context, req model.CreateReactionRequest) (bool, error) {
+					return false, errors.New("db error")
 				}
 			},
-			expectedError: "db error",
+			expectedError: "internal server error",
 		},
 	}
 	for _, tt := range tests {
@@ -321,7 +321,7 @@ func TestAddReaction(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			svc := service.NewService(mock, nil, logger)
 
-			err := svc.AddReaction(context.Background(), tt.req)
+			_, err := svc.ToggleReaction(context.Background(), tt.req)
 			if tt.expectedError == "" {
 				if err != nil {
 					t.Errorf("Expected no error, got %v", err)
@@ -360,7 +360,7 @@ func TestAddMention(t *testing.T) {
 					return "", errors.New("db error")
 				}
 			},
-			expectedError: "db error",
+			expectedError: "internal server error",
 		},
 	}
 	for _, tt := range tests {

@@ -33,15 +33,22 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 	query := `
 		SELECT 
 			CONVERT(VARCHAR(36), n.node_id) as node_id, 
-			n.title, 
-			n.description, 
+			ISNULL(n.title, '') as title, 
+			ISNULL(n.description, '') as description, 
 			CONVERT(VARCHAR(36), n.path_id) as path_id, 
-			n.sequence,
-			CASE WHEN @p2 IS NULL THEN 'locked' ELSE ISNULL(np.status, 'locked') END as status,
-			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(np.complete, 'null') END as complete,
+			ISNULL(n.sequence, 0) as sequence,
+			CASE WHEN @p2 IS NULL THEN 'locked' ELSE ISNULL(Progress.status, 'locked') END as status,
+			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(Progress.complete, 'null') END as complete,
 			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(n.link_vdo, 'null') END as link_vdo
 		FROM node n
-		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
+		LEFT JOIN (
+			SELECT node_id, user_id, 
+			       MAX(status) as status, 
+			       MAX(complete) as complete 
+			FROM node_progress 
+			WHERE user_id = @p2
+			GROUP BY node_id, user_id
+		) Progress ON n.node_id = Progress.node_id
 		WHERE n.path_id = @p1 
 		ORDER BY n.sequence ASC`
 
@@ -154,14 +161,21 @@ func (r *repositoryImpl) GetNodeByID(ctx context.Context, nodeID string, userID 
 	query := `
 		SELECT 
 			CONVERT(VARCHAR(36), n.node_id) as node_id, 
-			n.title, 
-			n.description, 
+			ISNULL(n.title, '') as title, 
+			ISNULL(n.description, '') as description, 
 			CONVERT(VARCHAR(36), n.path_id) as path_id,
-			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(np.status, 'locked') END as status,
-			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(np.complete, 'null') END as complete,
+			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(Progress.status, 'locked') END as status,
+			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(Progress.complete, 'null') END as complete,
 			ISNULL(n.link_vdo, 'null') as link_vdo
 		FROM node n
-		LEFT JOIN node_progress np ON n.node_id = np.node_id AND np.user_id = @p2
+		LEFT JOIN (
+			SELECT node_id, user_id, 
+			       MAX(status) as status, 
+			       MAX(complete) as complete 
+			FROM node_progress 
+			WHERE user_id = @p2
+			GROUP BY node_id, user_id
+		) Progress ON n.node_id = Progress.node_id
 		WHERE n.node_id = @p1`
 
 	var n model.Node
@@ -269,31 +283,42 @@ func (r *repositoryImpl) CreateNodeWithContentInternal(ctx context.Context, db D
 }
 
 func (r *repositoryImpl) UpdateNodeProgressStatus(ctx context.Context, nodeID string, userID string) error {
-	query := `UPDATE node_progress SET status = 'active', updated_at = GETDATE() WHERE node_id = @p1 AND user_id = @p2`
-	res, err := r.db.ExecContext(ctx, query, nodeID, userID)
+	// UPSERT: update if row exists, insert with 'active' status if it doesn't
+	// (can happen if node was added to the path after the user enrolled)
+	query := `
+		IF EXISTS (SELECT 1 FROM node_progress WHERE node_id = @p1 AND user_id = @p2)
+			UPDATE node_progress
+			SET status = 'active', updated_at = GETDATE()
+			WHERE node_id = @p1 AND user_id = @p2
+		ELSE
+			INSERT INTO node_progress (progress_id, user_id, node_id, status, updated_at, complete)
+			VALUES (NEWID(), @p2, @p1, 'active', GETDATE(), 'false')
+	`
+	_, err := r.db.ExecContext(ctx, query, nodeID, userID)
 	if err != nil {
 		return fmt.Errorf("repo.UpdateNodeProgressStatus exec failed: %w", err)
-	}
-
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return sql.ErrNoRows
 	}
 	return nil
 }
 
 func (r *repositoryImpl) UpdateNodeProgressCompletion(ctx context.Context, nodeID string, userID string) error {
-	query := `UPDATE node_progress SET complete = 'true', updated_at = GETDATE() WHERE node_id = @p1 AND user_id = @p2`
-	res, err := r.db.ExecContext(ctx, query, nodeID, userID)
+	// UPSERT: update if row exists, insert as completed if it doesn't
+	query := `
+		IF EXISTS (SELECT 1 FROM node_progress WHERE node_id = @p1 AND user_id = @p2)
+			UPDATE node_progress
+			SET complete = 'true', status = 'active', updated_at = GETDATE()
+			WHERE node_id = @p1 AND user_id = @p2
+		ELSE
+			INSERT INTO node_progress (progress_id, user_id, node_id, status, updated_at, complete)
+			VALUES (NEWID(), @p2, @p1, 'active', GETDATE(), 'true')
+	`
+	_, err := r.db.ExecContext(ctx, query, nodeID, userID)
 	if err != nil {
 		return fmt.Errorf("repo.UpdateNodeProgressCompletion exec failed: %w", err)
 	}
+	return nil
+}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return sql.ErrNoRows
-	}
-  
 func (r *repositoryImpl) UpdateNodeProgress(ctx context.Context, nodeID string, userID string, status string) error {
 	queryCheck := `SELECT COUNT(1) FROM node_progress WHERE node_id = @p1 AND user_id = @p2`
 	var count int

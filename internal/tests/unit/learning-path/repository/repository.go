@@ -19,6 +19,7 @@ type Repopository struct {
 	GetUserPathProgressFunc             func(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	UpdateLearningPathImageFunc         func(ctx context.Context, pathID string, coverImgURL string) error
 	GetUserEnrolledPathsFunc            func(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
+	UpdatePathEnrollmentCompletionFunc  func(ctx context.Context, pathID string, userID string) error
 
 	// Mock hooks for Node
 	GetNodeByIDFunc                  func(ctx context.Context, nodeID string, userID string) (*model.Node, error)
@@ -33,6 +34,7 @@ type Repopository struct {
 	CreateNodeWithContentFunc        func(ctx context.Context, req model.CreateNodeRequest) (string, error)
 	UpdateNodeProgressStatusFunc     func(ctx context.Context, nodeID string, userID string) error
 	UpdateNodeProgressCompletionFunc func(ctx context.Context, nodeID string, userID string) error
+	UpdateNodeProgressFunc           func(ctx context.Context, nodeID string, userID string, status string) error
 
 	// Mock hooks for Comment
 	CreateCommentFunc           func(ctx context.Context, req model.CreateCommentRequest) (string, error)
@@ -118,6 +120,12 @@ func (m *Repopository) GetUserEnrolledPaths(ctx context.Context, userID string) 
 	}
 	return nil, nil
 }
+func (m *Repopository) UpdatePathEnrollmentCompletion(ctx context.Context, pathID string, userID string) error {
+	if m.UpdatePathEnrollmentCompletionFunc != nil {
+		return m.UpdatePathEnrollmentCompletionFunc(ctx, pathID, userID)
+	}
+	return nil
+}
 
 // Implement Database interface
 func (m *Repopository) GetDB() repository.Database { return nil }
@@ -192,6 +200,13 @@ func (m *Repopository) UpdateNodeProgressStatus(ctx context.Context, nodeID stri
 func (m *Repopository) UpdateNodeProgressCompletion(ctx context.Context, nodeID string, userID string) error {
 	if m.UpdateNodeProgressCompletionFunc != nil {
 		return m.UpdateNodeProgressCompletionFunc(ctx, nodeID, userID)
+	}
+	return nil
+}
+
+func (m *Repopository) UpdateNodeProgress(ctx context.Context, nodeID string, userID string, status string) error {
+	if m.UpdateNodeProgressFunc != nil {
+		return m.UpdateNodeProgressFunc(ctx, nodeID, userID, status)
 	}
 	return nil
 }

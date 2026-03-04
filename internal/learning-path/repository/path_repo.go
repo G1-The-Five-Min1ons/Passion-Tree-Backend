@@ -179,7 +179,7 @@ func (r *repositoryImpl) EnrollLearningPathUser(ctx context.Context, pathID stri
 
 	enrollID := uuid.New().String()
 	enrollQuery := `INSERT INTO path_enroll (enroll_id, enrollment_status, enroll_at, user_id, path_id) VALUES (@p1, 'active', GETDATE(), @p2, @p3)`
-	
+
 	_, err = tx.ExecContext(ctx, enrollQuery, enrollID, userID, pathID)
 	if err != nil {
 		return fmt.Errorf("repo.EnrollLearningPathUser insert path_enroll failed: %w", err)
@@ -240,10 +240,20 @@ func (r *repositoryImpl) UpdateLearningPathImage(ctx context.Context, pathID str
 
 func (r *repositoryImpl) GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) {
 	query := `
+		WITH LatestEnroll AS (
+			SELECT
+				CONVERT(VARCHAR(36), enroll_id) as enroll_id,
+				enrollment_status,
+				enroll_at,
+				path_id,
+				ROW_NUMBER() OVER (PARTITION BY path_id ORDER BY enroll_at DESC) AS rn
+			FROM path_enroll
+			WHERE user_id = @p1
+		)
 		SELECT 
-			CONVERT(VARCHAR(36), pe.enroll_id) as enroll_id,
-			pe.enrollment_status,
-			pe.enroll_at,
+			le.enroll_id,
+			le.enrollment_status,
+			le.enroll_at,
 			
 			CONVERT(VARCHAR(36), lp.path_id) as path_id,
 			lp.title,
@@ -253,11 +263,20 @@ func (r *repositoryImpl) GetUserEnrolledPaths(ctx context.Context, userID string
 			u.first_name as instructor,
 			
 			ISNULL(n_count.total_nodes, 0) as modules,
+			ISNULL(progress_count.completed, 0) as completed_nodes,
+			
+			CASE 
+				WHEN ISNULL(n_count.total_nodes, 0) = 0 THEN 0.0
+				ELSE ROUND((CAST(ISNULL(progress_count.completed, 0) AS FLOAT) / CAST(n_count.total_nodes AS FLOAT)) * 100, 2)
+			END as progress_percent,
 
-			ISNULL(progress_count.completed, 0) as completed_nodes
+			CASE
+				WHEN ISNULL(n_count.total_nodes, 0) > 0 AND ISNULL(progress_count.completed, 0) >= n_count.total_nodes THEN 'Completed'
+				ELSE 'In Progress'
+			END as progress_status
 
-		FROM path_enroll pe
-		JOIN learning_path lp ON pe.path_id = lp.path_id
+		FROM LatestEnroll le
+		JOIN learning_path lp ON le.path_id = lp.path_id
 		JOIN users u ON lp.creator_id = u.user_id
 		
 		LEFT JOIN (
@@ -267,15 +286,15 @@ func (r *repositoryImpl) GetUserEnrolledPaths(ctx context.Context, userID string
 		) AS n_count ON lp.path_id = n_count.path_id
 
 		LEFT JOIN (
-			SELECT n.path_id, COUNT(np.node_id) as completed
+			SELECT n.path_id, COUNT(DISTINCT np.node_id) as completed
 			FROM node_progress np
 			JOIN node n ON np.node_id = n.node_id
-			WHERE np.user_id = @p1 AND np.complete = 'true'
+			WHERE np.user_id = @p2 AND np.complete = 'true'
 			GROUP BY n.path_id
 		) AS progress_count ON lp.path_id = progress_count.path_id
 
-		WHERE pe.user_id = @p2
-		ORDER BY pe.enroll_at DESC
+		WHERE le.rn = 1
+		ORDER BY le.enroll_at DESC
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, userID)
@@ -300,6 +319,8 @@ func (r *repositoryImpl) GetUserEnrolledPaths(ctx context.Context, userID string
 			&p.Instructor,
 			&p.Modules,
 			&p.CompletedNodes,
+			&p.ProgressPercent,
+			&p.ProgressStatus,
 		); err != nil {
 			if err == sql.ErrNoRows {
 				return nil, err
@@ -311,4 +332,19 @@ func (r *repositoryImpl) GetUserEnrolledPaths(ctx context.Context, userID string
 	}
 
 	return paths, nil
+}
+
+func (r *repositoryImpl) UpdatePathEnrollmentCompletion(ctx context.Context, pathID string, userID string) error {
+	query := `UPDATE path_enroll SET enrollment_status = 'completed', complete_at = GETDATE() WHERE path_id = @p1 AND user_id = @p2`
+
+	res, err := r.db.ExecContext(ctx, query, pathID, userID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdatePathEnrollmentCompletion exec failed: %w", err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }

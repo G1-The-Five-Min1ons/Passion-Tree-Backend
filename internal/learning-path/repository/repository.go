@@ -18,6 +18,7 @@ type RepositoryLearningPath interface {
 	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	UpdateLearningPathImage(ctx context.Context, pathID string, coverImgURL string) error
 	GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
+	UpdatePathEnrollmentCompletion(ctx context.Context, pathID string, userID string) error
 }
 
 type RepositoryNode interface {
@@ -58,6 +59,10 @@ type RepositoryQuiz interface {
 	DeleteChoice(ctx context.Context, choiceID string) error
 }
 
+type RepositoryProgress interface {
+	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
+}
+
 type RepositoryHistory interface {
 	GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error)
 }
@@ -83,6 +88,7 @@ type Repository interface {
 	RepositoryNode
 	RepositoryComment
 	RepositoryQuiz
+	RepositoryProgress
 	RepositoryHistory
 	RepositoryResume
 }
