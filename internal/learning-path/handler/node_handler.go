@@ -13,10 +13,16 @@ import (
 
 func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID)
+	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -182,12 +188,18 @@ func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 
 func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
 	h.logger.InfoContext(ctx, "fetching nodes for path", "path_id", pathID)
 
-	nodes, err := h.nodeSvc.GetNodesByPathID(ctx, pathID)
+	nodes, err := h.nodeSvc.GetNodesByPathID(ctx, pathID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}

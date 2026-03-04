@@ -12,6 +12,10 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 		return "", apperror.NewBadRequest("node title is required")
 	}
 
+	if req.Link_vdo != "" {
+		s.logger.InfoContext(ctx, "Link_vdo = ", "Link_vdo", req.Link_vdo)
+	}
+
 	id, err := s.nodeRepo.CreateNodeWithContent(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
@@ -39,17 +43,29 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 		return apperror.NewBadRequest("at least one field (title or description) is required for update")
 	}
 
-	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
+	existingNode, err := s.nodeRepo.GetNodeByID(ctx, nodeID, "")
+
+	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "update failed: node not found", "node_id", nodeID)
 			return apperror.NewNotFound("cannot update: node id '%s' not found", nodeID)
 		}
-		if apperror.IsDuplicateKeyError(err) {
-			return apperror.NewConflict("node with this title already exists in this path")
-		}
-
+		
 		s.logger.ErrorContext(ctx, "database error during node update", "error", err, "node_id", nodeID)
 		return apperror.NewInternal("failed to update node %s: %w", nodeID, err)
+	}
+
+	if req.Title == "" {
+		req.Title = existingNode.Title
+	}
+	if req.Description == "" {
+		req.Description = existingNode.Description
+	}
+
+	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
+
+		s.logger.ErrorContext(ctx, "failed to update node", "error", err, "node_id", nodeID)
+		return apperror.NewInternal("failed to update node: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "node updated successfully", "node_id", nodeID)
@@ -139,13 +155,13 @@ func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model
 	return nil
 }
 
-func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error) {
+func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 
 	if nodeID == "" {
 		return nil, apperror.NewBadRequest("node_id is required")
 	}
-
-	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+	
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "node details not found", "node_id", nodeID)
@@ -160,13 +176,13 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model
 	return node, nil
 }
 
-func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
+func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
 
 	if pathID == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
 
-	nodes, err := s.nodeRepo.GetNodesByPathID(ctx, pathID)
+	nodes, err := s.nodeRepo.GetNodesByPathID(ctx, pathID, userID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "database error fetching nodes by path id", "error", err, "path_id", pathID)
 		return nil, apperror.NewInternal("failed to retrieve nodes for path %s: %w", pathID, err)
@@ -185,8 +201,10 @@ func (s *serviceImpl) StartNode(ctx context.Context, nodeID string, userID strin
 		return apperror.NewBadRequest("node_id and user_id are required")
 	}
 
-	err := s.nodeRepo.UpdateNodeProgress(ctx, nodeID, userID, "In Progress")
-	if err != nil {
+	if err := s.nodeRepo.UpdateNodeProgressStatus(ctx, nodeID, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("node progress not found or user not enrolled")
+		}
 		s.logger.ErrorContext(ctx, "failed to start node", "error", err, "node_id", nodeID, "user_id", userID)
 		return apperror.NewInternal("failed to start node: %w", err)
 	}
@@ -200,8 +218,10 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 		return apperror.NewBadRequest("node_id and user_id are required")
 	}
 
-	err := s.nodeRepo.UpdateNodeProgress(ctx, nodeID, userID, "Completed")
-	if err != nil {
+	if err := s.nodeRepo.UpdateNodeProgressCompletion(ctx, nodeID, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("node progress not found or user not enrolled")
+		}
 		s.logger.ErrorContext(ctx, "failed to complete node", "error", err, "node_id", nodeID, "user_id", userID)
 		return apperror.NewInternal("failed to complete node: %w", err)
 	}

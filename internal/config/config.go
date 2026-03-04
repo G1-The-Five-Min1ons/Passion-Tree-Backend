@@ -23,24 +23,24 @@ const (
 
 // Environment variable keys
 const (
-	EnvAzureSQLServer         = "AZURESQL_SERVER"
-	EnvAzureSQLUser           = "AZURESQL_USER"
-	EnvAzureSQLPassword       = "AZURESQL_PASSWORD"
-	EnvAzureSQLPort           = "AZURESQL_PORT"
-	EnvAzureSQLDatabase       = "AZURESQL_DATABASE"
-	EnvAIServiceURL           = "AI_SERVICE_URL"
-	EnvAzureStorageConnString = "AZURE_STORAGE_CONNECTION_STRING"
-	EnvContainerLearningPath  = "CONTAINER_LEARNING_PATH"
-	EnvContainerProfile       = "CONTAINER_PROFILE"
-	EnvContainerReflect       = "CONTAINER_REFLECT"
-	EnvContainerMaterials     = "CONTAINER_MATERIALS_NODES"
-	EnvSMTPHost               = "SMTP_HOST"
-	EnvSMTPPort               = "SMTP_PORT"
-	EnvSMTPUsername           = "SMTP_USERNAME"
-	EnvSMTPPassword           = "SMTP_PASSWORD"
-	EnvSMTPFromEmail          = "SMTP_FROM_EMAIL"
-	EnvMailerSendAPIKey       = "MAILERSEND_API_KEY"
-	EnvAppURL                 = "APP_URL"
+	EnvAzureSQLServer          = "AZURESQL_SERVER"
+	EnvAzureSQLUser            = "AZURESQL_USER"
+	EnvAzureSQLPassword        = "AZURESQL_PASSWORD"
+	EnvAzureSQLPort            = "AZURESQL_PORT"
+	EnvAzureSQLDatabase        = "AZURESQL_DATABASE"
+	EnvAIServiceURL            = "AI_SERVICE_URL"
+	EnvAzureStorageConnString  = "AZURE_STORAGE_CONNECTION_STRING"
+	EnvContainerLearningPath   = "CONTAINER_LEARNING_PATH"
+	EnvContainerProfile        = "CONTAINER_PROFILE"
+	EnvContainerReflect        = "CONTAINER_REFLECT"
+	EnvContainerMaterialsNodes = "CONTAINER_MATERIALS_NODES"
+	EnvSMTPHost                = "SMTP_HOST"
+	EnvSMTPPort                = "SMTP_PORT"
+	EnvSMTPUsername            = "SMTP_USERNAME"
+	EnvSMTPPassword            = "SMTP_PASSWORD"
+	EnvSMTPFromEmail           = "SMTP_FROM_EMAIL"
+	EnvMailerSendAPIKey        = "MAILERSEND_API_KEY"
+	EnvAppURL                  = "APP_URL"
 
 	EnvGmailEmail       = "GMAIL_EMAIL"
 	EnvGmailAppPassword = "GMAIL_APP_PASSWORD"
@@ -101,10 +101,13 @@ func LoadDBConfig() (*Config, error) {
 	_ = godotenv.Load()
 
 	config := &Config{
-		AIServiceURL:           getEnvOrDefault(EnvAIServiceURL, DefaultAIServiceURL),
-		AzureStorageConnString: os.Getenv(EnvAzureStorageConnString),
-		ContainerLearningPath:  getEnvOrDefault(EnvContainerLearningPath, DefaultContainerLearning),
-
+		AIServiceURL:            getEnvOrDefault(EnvAIServiceURL, DefaultAIServiceURL),
+		AzureStorageConnString:  os.Getenv(EnvAzureStorageConnString),
+		ContainerLearningPath:   getEnvOrDefault(EnvContainerLearningPath, DefaultContainerLearning),
+		ContainerProfile:        getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
+		ContainerReflect:        getEnvOrDefault(EnvContainerReflect, DefaultContainerReflect),
+		ContainerMaterialsNodes: getEnvOrDefault(EnvContainerMaterialsNodes, DefaultContainerMaterials),
+		
 		// OAuth settings
 		GoogleClientID:      os.Getenv(EnvGoogleClientID),
 		GoogleClientSecret:  os.Getenv(EnvGoogleClientSecret),
@@ -119,9 +122,6 @@ func LoadDBConfig() (*Config, error) {
 		JWTRefreshTTL:      getEnvOrDefault(EnvJWTRefreshTTL, DefaultJWTRefreshTTL),
 		JWTRefreshAbsolute: getEnvOrDefault(EnvJWTRefreshAbsolute, DefaultJWTRefreshAbsolute),
 
-		ContainerProfile:        getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
-		ContainerReflect:        getEnvOrDefault(EnvContainerReflect, DefaultContainerReflect),
-		ContainerMaterialsNodes: getEnvOrDefault(EnvContainerMaterials, DefaultContainerMaterials),
 		SMTPHost:                os.Getenv(EnvSMTPHost),
 		SMTPPort:                getEnvOrDefault(EnvSMTPPort, "587"),
 		SMTPUsername:            os.Getenv(EnvSMTPUsername),

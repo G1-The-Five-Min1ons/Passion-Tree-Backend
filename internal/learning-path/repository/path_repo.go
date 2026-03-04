@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"passiontree/internal/learning-path/model"
 
@@ -12,8 +13,32 @@ import (
 
 func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
 	query := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, ISNULL(cover_img_url, '') AS cover_img_url, ISNULL(objective, '') AS objective, ISNULL(description, '') AS description, ISNULL(avg_rating, 0.0) AS avg_rating, ISNULL(publish_status, 'draft') AS publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
-		FROM learning_path`
+		SELECT 
+   			CONVERT(VARCHAR(36), lp.path_id) as id, 
+    		lp.title, 
+    		ISNULL(lp.description, 'null') as description,
+    		u.first_name as instructor,
+    		ISNULL(pe_count.total_students, 0) as student,
+			ISNULL(n_count.total_nodes, 0) as modules,
+			ISNULL(lp.avg_rating, 0) as avg_rating,
+    		ISNULL(lp.cover_img_url, 'null') as cover_img_url, 
+    		ISNULL(lp.objective, 'null') as objective,
+    		ISNULL(lp.publish_status, 'null') as publish_status, 
+    		ISNULL(lp.create_at, GETDATE()) as create_at, 
+    		ISNULL(lp.update_at, GETDATE()) as update_at
+		FROM learning_path AS lp 
+		JOIN users AS u ON lp.creator_id = u.user_id
+		LEFT JOIN (
+    		SELECT path_id, COUNT(node_id) as total_nodes 
+    		FROM node 
+    		GROUP BY path_id
+		) AS n_count ON lp.path_id = n_count.path_id
+		LEFT JOIN (
+    		SELECT path_id, COUNT(enroll_id) as total_students 
+    		FROM path_enroll 
+    		GROUP BY path_id
+		) AS pe_count ON lp.path_id = pe_count.path_id
+	`
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -24,7 +49,20 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 	var paths []model.LearningPath
 	for rows.Next() {
 		var p model.LearningPath
-		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Publish_status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID); err != nil {
+		if err := rows.Scan(
+			&p.PathID,
+			&p.Title,
+			&p.Description,
+			&p.Instructor,
+			&p.Students,
+			&p.Modules,
+			&p.Rating,
+			&p.CoverImgURL,
+			&p.Objective,
+			&p.Publish_status,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+		); err != nil {
 			return nil, fmt.Errorf("repo.GetAllLearningPath scan failed: %w", err)
 		}
 		paths = append(paths, p)
@@ -39,14 +77,52 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 
 func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error) {
 	pathQuery := `
-		SELECT CONVERT(VARCHAR(36), path_id) as path_id, title, ISNULL(cover_img_url, '') AS cover_img_url, ISNULL(objective, '') AS objective, ISNULL(description, '') AS description, ISNULL(avg_rating, 0.0) AS avg_rating, ISNULL(publish_status, 'draft') AS publish_status, create_at, update_at, CONVERT(VARCHAR(36), creator_id) as creator_id
-		FROM learning_path 
-		WHERE path_id = @p1`
+        SELECT 
+            CONVERT(VARCHAR(36), lp.path_id) as path_id, 
+            lp.title, 
+            lp.cover_img_url, 
+            lp.objective, 
+            lp.description, 
+            lp.avg_rating, 
+            lp.publish_status, 
+            lp.create_at, 
+            lp.update_at, 
+            u.first_name as instructor,
+            CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
+            ISNULL(n_count.total_nodes, 0) as modules,
+            ISNULL(pe_count.total_students, 0) as student
+        FROM learning_path AS lp 
+        JOIN users AS u ON lp.creator_id = u.user_id
+        LEFT JOIN (
+            SELECT path_id, COUNT(node_id) as total_nodes 
+            FROM node 
+            GROUP BY path_id
+        ) AS n_count ON lp.path_id = n_count.path_id
+        LEFT JOIN (
+            SELECT path_id, COUNT(enroll_id) as total_students 
+            FROM path_enroll 
+            GROUP BY path_id
+        ) AS pe_count ON lp.path_id = pe_count.path_id
+        WHERE lp.path_id = @p1`
 
 	var p model.LearningPath
+
 	err := r.db.QueryRowContext(ctx, pathQuery, path_id).Scan(
-		&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.AvgRating, &p.Publish_status, &p.CreatedAt, &p.UpdatedAt, &p.CreatorID,
+		&p.PathID,
+		&p.Title,
+		&p.CoverImgURL,
+		&p.Objective,
+		&p.Description,
+		&p.Rating,
+		&p.Publish_status,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+		&p.Instructor,
+		&p.CreatorID,
+		&p.Modules,
+		&p.Students,
 	)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
@@ -95,12 +171,42 @@ func (r *repositoryImpl) DeleteLearningPath(ctx context.Context, path_id string)
 }
 
 func (r *repositoryImpl) EnrollLearningPathUser(ctx context.Context, pathID string, userID string) error {
-	enrollID := uuid.New().String()
-	query := `INSERT INTO path_enroll (enroll_id, enrollment_status, enroll_at, user_id, path_id) VALUES (@p1, 'active', GETDATE(), @p2, @p3)`
-	_, err := r.db.ExecContext(ctx, query, enrollID, userID, pathID)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("repo.EnrollLearningPathUser failed: %w", err)
+		return fmt.Errorf("repo.EnrollLearningPathUser begin tx failed: %w", err)
 	}
+	defer tx.Rollback()
+
+	enrollID := uuid.New().String()
+	enrollQuery := `INSERT INTO path_enroll (enroll_id, enrollment_status, enroll_at, user_id, path_id) VALUES (@p1, 'active', GETDATE(), @p2, @p3)`
+	
+	_, err = tx.ExecContext(ctx, enrollQuery, enrollID, userID, pathID)
+	if err != nil {
+		return fmt.Errorf("repo.EnrollLearningPathUser insert path_enroll failed: %w", err)
+	}
+
+	progressQuery := `
+		INSERT INTO node_progress (progress_id, user_id, node_id, status, updated_at, complete)
+		SELECT 
+			NEWID(),
+			@p1,
+			node_id,
+			'locked',
+			GETDATE(),
+			'false'
+		FROM node 
+		WHERE path_id = @p2
+	`
+
+	_, err = tx.ExecContext(ctx, progressQuery, userID, pathID)
+	if err != nil {
+		return fmt.Errorf("repo.EnrollLearningPathUser insert node_progress failed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("repo.EnrollLearningPathUser commit failed: %w", err)
+	}
+
 	return nil
 }
 
@@ -130,4 +236,79 @@ func (r *repositoryImpl) UpdateLearningPathImage(ctx context.Context, pathID str
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+func (r *repositoryImpl) GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) {
+	query := `
+		SELECT 
+			CONVERT(VARCHAR(36), pe.enroll_id) as enroll_id,
+			pe.enrollment_status,
+			pe.enroll_at,
+			
+			CONVERT(VARCHAR(36), lp.path_id) as path_id,
+			lp.title,
+			lp.description,
+			lp.cover_img_url,
+			lp.avg_rating,
+			u.first_name as instructor,
+			
+			ISNULL(n_count.total_nodes, 0) as modules,
+
+			ISNULL(progress_count.completed, 0) as completed_nodes
+
+		FROM path_enroll pe
+		JOIN learning_path lp ON pe.path_id = lp.path_id
+		JOIN users u ON lp.creator_id = u.user_id
+		
+		LEFT JOIN (
+			SELECT path_id, COUNT(node_id) as total_nodes 
+			FROM node 
+			GROUP BY path_id
+		) AS n_count ON lp.path_id = n_count.path_id
+
+		LEFT JOIN (
+			SELECT n.path_id, COUNT(np.node_id) as completed
+			FROM node_progress np
+			JOIN node n ON np.node_id = n.node_id
+			WHERE np.user_id = @p1 AND np.complete = 'true'
+			GROUP BY n.path_id
+		) AS progress_count ON lp.path_id = progress_count.path_id
+
+		WHERE pe.user_id = @p2
+		ORDER BY pe.enroll_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetUserEnrolledPaths query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var paths []model.EnrolledPathResponse
+	for rows.Next() {
+		var p model.EnrolledPathResponse
+		var lastAccess time.Time
+		if err := rows.Scan(
+			&p.EnrollID,
+			&p.EnrollmentStatus,
+			&lastAccess,
+			&p.PathID,
+			&p.Title,
+			&p.Description,
+			&p.CoverImgURL,
+			&p.Rating,
+			&p.Instructor,
+			&p.Modules,
+			&p.CompletedNodes,
+		); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, err
+			}
+			return nil, fmt.Errorf("repo.GetUserEnrolledPaths failed: %w", err)
+		}
+		p.LastAccessedAt = &lastAccess
+		paths = append(paths, p)
+	}
+
+	return paths, nil
 }

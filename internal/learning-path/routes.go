@@ -21,12 +21,14 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	h := handler.NewHandler(svc, logger, storageClient)
 
 	// All reflection routes require JWT authentication
+	// protected := r.Group("/") //for dev
 	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
 
 	paths := protected.Group("/learningpaths")
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
+		paths.Get("/user/enroll", h.GetMyPaths)
 		paths.Put("/uploadimg", h.UpdateCoverImage)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
@@ -48,6 +50,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		nodes.Get("/:node_id", h.GetOneNode)
 		nodes.Put("/:node_id", h.UpdateNode)
 		nodes.Delete("/:node_id", h.DeleteNode)
+		nodes.Put("/:node_id/start", h.StartNode)
+		nodes.Put("/:node_id/complete", h.CompleteNode)
 		nodes.Post("/:node_id/materials", h.CreateMaterial)
 		nodes.Get("/:node_id/comments", h.GetComments)
 		nodes.Post("/:node_id/comments", h.CreateComment)
