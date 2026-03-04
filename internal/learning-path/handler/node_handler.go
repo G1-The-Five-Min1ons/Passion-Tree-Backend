@@ -217,6 +217,10 @@ func (h *Handler) StartNodeStatus(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Node started successfully",
+		"data": fiber.Map{
+			"node_id": nodeID,
+			"status":  "active",
+		},
 	})
 }
 
@@ -238,5 +242,9 @@ func (h *Handler) CompleteNodeStatus(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Node completed successfully",
+		"data": fiber.Map{
+			"node_id": nodeID,
+			"status":  "completed",
+		},
 	})
 }
