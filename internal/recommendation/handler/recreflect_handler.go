@@ -6,10 +6,14 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 )
 
 func (h *Handler) GetRecommendations(c *fiber.Ctx) error {
-	userID := c.Query("user_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 	treeID := c.Query("tree_id")
 
 	if userID == "" || treeID == "" {

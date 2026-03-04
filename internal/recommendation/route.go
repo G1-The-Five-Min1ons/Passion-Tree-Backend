@@ -6,7 +6,7 @@ import (
 
 	"passiontree/internal/connection"
 	"passiontree/internal/pkg/jwt"
-	// "passiontree/internal/pkg/middleware"
+	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/recommendation/handler"
@@ -19,8 +19,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	svc := service.NewService(repo, aiClient, logger)
 	h := handler.NewHandler(svc, logger, storageClient)
 
-	// protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
-	protected := r.Group("/") // for dev
+	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
 
 	paths := protected.Group("/reflect/recomendation")
 	{
