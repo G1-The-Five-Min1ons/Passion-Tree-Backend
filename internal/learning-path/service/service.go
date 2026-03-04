@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/pkg/storage"
@@ -45,8 +46,10 @@ type ServiceNode interface {
 type ServiceComment interface {
 	AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error)
-	RemoveComment(ctx context.Context, commentID string) error
-	AddReaction(ctx context.Context, req model.CreateReactionRequest) error
+	GetPathComments(ctx context.Context, pathID string) ([]model.NodeComment, error)
+	RemoveComment(ctx context.Context, userID, commentID string) error
+	UpdateComment(ctx context.Context, userID, commentID, message string) error
+	ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 }
 
@@ -99,10 +102,10 @@ func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger 
 		nodeRepo:    repo,
 		commentRepo: repo,
 		quizRepo:    repo,
-		logger:      logger,
-		aiClient:    aiClient,
 		historyRepo: repo,
 		resumeRepo:  repo,
+		logger:      logger,
+		aiClient:    aiClient,
 		storage:     nil,
 	}
 }

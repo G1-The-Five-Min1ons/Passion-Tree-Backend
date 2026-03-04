@@ -293,5 +293,29 @@ func (r *repositoryImpl) UpdateNodeProgressCompletion(ctx context.Context, nodeI
 	if rows == 0 {
 		return sql.ErrNoRows
 	}
+  
+func (r *repositoryImpl) UpdateNodeProgress(ctx context.Context, nodeID string, userID string, status string) error {
+	queryCheck := `SELECT COUNT(1) FROM node_progress WHERE node_id = @p1 AND user_id = @p2`
+	var count int
+	if err := r.db.QueryRowContext(ctx, queryCheck, nodeID, userID).Scan(&count); err != nil {
+		return fmt.Errorf("failed to check existing node progress: %w", err)
+	}
+
+	if count > 0 {
+		queryUpdate := `UPDATE node_progress SET status = @p1, updated_at = GETUTCDATE() WHERE node_id = @p2 AND user_id = @p3`
+		_, err := r.db.ExecContext(ctx, queryUpdate, status, nodeID, userID)
+		if err != nil {
+			return fmt.Errorf("failed to update node progress: %w", err)
+		}
+	} else {
+		queryInsert := `
+			INSERT INTO node_progress (node_id, user_id, status, created_at, updated_at) 
+			VALUES (@p1, @p2, @p3, GETUTCDATE(), GETUTCDATE())`
+		_, err := r.db.ExecContext(ctx, queryInsert, nodeID, userID, status)
+		if err != nil {
+			return fmt.Errorf("failed to insert node progress: %w", err)
+		}
+	}
+
 	return nil
 }

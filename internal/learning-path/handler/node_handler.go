@@ -211,16 +211,16 @@ func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) StartNode(c *fiber.Ctx) error {
+func (h *Handler) StartNodeStatus(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		return h.handleError(c, err)
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
-
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "starting node", "node_id", nodeID, "user_id", userID)
 
 	if err := h.nodeSvc.StartNode(ctx, nodeID, userID); err != nil {
 		return h.handleError(c, err)
@@ -236,16 +236,16 @@ func (h *Handler) StartNode(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) CompleteNode(c *fiber.Ctx) error {
+func (h *Handler) CompleteNodeStatus(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
-
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		return h.handleError(c, err)
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
 	}
-
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+
+	h.logger.InfoContext(ctx, "completing node", "node_id", nodeID, "user_id", userID)
 
 	if err := h.nodeSvc.CompleteNode(ctx, nodeID, userID); err != nil {
 		return h.handleError(c, err)
@@ -253,10 +253,10 @@ func (h *Handler) CompleteNode(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Node marked as completed",
+		"message": "Node completed successfully",
 		"data": fiber.Map{
-			"node_id":  nodeID,
-			"complete": true,
+			"node_id": nodeID,
+			"status":  "completed",
 		},
 	})
 }

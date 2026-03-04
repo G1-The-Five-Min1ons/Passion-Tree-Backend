@@ -2,8 +2,8 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"log/slog"
+	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -16,9 +16,9 @@ const (
 	DefaultContainerProfile   = "profile-imgs"
 	DefaultContainerReflect   = "reflect"
 	DefaultContainerMaterials = "materials-nodes"
-	DefaultJWTAccessTTL      = "1"   // 1 hour 
-    DefaultJWTRefreshTTL     = "168" // 7 days
-    DefaultJWTRefreshAbsolute = "720" // 30 days
+	DefaultJWTAccessTTL       = "1"   // 1 hour
+	DefaultJWTRefreshTTL      = "168" // 7 days
+	DefaultJWTRefreshAbsolute = "720" // 30 days
 )
 
 // Environment variable keys
@@ -42,8 +42,8 @@ const (
 	EnvMailerSendAPIKey        = "MAILERSEND_API_KEY"
 	EnvAppURL                  = "APP_URL"
 
-	EnvGmailEmail         = "GMAIL_EMAIL"
-    EnvGmailAppPassword   = "GMAIL_APP_PASSWORD"
+	EnvGmailEmail       = "GMAIL_EMAIL"
+	EnvGmailAppPassword = "GMAIL_APP_PASSWORD"
 
 	// OAuth Environment variables
 
@@ -77,8 +77,8 @@ type Config struct {
 	MailerSendAPIKey        string
 	AppURL                  string
 
-	GmailEmail       		string
-    GmailAppPassword 		string
+	GmailEmail       string
+	GmailAppPassword string
 
 	// OAuth settings
 	GoogleClientID      string
@@ -117,9 +117,9 @@ func LoadDBConfig() (*Config, error) {
 		DiscordRedirectURL:  getEnvOrDefault(EnvDiscordRedirectURL, "http://localhost:5000/auth/discord/callback"),
 
 		// JWT settings
-		JWTSecret:     os.Getenv(EnvJWTSecret),
-		JWTAccessTTL:  getEnvOrDefault(EnvJWTAccessTTL, DefaultJWTAccessTTL),
-		JWTRefreshTTL: getEnvOrDefault(EnvJWTRefreshTTL, DefaultJWTRefreshTTL),
+		JWTSecret:          os.Getenv(EnvJWTSecret),
+		JWTAccessTTL:       getEnvOrDefault(EnvJWTAccessTTL, DefaultJWTAccessTTL),
+		JWTRefreshTTL:      getEnvOrDefault(EnvJWTRefreshTTL, DefaultJWTRefreshTTL),
 		JWTRefreshAbsolute: getEnvOrDefault(EnvJWTRefreshAbsolute, DefaultJWTRefreshAbsolute),
 
 		SMTPHost:                os.Getenv(EnvSMTPHost),
@@ -131,7 +131,7 @@ func LoadDBConfig() (*Config, error) {
 		AppURL:                  getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
 
 		GmailEmail:       os.Getenv(EnvGmailEmail),
-        GmailAppPassword: os.Getenv(EnvGmailAppPassword),
+		GmailAppPassword: os.Getenv(EnvGmailAppPassword),
 	}
 
 	// Build database connection string
@@ -147,8 +147,8 @@ func LoadDBConfig() (*Config, error) {
 	}
 
 	if config.GoogleClientID == "" || config.DiscordClientID == "" {
-        slog.Warn("Missing Google or Discord client ID in configuration")
-    }
+		slog.Warn("Missing Google or Discord client ID in configuration")
+	}
 
 	return config, nil
 }

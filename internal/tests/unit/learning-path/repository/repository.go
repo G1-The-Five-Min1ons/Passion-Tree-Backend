@@ -37,10 +37,13 @@ type Repopository struct {
 	// Mock hooks for Comment
 	CreateCommentFunc           func(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeIDFunc     func(ctx context.Context, nodeID string) ([]model.NodeComment, error)
-	DeleteCommentFunc           func(ctx context.Context, commentID string) error
-	CreateReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) error
+	GetCommentsByPathIDFunc     func(ctx context.Context, pathID string) ([]model.NodeComment, error)
+	DeleteCommentFunc           func(ctx context.Context, commentID, userID string) error
+	ToggleReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	GetReactionsByCommentIDFunc func(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMentionFunc           func(ctx context.Context, req model.CreateMentionRequest) (string, error)
+	GetCommentOwnerFunc         func(ctx context.Context, commentID string) (string, error)
+	UpdateCommentFunc           func(ctx context.Context, userID, messageID, message string) (bool, error)
 
 	// Mock hooks for Quiz
 	CreateQuestionFunc         func(ctx context.Context, req model.CreateQuestionRequest) (string, error)
@@ -206,17 +209,23 @@ func (m *Repopository) GetCommentsByNodeID(ctx context.Context, nodeID string) (
 	}
 	return nil, nil
 }
-func (m *Repopository) DeleteComment(ctx context.Context, commentID string) error {
+func (m *Repopository) GetCommentsByPathID(ctx context.Context, pathID string) ([]model.NodeComment, error) {
+	if m.GetCommentsByPathIDFunc != nil {
+		return m.GetCommentsByPathIDFunc(ctx, pathID)
+	}
+	return nil, nil
+}
+func (m *Repopository) DeleteComment(ctx context.Context, commentID, userID string) error {
 	if m.DeleteCommentFunc != nil {
-		return m.DeleteCommentFunc(ctx, commentID)
+		return m.DeleteCommentFunc(ctx, commentID, userID)
 	}
 	return nil
 }
-func (m *Repopository) CreateReaction(ctx context.Context, req model.CreateReactionRequest) error {
-	if m.CreateReactionFunc != nil {
-		return m.CreateReactionFunc(ctx, req)
+func (m *Repopository) ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error) {
+	if m.ToggleReactionFunc != nil {
+		return m.ToggleReactionFunc(ctx, req)
 	}
-	return nil
+	return false, nil
 }
 func (m *Repopository) GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error) {
 	if m.GetReactionsByCommentIDFunc != nil {
@@ -229,6 +238,18 @@ func (m *Repopository) CreateMention(ctx context.Context, req model.CreateMentio
 		return m.CreateMentionFunc(ctx, req)
 	}
 	return "", nil
+}
+func (m *Repopository) GetCommentOwner(ctx context.Context, commentID string) (string, error) {
+	if m.GetCommentOwnerFunc != nil {
+		return m.GetCommentOwnerFunc(ctx, commentID)
+	}
+	return "", nil
+}
+func (m *Repopository) UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error) {
+	if m.UpdateCommentFunc != nil {
+		return m.UpdateCommentFunc(ctx, userID, messageID, message)
+	}
+	return false, nil
 }
 
 // Implement RepositoryQuiz

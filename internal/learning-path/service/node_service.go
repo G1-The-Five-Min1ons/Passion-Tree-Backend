@@ -87,7 +87,7 @@ func (s *serviceImpl) RemoveNode(ctx context.Context, nodeID string) error {
 			s.logger.WarnContext(ctx, "deletion blocked: node has dependencies", "node_id", nodeID)
 			return apperror.NewConflict("cannot delete node: there are existing materials, comments, or questions associated with this node")
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during node deletion", "error", err, "node_id", nodeID)
 		return apperror.NewInternal("failed to remove node %s: %w", nodeID, err)
 	}
@@ -111,7 +111,7 @@ func (s *serviceImpl) AddMaterial(ctx context.Context, req model.CreateMaterialR
 			s.logger.WarnContext(ctx, "foreign key violation: node not found", "node_id", req.NodeID)
 			return "", apperror.NewBadRequest("invalid node_id: node does not exist")
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during material creation", "error", err, "node_id", req.NodeID)
 		return "", apperror.NewInternal("failed to add material to node %s: %w", req.NodeID, err)
 	}
@@ -131,7 +131,7 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 			s.logger.WarnContext(ctx, "material not found for deletion", "material_id", materialID)
 			return apperror.NewNotFound("cannot delete: material id '%s' not found", materialID)
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during material deletion", "error", err, "material_id", materialID)
 		return apperror.NewInternal("failed to remove material %s: %w", materialID, err)
 	}
@@ -167,7 +167,7 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string, userID 
 			s.logger.WarnContext(ctx, "node details not found", "node_id", nodeID)
 			return nil, apperror.NewNotFound("node with id '%s' not found", nodeID)
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error fetching node details", "error", err, "node_id", nodeID)
 		return nil, apperror.NewInternal("failed to retrieve details for node %s: %w", nodeID, err)
 	}
