@@ -100,7 +100,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 		if err != nil {
 			if err == sql.ErrNoRows {
 				s.logger.WarnContext(ctx, "no trees found for album", "album_id", albumID)
-				return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+				return []model.TreeResponse{}, nil
 			}
 			s.logger.ErrorContext(ctx, "database error fetching album trees with nodes", "error", err, "album_id", albumID)
 			return nil, apperror.NewInternal("database error fetching album trees: %w", err)
@@ -108,7 +108,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 
 		if len(treesWithNodes) == 0 {
 			s.logger.InfoContext(ctx, "album has an empty tree list", "album_id", albumID)
-			return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+			return []model.TreeResponse{}, nil
 		}
 
 		s.logger.InfoContext(ctx, "successfully retrieved album trees with nodes", "album_id", albumID, "count", len(treesWithNodes))
@@ -120,7 +120,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "no trees found for album", "album_id", albumID)
-			return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+			return []model.Tree{}, nil
 		}
 		s.logger.ErrorContext(ctx, "database error fetching album trees", "error", err, "album_id", albumID)
 		return nil, apperror.NewInternal("database error fetching album trees: %w", err)
@@ -128,7 +128,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 
 	if len(trees) == 0 {
 		s.logger.InfoContext(ctx, "album has an empty tree list", "album_id", albumID)
-		return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+		return []model.Tree{}, nil
 	}
 
 	s.logger.InfoContext(ctx, "successfully retrieved album trees", "album_id", albumID, "count", len(trees))
