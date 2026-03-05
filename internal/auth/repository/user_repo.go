@@ -57,7 +57,7 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 	query := `
 		SELECT 
 			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
-			u.is_email_verified, u.require_2fa_next_login,
+			u.is_email_verified, u.require_2fa_next_login, u.create_at, u.update_at,
 			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
 			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
@@ -69,10 +69,11 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 	var profileID, avatarURL, rankName, location, bio sql.NullString
 	var learningStreak, learningCount, level, hourLearned sql.NullInt32
 	var xp sql.NullInt64
+	var createdAt, updatedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
-		&u.IsEmailVerified, &u.Require2FANextLogin,
+		&u.IsEmailVerified, &u.Require2FANextLogin, &createdAt, &updatedAt,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
 		&location, &bio, &level, &xp, &hourLearned,
 	)
@@ -82,6 +83,13 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 			return nil, nil, nil
 		}
 		return nil, nil, fmt.Errorf("get user by id failed: %w", err)
+	}
+
+	if createdAt.Valid {
+		u.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		u.UpdatedAt = updatedAt.Time
 	}
 
 	if profileID.Valid {

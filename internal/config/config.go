@@ -113,10 +113,10 @@ func LoadDBConfig() (*Config, error) {
 		// OAuth settings
 		GoogleClientID:           os.Getenv(EnvGoogleClientID),
 		GoogleClientSecret:       os.Getenv(EnvGoogleClientSecret),
-		GoogleRedirectURL:        getEnvOrDefault(EnvGoogleRedirectURL, "http://localhost:5000/auth/google/callback"),
+		GoogleRedirectURL:        getEnvOrDefault(EnvGoogleRedirectURL, "http://localhost:5000/api/v1/auth/google/callback"),
 		DiscordClientID:          os.Getenv(EnvDiscordClientID),
 		DiscordClientSecret:      os.Getenv(EnvDiscordClientSecret),
-		DiscordRedirectURL:       getEnvOrDefault(EnvDiscordRedirectURL, "http://localhost:5000/auth/discord/callback"),
+		DiscordRedirectURL:       getEnvOrDefault(EnvDiscordRedirectURL, "http://localhost:5000/api/v1/auth/discord/callback"),
 		DiscordNativeRedirectURL: getEnvOrDefault(EnvDiscordNativeRedirectURL, "http://localhost:5000/api/v1/auth/discord/native/callback"),
 
 		// JWT settings

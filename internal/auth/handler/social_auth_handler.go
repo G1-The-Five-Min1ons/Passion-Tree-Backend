@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"fmt"
-
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 
@@ -212,25 +210,77 @@ func (h *Handler) DiscordNativeCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	errorParam := c.Query("error")
 
-	// Build the deep link redirect URL
 	const appScheme = "passiontree://auth/callback"
 
+	// Android intent:// URL natively closes Chrome Custom Tabs
+	buildIntentURL := func(queryPart string) string {
+		return "intent://auth/callback" + queryPart +
+			"#Intent;scheme=passiontree;package=com.example.passion_tree_frontend;end"
+	}
+
+	renderRedirectPage := func(customSchemeURL string, intentURL string, isError bool) error {
+		message := "Authentication Successful. Returning to Passion Tree..."
+		if isError {
+			message = "Authentication failed. Returning to Passion Tree..."
+		}
+
+		html := `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Passion Tree — Redirecting</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e; color: #e0e0e0;
+    }
+    .container { text-align: center; padding: 2rem; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #7289da; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 1.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 1rem; font-weight: 500; margin-bottom: 1rem; }
+    a { color: #7289da; font-size: 0.875rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h2>` + message + `</h2>
+    <a href="` + customSchemeURL + `">Click here if you are not redirected</a>
+  </div>
+  <script>
+    // CCT natively closes on intent:// URLs
+    window.location.href = '` + intentURL + `';
+    setTimeout(function() {
+      // Fallback if intent:// is ignored
+      window.location.href = '` + customSchemeURL + `';
+    }, 500);
+  </script>
+</body>
+</html>`
+
+		c.Set("Content-Type", "text/html; charset=utf-8")
+		return c.Status(fiber.StatusOK).SendString(html)
+	}
+
 	if errorParam != "" {
-		redirectURL := fmt.Sprintf("%s?error=%s", appScheme, errorParam)
 		h.logger.Warn("discord native callback received error", "error", errorParam)
-		return c.Redirect(redirectURL, fiber.StatusTemporaryRedirect)
+		return renderRedirectPage(appScheme+"?error="+errorParam, buildIntentURL("?error="+errorParam), true)
 	}
 
 	if code == "" {
-		redirectURL := fmt.Sprintf("%s?error=missing_code", appScheme)
 		h.logger.Warn("discord native callback missing code")
-		return c.Redirect(redirectURL, fiber.StatusTemporaryRedirect)
+		return renderRedirectPage(appScheme+"?error=missing_code", buildIntentURL("?error=missing_code"), true)
 	}
 
-	// Redirect to app with the authorization code
-	redirectURL := fmt.Sprintf("%s?code=%s", appScheme, code)
 	h.logger.Info("discord native callback redirecting to app", "has_code", true)
-	return c.Redirect(redirectURL, fiber.StatusTemporaryRedirect)
+	return renderRedirectPage(appScheme+"?code="+code, buildIntentURL("?code="+code), false)
 }
 
 func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {

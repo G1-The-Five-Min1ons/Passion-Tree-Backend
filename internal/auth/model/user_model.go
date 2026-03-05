@@ -96,12 +96,13 @@ type SocialAuthCallbackRequest struct {
 }
 
 type OAuthUserInfo struct {
-	ProviderUserID string
-	Email          string
-	FirstName      string
-	LastName       string
-	AvatarURL      string
-	Provider       string
+	ProviderUserID   string
+	Email            string
+	FirstName        string
+	LastName         string
+	AvatarURL        string
+	Provider         string
+	ProviderUsername string
 }
 
 type ChangePasswordRequest struct {

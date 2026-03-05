@@ -166,12 +166,13 @@ func (s *userServiceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth
 	}
 
 	return &model.OAuthUserInfo{
-		ProviderUserID: discordUser.ID,
-		Email:          discordUser.Email,
-		FirstName:      firstName,
-		LastName:       lastName,
-		AvatarURL:      avatarURL,
-		Provider:       model.AuthProviderDiscord,
+		ProviderUserID:   discordUser.ID,
+		Email:            discordUser.Email,
+		FirstName:        firstName,
+		LastName:         lastName,
+		AvatarURL:        avatarURL,
+		Provider:         model.AuthProviderDiscord,
+		ProviderUsername: discordUser.Username,
 	}, nil
 }
 
@@ -289,13 +290,16 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 
 // createUserFromOAuth creates a new user from OAuth provider information
 func (s *userServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, error) {
-	// Generate username from email
-	username := strings.Split(userInfo.Email, "@")[0]
+	// Use provider username (e.g. Discord username) if available, otherwise fallback to email prefix
+	username := userInfo.ProviderUsername
+	if username == "" {
+		username = strings.Split(userInfo.Email, "@")[0]
+	}
 
-	// Check if username exists, append random number if needed
+	// Check if username exists, append random characters if needed
 	existingUser, _ := s.repo.GetUserByUsername(ctx, username)
 	if existingUser != nil {
-		username = fmt.Sprintf("%s_%d", username, time.Now().Unix()%10000)
+		username = fmt.Sprintf("%s_%04d", username, time.Now().UnixNano()%10000)
 	}
 
 	user := &model.User{
@@ -303,7 +307,7 @@ func (s *userServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *mod
 		Email:           userInfo.Email,
 		FirstName:       userInfo.FirstName,
 		LastName:        userInfo.LastName,
-		Role:            model.RoleStudent,
+		Role:            model.RolePending,
 		HeartCount:      0,
 		IsEmailVerified: true,
 		AuthProvider:    userInfo.Provider,
