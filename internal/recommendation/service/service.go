@@ -3,13 +3,17 @@ package service
 import (
 	"context"
 	"log/slog"
+
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/recommendation/model"
-	"passiontree/internal/recommendation/repository"
+
+	pathrepo "passiontree/internal/learning-path/repository"
+	recrepo "passiontree/internal/recommendation/repository"
 )
 
 type ServiceRecommendation interface {
 	RecommendPathsForUser(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error)
+	RecommendHomePathsForUser(ctx context.Context, userID string) (*model.RecommendPathResponse, error)
 }
 
 type Service interface {
@@ -17,15 +21,17 @@ type Service interface {
 }
 
 type serviceImpl struct {
-	recreflectRepo repository.RepositoryRecommendation
-	aiClient       *aiclient.AIClient
-	logger         *slog.Logger
+	recRepo  recrepo.Repository
+	pathRepo pathrepo.RepositoryLearningPath
+	aiClient *aiclient.AIClient
+	logger   *slog.Logger
 }
 
-func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
+func NewService(recRepo recrepo.Repository, pathRepo pathrepo.RepositoryLearningPath, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
 	return &serviceImpl{
-		recreflectRepo: repo,
-		aiClient:       aiClient,
-		logger:         logger,
+		recRepo:  recRepo,
+		pathRepo: pathRepo,
+		aiClient: aiClient,
+		logger:   logger,
 	}
 }
