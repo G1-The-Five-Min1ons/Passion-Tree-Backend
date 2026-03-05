@@ -7,12 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"passiontree/internal/config"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
-)
-
-const (
-	ContainerLearningPath = "learning-path"
 )
 
 func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
@@ -55,13 +52,16 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 		return "", apperror.NewBadRequest("cover_image_url is required")
 	}
 
+	cfg, err := config.LoadDBConfig()
 	// Validate Image Source & Existence
-	// if !strings.Contains(req.CoverImgURL, ContainerLearningPath) {
-	// 	return "", apperror.NewBadRequest("invalid image URL source")
-	// }
-	// if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, ContainerLearningPath); err != nil {
-	// 	return "", apperror.NewBadRequest("image validation failed: %v", err)
-	// }
+	if cfg != nil && s.storage != nil {
+		if !strings.Contains(req.CoverImgURL, cfg.ContainerLearningPath) {
+			return "", apperror.NewBadRequest("invalid image URL source")
+		}
+		if err := s.storage.ValidateUploadedFile(ctx, req.CoverImgURL, cfg.ContainerLearningPath); err != nil {
+			return "", apperror.NewBadRequest("image validation failed: %v", err)
+		}
+	}
 
 	id, err := s.pathRepo.CreateLearningPath(ctx, req)
 	if err != nil {
@@ -87,21 +87,30 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 		return apperror.NewBadRequest("path_id is required")
 	}
 
-	if req.Title == "" &&
-		req.Objective == "" &&
-		req.Description == "" &&
-		req.CoverImgURL == "" &&
-		req.Publish_status == "" {
-		return apperror.NewBadRequest("request body cannot be empty")
-	}
-
-	if _, err := s.pathRepo.GetLearningPathByID(ctx, path_id); err != nil {
+	existingPath, err := s.pathRepo.GetLearningPathByID(ctx, path_id)
+	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "update failed: path not found", "path_id", path_id)
 			return apperror.NewNotFound("cannot update: path_id '%s' not found", path_id)
 		}
 		s.logger.ErrorContext(ctx, "database error during path verification", "error", err, "title", req.Title)
 		return apperror.NewInternal("failed to verify learning path: %w", err)
+	}
+
+	if req.Title == "" {
+		req.Title = existingPath.Title
+	}
+	if req.Objective == "" {
+		req.Objective = existingPath.Objective
+	}
+	if req.Description == "" {
+		req.Description = existingPath.Description
+	}
+	if req.CoverImgURL == "" {
+		req.CoverImgURL = existingPath.CoverImgURL
+	}
+	if req.Publish_status == "" {
+		req.Publish_status = existingPath.Publish_status
 	}
 
 	if err := s.pathRepo.UpdateLearningPath(ctx, path_id, req); err != nil {
@@ -154,11 +163,21 @@ func (s *serviceImpl) StartPath(ctx context.Context, path_id string, user_id str
 		return apperror.NewBadRequest("path_id is required")
 	}
 
+	// Check if user is already enrolled to prevent duplicate rows in path_enroll
+	existing, err := s.pathRepo.GetLearningPathEnrollmentStatus(ctx, path_id, user_id)
+	if err != nil && err != sql.ErrNoRows {
+		return apperror.NewInternal("failed to check enrollment status: %w", err)
+	}
+	if existing != nil {
+		s.logger.WarnContext(ctx, "user already enrolled, skipping duplicate enrollment", "user_id", user_id, "path_id", path_id)
+		return apperror.NewConflict("user is already enrolled in this learning path")
+	}
+
 	s.logger.InfoContext(ctx, "enrolling user in path", "user_id", user_id, "path_id", path_id)
 
 	if err := s.pathRepo.EnrollLearningPathUser(ctx, path_id, user_id); err != nil {
 		if apperror.IsDuplicateKeyError(err) {
-			s.logger.WarnContext(ctx, "user already enrolled", "user_id", user_id, "path_id", path_id)
+			s.logger.WarnContext(ctx, "user already enrolled (DB constraint)", "user_id", user_id, "path_id", path_id)
 			return apperror.NewConflict("user is already enrolled in this learning path")
 		}
 		return apperror.NewInternal("failed to enroll user '%s' in path '%s': %w", user_id, path_id, err)
@@ -300,4 +319,18 @@ func (s *serviceImpl) UpdatePathCoverImage(ctx context.Context, pathID string, c
 
 	s.logger.InfoContext(ctx, "learning path cover image updated successfully", "path_id", pathID)
 	return nil
+}
+
+func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) {
+	if userID == "" {
+		return nil, apperror.NewBadRequest("user_id is required")
+	}
+
+	paths, err := s.pathRepo.GetUserEnrolledPaths(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get enrolled paths", "error", err)
+		return nil, apperror.NewInternal("failed to retrieve enrolled paths")
+	}
+
+	return paths, nil
 }

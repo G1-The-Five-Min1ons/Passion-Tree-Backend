@@ -2,15 +2,16 @@ package learningpath
 
 import (
 	"log/slog"
+
 	"github.com/gofiber/fiber/v2"
 
 	"passiontree/internal/connection"
-	"passiontree/internal/pkg/jwt"
-	"passiontree/internal/pkg/middleware"
-	"passiontree/internal/pkg/storage"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/learning-path/service"
+	"passiontree/internal/pkg/jwt"
+	"passiontree/internal/pkg/middleware"
+	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
 )
 
@@ -20,12 +21,14 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	h := handler.NewHandler(svc, logger, storageClient)
 
 	// All reflection routes require JWT authentication
+	// protected := r.Group("/") //for dev
 	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
 
 	paths := protected.Group("/learningpaths")
 	{
 		paths.Get("", h.GetAll)
 		paths.Post("", h.Create)
+		paths.Get("/user/enroll", h.GetMyPaths)
 		paths.Put("/uploadimg", h.UpdateCoverImage)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
@@ -38,6 +41,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Post("/:path_id/nodes", h.CreateNode)
 		paths.Post("/generate", h.Generate)
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
+		paths.Get("/:path_id/comments", h.GetPathComments)
+		paths.Post("/:path_id/comments", h.CreatePathComment)
 	}
 
 	nodes := protected.Group("/learningpaths/nodes")
@@ -45,12 +50,18 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		nodes.Get("/:node_id", h.GetOneNode)
 		nodes.Put("/:node_id", h.UpdateNode)
 		nodes.Delete("/:node_id", h.DeleteNode)
+		nodes.Put("/:node_id/start", h.StartNodeStatus)
+		nodes.Put("/:node_id/complete", h.CompleteNodeStatus)
 		nodes.Post("/:node_id/materials", h.CreateMaterial)
 		nodes.Get("/:node_id/comments", h.GetComments)
 		nodes.Post("/:node_id/comments", h.CreateComment)
 		nodes.Get("/:node_id/questions", h.GetQuestions)
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
 		nodes.Delete("/materials/:material_id", h.DeleteMaterial)
+
+		// Node progress routes
+		nodes.Put("/:node_id/start", h.StartNodeStatus)
+		nodes.Put("/:node_id/complete", h.CompleteNodeStatus)
 	}
 
 	questions := protected.Group("/learningpaths/questions")
@@ -78,8 +89,10 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 
 	comments := protected.Group("/learningpaths/comments")
 	{
-		comments.Post("/:comment_id/mentions", h.CreateMention)
+		comments.Put("/:comment_id", h.UpdateComment)
 		comments.Post("/:comment_id/reactions", h.CreateReaction)
 		comments.Delete("/:comment_id", h.DeleteComment)
+		// Manual mention — triggered when user types @ to tag someone explicitly
+		comments.Post("/:comment_id/mentions", h.CreateMention)
 	}
 }

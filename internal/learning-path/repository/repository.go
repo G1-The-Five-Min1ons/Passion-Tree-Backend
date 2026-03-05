@@ -17,28 +17,37 @@ type RepositoryLearningPath interface {
 	GetLearningPathEnrollmentStatus(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	UpdateLearningPathImage(ctx context.Context, pathID string, coverImgURL string) error
+	GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
+	UpdatePathEnrollmentCompletion(ctx context.Context, pathID string, userID string) error
 }
 
 type RepositoryNode interface {
-	GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error)
+	GetNodeByID(ctx context.Context, nodeID string, userID string) (*model.Node, error)
 	CreateNode(ctx context.Context, req model.CreateNodeRequest) (string, error)
-	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
+	GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error)
 	UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
 	DeleteNode(ctx context.Context, nodeID string) error
+	UpdateNodeProgress(ctx context.Context, nodeID string, userID string, status string) error
 	CreateMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
 	GetMaterialsByNodeID(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
 	DeleteMaterial(ctx context.Context, materialID string) error
 	UpdateNodeSequence(ctx context.Context, nodeIDs []string) error
 	CreateNodeWithContent(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	UpdateNodeProgressStatus(ctx context.Context, nodeID string, userID string) error
+	UpdateNodeProgressCompletion(ctx context.Context, nodeID string, userID string) error
 }
 
 type RepositoryComment interface {
 	CreateComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeID(ctx context.Context, nodeID string) ([]model.NodeComment, error)
-	DeleteComment(ctx context.Context, commentID string) error
-	CreateReaction(ctx context.Context, req model.CreateReactionRequest) error
+	GetCommentsByPathID(ctx context.Context, pathID string) ([]model.NodeComment, error)
+	DeleteComment(ctx context.Context, commentID, userID string) error
+	ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
+	UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error)
+	// GetCommentOwner returns the user_id of the comment author — used for auto-mention on reply
+	GetCommentOwner(ctx context.Context, commentID string) (string, error)
 }
 
 type RepositoryQuiz interface {
@@ -48,6 +57,10 @@ type RepositoryQuiz interface {
 	CreateChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error)
 	GetChoicesByQuestionID(ctx context.Context, questionID string) ([]model.QuestionChoice, error)
 	DeleteChoice(ctx context.Context, choiceID string) error
+}
+
+type RepositoryProgress interface {
+	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 }
 
 type RepositoryHistory interface {
@@ -75,6 +88,7 @@ type Repository interface {
 	RepositoryNode
 	RepositoryComment
 	RepositoryQuiz
+	RepositoryProgress
 	RepositoryHistory
 	RepositoryResume
 }

@@ -24,7 +24,7 @@ func (s *serviceImpl) GetResumeNode(ctx context.Context, userID string, pathID s
 		return nil, apperror.NewInternal("failed to get resume node: %w", err)
 	}
 
-	nodeDetail, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+	nodeDetail, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to get node detail: %w", err)
 	}

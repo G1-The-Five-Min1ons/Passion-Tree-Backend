@@ -18,26 +18,34 @@ type Repopository struct {
 	GetLearningPathEnrollmentStatusFunc func(ctx context.Context, pathID string, userID string) (*model.PathEnroll, error)
 	GetUserPathProgressFunc             func(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	UpdateLearningPathImageFunc         func(ctx context.Context, pathID string, coverImgURL string) error
+	GetUserEnrolledPathsFunc            func(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
+	UpdatePathEnrollmentCompletionFunc  func(ctx context.Context, pathID string, userID string) error
 
 	// Mock hooks for Node
-	GetNodeByIDFunc           func(ctx context.Context, nodeID string) (*model.Node, error)
-	CreateNodeFunc            func(ctx context.Context, req model.CreateNodeRequest) (string, error)
-	GetNodesByPathIDFunc      func(ctx context.Context, pathID string) ([]model.Node, error)
-	UpdateNodeFunc            func(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
-	DeleteNodeFunc            func(ctx context.Context, nodeID string) error
-	CreateMaterialFunc        func(ctx context.Context, req model.CreateMaterialRequest) (string, error)
-	GetMaterialsByNodeIDFunc  func(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
-	DeleteMaterialFunc        func(ctx context.Context, materialID string) error
-	UpdateNodeSequenceFunc    func(ctx context.Context, nodeIDs []string) error
-	CreateNodeWithContentFunc func(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	GetNodeByIDFunc                  func(ctx context.Context, nodeID string, userID string) (*model.Node, error)
+	CreateNodeFunc                   func(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	GetNodesByPathIDFunc             func(ctx context.Context, pathID string, userID string) ([]model.Node, error)
+	UpdateNodeFunc                   func(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
+	DeleteNodeFunc                   func(ctx context.Context, nodeID string) error
+	CreateMaterialFunc               func(ctx context.Context, req model.CreateMaterialRequest) (string, error)
+	GetMaterialsByNodeIDFunc         func(ctx context.Context, nodeID string) ([]model.NodeMaterial, error)
+	DeleteMaterialFunc               func(ctx context.Context, materialID string) error
+	UpdateNodeSequenceFunc           func(ctx context.Context, nodeIDs []string) error
+	CreateNodeWithContentFunc        func(ctx context.Context, req model.CreateNodeRequest) (string, error)
+	UpdateNodeProgressStatusFunc     func(ctx context.Context, nodeID string, userID string) error
+	UpdateNodeProgressCompletionFunc func(ctx context.Context, nodeID string, userID string) error
+	UpdateNodeProgressFunc           func(ctx context.Context, nodeID string, userID string, status string) error
 
 	// Mock hooks for Comment
 	CreateCommentFunc           func(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetCommentsByNodeIDFunc     func(ctx context.Context, nodeID string) ([]model.NodeComment, error)
-	DeleteCommentFunc           func(ctx context.Context, commentID string) error
-	CreateReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) error
+	GetCommentsByPathIDFunc     func(ctx context.Context, pathID string) ([]model.NodeComment, error)
+	DeleteCommentFunc           func(ctx context.Context, commentID, userID string) error
+	ToggleReactionFunc          func(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	GetReactionsByCommentIDFunc func(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMentionFunc           func(ctx context.Context, req model.CreateMentionRequest) (string, error)
+	GetCommentOwnerFunc         func(ctx context.Context, commentID string) (string, error)
+	UpdateCommentFunc           func(ctx context.Context, userID, messageID, message string) (bool, error)
 
 	// Mock hooks for Quiz
 	CreateQuestionFunc         func(ctx context.Context, req model.CreateQuestionRequest) (string, error)
@@ -106,14 +114,26 @@ func (m *Repopository) UpdateLearningPathImage(ctx context.Context, pathID strin
 	}
 	return nil
 }
+func (m *Repopository) GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error) {
+	if m.GetUserEnrolledPathsFunc != nil {
+		return m.GetUserEnrolledPathsFunc(ctx, userID)
+	}
+	return nil, nil
+}
+func (m *Repopository) UpdatePathEnrollmentCompletion(ctx context.Context, pathID string, userID string) error {
+	if m.UpdatePathEnrollmentCompletionFunc != nil {
+		return m.UpdatePathEnrollmentCompletionFunc(ctx, pathID, userID)
+	}
+	return nil
+}
 
 // Implement Database interface
 func (m *Repopository) GetDB() repository.Database { return nil }
 
 // Implement RepositoryNode
-func (m *Repopository) GetNodeByID(ctx context.Context, nodeID string) (*model.Node, error) {
+func (m *Repopository) GetNodeByID(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 	if m.GetNodeByIDFunc != nil {
-		return m.GetNodeByIDFunc(ctx, nodeID)
+		return m.GetNodeByIDFunc(ctx, nodeID, userID)
 	}
 	return nil, nil
 }
@@ -123,9 +143,9 @@ func (m *Repopository) CreateNode(ctx context.Context, req model.CreateNodeReque
 	}
 	return "", nil
 }
-func (m *Repopository) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
+func (m *Repopository) GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
 	if m.GetNodesByPathIDFunc != nil {
-		return m.GetNodesByPathIDFunc(ctx, pathID)
+		return m.GetNodesByPathIDFunc(ctx, pathID, userID)
 	}
 	return nil, nil
 }
@@ -171,6 +191,25 @@ func (m *Repopository) CreateNodeWithContent(ctx context.Context, req model.Crea
 	}
 	return "", nil
 }
+func (m *Repopository) UpdateNodeProgressStatus(ctx context.Context, nodeID string, userID string) error {
+	if m.UpdateNodeProgressStatusFunc != nil {
+		return m.UpdateNodeProgressStatusFunc(ctx, nodeID, userID)
+	}
+	return nil
+}
+func (m *Repopository) UpdateNodeProgressCompletion(ctx context.Context, nodeID string, userID string) error {
+	if m.UpdateNodeProgressCompletionFunc != nil {
+		return m.UpdateNodeProgressCompletionFunc(ctx, nodeID, userID)
+	}
+	return nil
+}
+
+func (m *Repopository) UpdateNodeProgress(ctx context.Context, nodeID string, userID string, status string) error {
+	if m.UpdateNodeProgressFunc != nil {
+		return m.UpdateNodeProgressFunc(ctx, nodeID, userID, status)
+	}
+	return nil
+}
 
 // Implement RepositoryComment
 func (m *Repopository) CreateComment(ctx context.Context, req model.CreateCommentRequest) (string, error) {
@@ -185,17 +224,23 @@ func (m *Repopository) GetCommentsByNodeID(ctx context.Context, nodeID string) (
 	}
 	return nil, nil
 }
-func (m *Repopository) DeleteComment(ctx context.Context, commentID string) error {
+func (m *Repopository) GetCommentsByPathID(ctx context.Context, pathID string) ([]model.NodeComment, error) {
+	if m.GetCommentsByPathIDFunc != nil {
+		return m.GetCommentsByPathIDFunc(ctx, pathID)
+	}
+	return nil, nil
+}
+func (m *Repopository) DeleteComment(ctx context.Context, commentID, userID string) error {
 	if m.DeleteCommentFunc != nil {
-		return m.DeleteCommentFunc(ctx, commentID)
+		return m.DeleteCommentFunc(ctx, commentID, userID)
 	}
 	return nil
 }
-func (m *Repopository) CreateReaction(ctx context.Context, req model.CreateReactionRequest) error {
-	if m.CreateReactionFunc != nil {
-		return m.CreateReactionFunc(ctx, req)
+func (m *Repopository) ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error) {
+	if m.ToggleReactionFunc != nil {
+		return m.ToggleReactionFunc(ctx, req)
 	}
-	return nil
+	return false, nil
 }
 func (m *Repopository) GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error) {
 	if m.GetReactionsByCommentIDFunc != nil {
@@ -208,6 +253,18 @@ func (m *Repopository) CreateMention(ctx context.Context, req model.CreateMentio
 		return m.CreateMentionFunc(ctx, req)
 	}
 	return "", nil
+}
+func (m *Repopository) GetCommentOwner(ctx context.Context, commentID string) (string, error) {
+	if m.GetCommentOwnerFunc != nil {
+		return m.GetCommentOwnerFunc(ctx, commentID)
+	}
+	return "", nil
+}
+func (m *Repopository) UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error) {
+	if m.UpdateCommentFunc != nil {
+		return m.UpdateCommentFunc(ctx, userID, messageID, message)
+	}
+	return false, nil
 }
 
 // Implement RepositoryQuiz

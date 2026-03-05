@@ -6,16 +6,23 @@ import (
 
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID)
+	node, err := h.nodeSvc.GetNodeDetails(ctx, nodeID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -145,7 +152,7 @@ func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 	}
 
 	h.logger.InfoContext(ctx, "material deleted successfully", "material_id", material_id)
-	
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Material has been deleted successfully",
@@ -181,12 +188,18 @@ func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 
 func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
 	h.logger.InfoContext(ctx, "fetching nodes for path", "path_id", pathID)
 
-	nodes, err := h.nodeSvc.GetNodesByPathID(ctx, pathID)
+	nodes, err := h.nodeSvc.GetNodesByPathID(ctx, pathID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -195,5 +208,55 @@ func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Nodes retrieved successfully",
 		"data":    nodes,
+	})
+}
+
+func (h *Handler) StartNodeStatus(c *fiber.Ctx) error {
+	nodeID := c.Params("node_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
+	}
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	h.logger.InfoContext(ctx, "starting node", "node_id", nodeID, "user_id", userID)
+
+	if err := h.nodeSvc.StartNode(ctx, nodeID, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Node started successfully",
+		"data": fiber.Map{
+			"node_id": nodeID,
+			"status":  "active",
+		},
+	})
+}
+
+func (h *Handler) CompleteNodeStatus(c *fiber.Ctx) error {
+	nodeID := c.Params("node_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, apperror.NewUnauthorized("unauthorized: %s", err.Error()))
+	}
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	h.logger.InfoContext(ctx, "completing node", "node_id", nodeID, "user_id", userID)
+
+	if err := h.nodeSvc.CompleteNode(ctx, nodeID, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Node completed successfully",
+		"data": fiber.Map{
+			"node_id": nodeID,
+			"status":  "completed",
+		},
 	})
 }

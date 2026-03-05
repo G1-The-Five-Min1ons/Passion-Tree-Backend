@@ -12,6 +12,10 @@ func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) 
 		return "", apperror.NewBadRequest("node title is required")
 	}
 
+	if req.Link_vdo != "" {
+		s.logger.InfoContext(ctx, "Link_vdo = ", "Link_vdo", req.Link_vdo)
+	}
+
 	id, err := s.nodeRepo.CreateNodeWithContent(ctx, req)
 	if err != nil {
 		if apperror.IsDuplicateKeyError(err) {
@@ -39,17 +43,29 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 		return apperror.NewBadRequest("at least one field (title or description) is required for update")
 	}
 
-	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
+	existingNode, err := s.nodeRepo.GetNodeByID(ctx, nodeID, "")
+
+	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "update failed: node not found", "node_id", nodeID)
 			return apperror.NewNotFound("cannot update: node id '%s' not found", nodeID)
 		}
-		if apperror.IsDuplicateKeyError(err) {
-			return apperror.NewConflict("node with this title already exists in this path")
-		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during node update", "error", err, "node_id", nodeID)
 		return apperror.NewInternal("failed to update node %s: %w", nodeID, err)
+	}
+
+	if req.Title == "" {
+		req.Title = existingNode.Title
+	}
+	if req.Description == "" {
+		req.Description = existingNode.Description
+	}
+
+	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
+
+		s.logger.ErrorContext(ctx, "failed to update node", "error", err, "node_id", nodeID)
+		return apperror.NewInternal("failed to update node: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "node updated successfully", "node_id", nodeID)
@@ -71,7 +87,7 @@ func (s *serviceImpl) RemoveNode(ctx context.Context, nodeID string) error {
 			s.logger.WarnContext(ctx, "deletion blocked: node has dependencies", "node_id", nodeID)
 			return apperror.NewConflict("cannot delete node: there are existing materials, comments, or questions associated with this node")
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during node deletion", "error", err, "node_id", nodeID)
 		return apperror.NewInternal("failed to remove node %s: %w", nodeID, err)
 	}
@@ -95,7 +111,7 @@ func (s *serviceImpl) AddMaterial(ctx context.Context, req model.CreateMaterialR
 			s.logger.WarnContext(ctx, "foreign key violation: node not found", "node_id", req.NodeID)
 			return "", apperror.NewBadRequest("invalid node_id: node does not exist")
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during material creation", "error", err, "node_id", req.NodeID)
 		return "", apperror.NewInternal("failed to add material to node %s: %w", req.NodeID, err)
 	}
@@ -115,7 +131,7 @@ func (s *serviceImpl) RemoveMaterial(ctx context.Context, materialID string) err
 			s.logger.WarnContext(ctx, "material not found for deletion", "material_id", materialID)
 			return apperror.NewNotFound("cannot delete: material id '%s' not found", materialID)
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error during material deletion", "error", err, "material_id", materialID)
 		return apperror.NewInternal("failed to remove material %s: %w", materialID, err)
 	}
@@ -139,19 +155,19 @@ func (s *serviceImpl) ReorderNodes(ctx context.Context, pathID string, req model
 	return nil
 }
 
-func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error) {
+func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 
 	if nodeID == "" {
 		return nil, apperror.NewBadRequest("node_id is required")
 	}
-	
-	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID)
+
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "node details not found", "node_id", nodeID)
 			return nil, apperror.NewNotFound("node with id '%s' not found", nodeID)
 		}
-		
+
 		s.logger.ErrorContext(ctx, "database error fetching node details", "error", err, "node_id", nodeID)
 		return nil, apperror.NewInternal("failed to retrieve details for node %s: %w", nodeID, err)
 	}
@@ -160,13 +176,13 @@ func (s *serviceImpl) GetNodeDetails(ctx context.Context, nodeID string) (*model
 	return node, nil
 }
 
-func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error) {
+func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string, userID string) ([]model.Node, error) {
 
 	if pathID == "" {
 		return nil, apperror.NewBadRequest("path_id is required")
 	}
 
-	nodes, err := s.nodeRepo.GetNodesByPathID(ctx, pathID)
+	nodes, err := s.nodeRepo.GetNodesByPathID(ctx, pathID, userID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "database error fetching nodes by path id", "error", err, "path_id", pathID)
 		return nil, apperror.NewInternal("failed to retrieve nodes for path %s: %w", pathID, err)
@@ -178,4 +194,49 @@ func (s *serviceImpl) GetNodesByPathID(ctx context.Context, pathID string) ([]mo
 
 	s.logger.InfoContext(ctx, "nodes retrieved successfully for path", "path_id", pathID, "count", len(nodes))
 	return nodes, nil
+}
+
+func (s *serviceImpl) StartNode(ctx context.Context, nodeID string, userID string) error {
+	if nodeID == "" || userID == "" {
+		return apperror.NewBadRequest("node_id and user_id are required")
+	}
+
+	if err := s.nodeRepo.UpdateNodeProgressStatus(ctx, nodeID, userID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to start node", "error", err, "node_id", nodeID, "user_id", userID)
+		return apperror.NewInternal("failed to start node: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "node started successfully", "node_id", nodeID, "user_id", userID)
+	return nil
+}
+
+func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID string) error {
+	if nodeID == "" || userID == "" {
+		return apperror.NewBadRequest("node_id and user_id are required")
+	}
+
+	if err := s.nodeRepo.UpdateNodeProgressCompletion(ctx, nodeID, userID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to complete node", "error", err, "node_id", nodeID, "user_id", userID)
+		return apperror.NewInternal("failed to complete node: %w", err)
+	}
+
+	// Fetch node details to get pathID
+	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
+	if err == nil && node != nil {
+		// Calculate the parent path's new completion state
+		progress, err := s.progressRepo.GetUserPathProgress(ctx, node.PathID, userID)
+		if err == nil && progress != nil {
+			if progress.TotalNodes > 0 && progress.CompletedNodes >= progress.TotalNodes {
+				// Mark path enrollment fully completed in database
+				if err := s.pathRepo.UpdatePathEnrollmentCompletion(ctx, node.PathID, userID); err != nil {
+					s.logger.ErrorContext(ctx, "failed to update path enrollment completion", "error", err, "path_id", node.PathID, "user_id", userID)
+				} else {
+					s.logger.InfoContext(ctx, "path fully completed", "path_id", node.PathID, "user_id", userID)
+				}
+			}
+		}
+	}
+
+	s.logger.InfoContext(ctx, "node completed successfully", "node_id", nodeID, "user_id", userID)
+	return nil
 }
