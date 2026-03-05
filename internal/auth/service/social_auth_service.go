@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/idtoken"
 )
 
 // GetGoogleAuthURL generates the Google OAuth2 authorization URL
@@ -28,7 +28,7 @@ func (s *userServiceImpl) GetDiscordAuthURL(state string) string {
 
 // Private helper function to handle OAuth callbacks for Google and Discord
 // handleOAuthCallback is a generic handler for OAuth callbacks
-func (s *userServiceImpl) handleOAuthCallback(ctx context.Context, code string, config *oauth2.Config, fetchUserInfo func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error), providerName string,) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+func (s *userServiceImpl) handleOAuthCallback(ctx context.Context, code string, config *oauth2.Config, fetchUserInfo func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error), providerName string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	// Exchange code for token
 	token, err := config.Exchange(ctx, code)
 	if err != nil {
@@ -56,9 +56,39 @@ func (s *userServiceImpl) HandleGoogleCallback(ctx context.Context, code string)
 	return s.handleOAuthCallback(ctx, code, s.googleConfig, s.fetchGoogleUserInfo, "google")
 }
 
-// HandleDiscordCallback processes the Discord OAuth2 callback
+// HandleDiscordCallback processes the Discord OAuth2 callback from web
 func (s *userServiceImpl) HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	return s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord")
+}
+
+// HandleNativeDiscordSignIn processes native Discord Sign-In from mobile apps
+func (s *userServiceImpl) HandleNativeDiscordSignIn(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+	// For native Discord login, the authorization request used the backend's
+	// /auth/discord/native/callback as redirect_uri. We MUST use the SAME
+	// redirect_uri when exchanging the code for a token.
+	nativeRedirectUri := s.config.DiscordNativeRedirectURL
+	nativeRedirectUriOpt := oauth2.SetAuthURLParam("redirect_uri", nativeRedirectUri)
+
+	// Exchange code for token with the overridden redirect_uri
+	token, err := s.discordConfig.Exchange(ctx, code, nativeRedirectUriOpt)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to exchange native discord oauth code", "error", err)
+		return nil, "", nil, apperror.NewInternal("failed to authenticate with discord: %w", err)
+	}
+
+	// Fetch user info from provider
+	userInfo, err := s.fetchDiscordUserInfo(ctx, token)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	// Find or create user
+	user, jwtToken, linkConfirm, err := s.findOrCreateUser(ctx, userInfo)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	return user, jwtToken, linkConfirm, nil
 }
 
 // fetchGoogleUserInfo retrieves user information from Google API
@@ -442,54 +472,78 @@ func (s *userServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken 
 }
 
 // verifyGoogleIDToken verifies Google ID token from native apps
-func (s *userServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken string) (*model.OAuthUserInfo, error) {
-	// Call Google's tokeninfo endpoint to verify the token
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://oauth2.googleapis.com/tokeninfo?id_token=%s", idToken), nil)
+// Uses google.golang.org/api/idtoken for secure token verification
+func (s *userServiceImpl) verifyGoogleIDToken(ctx context.Context, idTokenString string) (*model.OAuthUserInfo, error) {
+	// Validate the ID token using Google's idtoken library
+	// This properly verifies the token signature and claims
+	payload, err := idtoken.Validate(ctx, idTokenString, s.googleConfig.ClientID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create verification request", "error", err)
-		return nil, apperror.NewInternal("failed to create verification request: %w", err)
+		s.logger.ErrorContext(ctx, "failed to validate google id token", "error", err)
+
+		// Check for specific error types
+		if strings.Contains(err.Error(), "token expired") {
+			return nil, apperror.NewUnauthorized("google id token has expired")
+		}
+		if strings.Contains(err.Error(), "audience") {
+			return nil, apperror.NewUnauthorized("invalid token audience - token was not issued for this app")
+		}
+
+		return nil, apperror.NewUnauthorized("invalid google id token: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to verify google id token", "error", err)
-		return nil, apperror.NewInternal("failed to verify google id token: %w", err)
-	}
-	defer resp.Body.Close()
+	// Extract claims from validated payload
+	claims := payload.Claims
 
-	if resp.StatusCode != http.StatusOK {
-		s.logger.WarnContext(ctx, "invalid google id token", "status", resp.StatusCode)
-		return nil, apperror.NewUnauthorized("invalid or expired google id token")
+	// Extract user ID (subject)
+	sub, ok := claims["sub"].(string)
+	if !ok || sub == "" {
+		s.logger.ErrorContext(ctx, "missing sub claim in google token")
+		return nil, apperror.NewUnauthorized("invalid google id token: missing user ID")
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to read token verification response", "error", err)
-		return nil, apperror.NewInternal("failed to read verification response: %w", err)
+	// Extract email (required)
+	email, ok := claims["email"].(string)
+	if !ok || email == "" {
+		s.logger.ErrorContext(ctx, "missing email claim in google token")
+		return nil, apperror.NewUnauthorized("invalid google id token: missing email")
 	}
 
-	var tokenInfo model.GoogleTokenInfo
-
-	if err := json.Unmarshal(body, &tokenInfo); err != nil {
-		s.logger.ErrorContext(ctx, "failed to parse token info", "error", err)
-		return nil, apperror.NewInternal("failed to parse token information: %w", err)
+	// Check if email is verified
+	emailVerified, _ := claims["email_verified"].(bool)
+	if !emailVerified {
+		s.logger.WarnContext(ctx, "google email not verified", "email", email)
+		return nil, apperror.NewUnauthorized("google account email is not verified")
 	}
 
-	// Verify the audience matches our client ID
-	if tokenInfo.Aud != s.googleConfig.ClientID {
-		s.logger.WarnContext(ctx, "token audience mismatch",
-			"expected", s.googleConfig.ClientID,
-			"got", tokenInfo.Aud,
-		)
-		return nil, apperror.NewUnauthorized("invalid token audience")
+	// Extract optional profile claims
+	givenName, _ := claims["given_name"].(string)
+	familyName, _ := claims["family_name"].(string)
+	picture, _ := claims["picture"].(string)
+
+	// If given_name is empty, try to parse from "name"
+	if givenName == "" {
+		if name, ok := claims["name"].(string); ok && name != "" {
+			parts := strings.Fields(name)
+			if len(parts) > 0 {
+				givenName = parts[0]
+				if len(parts) > 1 {
+					familyName = strings.Join(parts[1:], " ")
+				}
+			}
+		}
 	}
+
+	s.logger.InfoContext(ctx, "google id token verified successfully",
+		"sub", sub,
+		"email", email,
+	)
 
 	return &model.OAuthUserInfo{
-		ProviderUserID: tokenInfo.Sub,
-		Email:          tokenInfo.Email,
-		FirstName:      tokenInfo.GivenName,
-		LastName:       tokenInfo.FamilyName,
-		AvatarURL:      tokenInfo.Picture,
+		ProviderUserID: sub,
+		Email:          email,
+		FirstName:      givenName,
+		LastName:       familyName,
+		AvatarURL:      picture,
 		Provider:       model.AuthProviderGoogle,
 	}, nil
 }

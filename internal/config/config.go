@@ -49,16 +49,17 @@ const (
 
 	// JWT Environment variables
 
-	EnvJWTSecret           = "JWT_SECRET"
-	EnvJWTAccessTTL        = "JWT_ACCESS_TTL"
-	EnvJWTRefreshTTL       = "JWT_REFRESH_TTL"
-	EnvJWTRefreshAbsolute  = "JWT_REFRESH_ABSOLUTE"
-	EnvGoogleClientID      = "GOOGLE_CLIENT_ID"
-	EnvGoogleClientSecret  = "GOOGLE_CLIENT_SECRET"
-	EnvGoogleRedirectURL   = "GOOGLE_REDIRECT_URL"
-	EnvDiscordClientID     = "DISCORD_CLIENT_ID"
-	EnvDiscordClientSecret = "DISCORD_CLIENT_SECRET"
-	EnvDiscordRedirectURL  = "DISCORD_REDIRECT_URL"
+	EnvJWTSecret                = "JWT_SECRET"
+	EnvJWTAccessTTL             = "JWT_ACCESS_TTL"
+	EnvJWTRefreshTTL            = "JWT_REFRESH_TTL"
+	EnvJWTRefreshAbsolute       = "JWT_REFRESH_ABSOLUTE"
+	EnvGoogleClientID           = "GOOGLE_CLIENT_ID"
+	EnvGoogleClientSecret       = "GOOGLE_CLIENT_SECRET"
+	EnvGoogleRedirectURL        = "GOOGLE_REDIRECT_URL"
+	EnvDiscordClientID          = "DISCORD_CLIENT_ID"
+	EnvDiscordClientSecret      = "DISCORD_CLIENT_SECRET"
+	EnvDiscordRedirectURL       = "DISCORD_REDIRECT_URL"
+	EnvDiscordNativeRedirectURL = "DISCORD_NATIVE_REDIRECT_URL"
 )
 
 type Config struct {
@@ -81,12 +82,13 @@ type Config struct {
 	GmailAppPassword string
 
 	// OAuth settings
-	GoogleClientID      string
-	GoogleClientSecret  string
-	GoogleRedirectURL   string
-	DiscordClientID     string
-	DiscordClientSecret string
-	DiscordRedirectURL  string
+	GoogleClientID           string
+	GoogleClientSecret       string
+	GoogleRedirectURL        string
+	DiscordClientID          string
+	DiscordClientSecret      string
+	DiscordRedirectURL       string
+	DiscordNativeRedirectURL string
 
 	// JWT settings
 	JWTSecret          string
@@ -107,14 +109,15 @@ func LoadDBConfig() (*Config, error) {
 		ContainerProfile:        getEnvOrDefault(EnvContainerProfile, DefaultContainerProfile),
 		ContainerReflect:        getEnvOrDefault(EnvContainerReflect, DefaultContainerReflect),
 		ContainerMaterialsNodes: getEnvOrDefault(EnvContainerMaterialsNodes, DefaultContainerMaterials),
-		
+
 		// OAuth settings
-		GoogleClientID:      os.Getenv(EnvGoogleClientID),
-		GoogleClientSecret:  os.Getenv(EnvGoogleClientSecret),
-		GoogleRedirectURL:   getEnvOrDefault(EnvGoogleRedirectURL, "http://localhost:5000/auth/google/callback"),
-		DiscordClientID:     os.Getenv(EnvDiscordClientID),
-		DiscordClientSecret: os.Getenv(EnvDiscordClientSecret),
-		DiscordRedirectURL:  getEnvOrDefault(EnvDiscordRedirectURL, "http://localhost:5000/auth/discord/callback"),
+		GoogleClientID:           os.Getenv(EnvGoogleClientID),
+		GoogleClientSecret:       os.Getenv(EnvGoogleClientSecret),
+		GoogleRedirectURL:        getEnvOrDefault(EnvGoogleRedirectURL, "http://localhost:5000/auth/google/callback"),
+		DiscordClientID:          os.Getenv(EnvDiscordClientID),
+		DiscordClientSecret:      os.Getenv(EnvDiscordClientSecret),
+		DiscordRedirectURL:       getEnvOrDefault(EnvDiscordRedirectURL, "http://localhost:5000/auth/discord/callback"),
+		DiscordNativeRedirectURL: getEnvOrDefault(EnvDiscordNativeRedirectURL, "http://localhost:5000/api/v1/auth/discord/native/callback"),
 
 		// JWT settings
 		JWTSecret:          os.Getenv(EnvJWTSecret),
@@ -122,13 +125,13 @@ func LoadDBConfig() (*Config, error) {
 		JWTRefreshTTL:      getEnvOrDefault(EnvJWTRefreshTTL, DefaultJWTRefreshTTL),
 		JWTRefreshAbsolute: getEnvOrDefault(EnvJWTRefreshAbsolute, DefaultJWTRefreshAbsolute),
 
-		SMTPHost:                os.Getenv(EnvSMTPHost),
-		SMTPPort:                getEnvOrDefault(EnvSMTPPort, "587"),
-		SMTPUsername:            os.Getenv(EnvSMTPUsername),
-		SMTPPassword:            os.Getenv(EnvSMTPPassword),
-		SMTPFromEmail:           os.Getenv(EnvSMTPFromEmail),
-		MailerSendAPIKey:        os.Getenv(EnvMailerSendAPIKey),
-		AppURL:                  getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
+		SMTPHost:         os.Getenv(EnvSMTPHost),
+		SMTPPort:         getEnvOrDefault(EnvSMTPPort, "587"),
+		SMTPUsername:     os.Getenv(EnvSMTPUsername),
+		SMTPPassword:     os.Getenv(EnvSMTPPassword),
+		SMTPFromEmail:    os.Getenv(EnvSMTPFromEmail),
+		MailerSendAPIKey: os.Getenv(EnvMailerSendAPIKey),
+		AppURL:           getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
 
 		GmailEmail:       os.Getenv(EnvGmailEmail),
 		GmailAppPassword: os.Getenv(EnvGmailAppPassword),

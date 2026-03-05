@@ -15,7 +15,7 @@ func (r *repositoryImpl) GetUserByProvider(ctx context.Context, provider, provid
 	query := `
 		SELECT
 			user_id, username, email, first_name, last_name, role,
-			heart_count, is_email_verified, created_at, updated_at,
+			heart_count, is_email_verified, create_at, update_at,
 			auth_provider, provider_user_id
 		FROM users
 		WHERE auth_provider = @p1 AND provider_user_id = @p2
@@ -162,7 +162,7 @@ func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider
 	// Link the social account
 	query := `
 		UPDATE users
-		SET auth_provider = @p1, provider_user_id = @p2, updated_at = GETDATE()
+		SET auth_provider = @p1, provider_user_id = @p2, update_at = GETDATE()
 		WHERE user_id = @p3
 	`
 
@@ -192,7 +192,7 @@ func (r *repositoryImpl) UpdateSocialUserInfo(ctx context.Context, userID string
 			last_name = @p2,
 			email = @p3,
 			is_email_verified = 1,
-			updated_at = GETDATE()
+			update_at = GETDATE()
 		WHERE user_id = @p4
 	`
 
@@ -238,9 +238,9 @@ func (r *repositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID str
 					WHEN @p2 IS NOT NULL AND @p2 != '' THEN @p2 
 					ELSE target.avatar_url 
 				END,
-				updated_at = GETUTCDATE()
+				update_at = GETUTCDATE()
 		WHEN NOT MATCHED THEN
-			INSERT (user_id, bio, location, avatar_url, created_at, updated_at)
+			INSERT (user_id, bio, location, avatar_url, create_at, update_at)
 			VALUES (@p1, @p3, @p4, @p2, GETUTCDATE(), GETUTCDATE());
 	`
 

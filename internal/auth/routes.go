@@ -51,6 +51,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 
 		// Native SSO route (for Android/mobile apps)
 		auth.Post("/native/google", h.NativeGoogleSignIn)
+		auth.Post("/native/discord", h.NativeDiscordSignIn)
+		auth.Get("/discord/native/callback", h.DiscordNativeCallback)
 	}
 
 	// --- Protected Routes (Require JWT) ---

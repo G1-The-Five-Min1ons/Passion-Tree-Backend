@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 
@@ -12,11 +14,11 @@ func (h *Handler) setOAuthStateCookie(c *fiber.Ctx, state string) {
 	c.Cookie(&fiber.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
-		HTTPOnly: true,                  
-		Secure:   h.isSecureCookie(),   
-		SameSite: "Lax",                 
-		MaxAge:   300,                   
-		Path:     "/",                   
+		HTTPOnly: true,
+		Secure:   h.isSecureCookie(),
+		SameSite: "Lax",
+		MaxAge:   300,
+		Path:     "/",
 	})
 }
 
@@ -52,27 +54,27 @@ func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 
 // handleOAuth เป็นฟังก์ชันกลางที่รวม Logic การจัดการ HTTP ไว้ที่เดียว
 func (h *Handler) handleOAuth(c *fiber.Ctx, provider string) error {
-    code := c.Query("code")
-    state := c.Query("state")
+	code := c.Query("code")
+	state := c.Query("state")
 
-    if code == "" {
-        h.logger.Warn(provider + " callback missing code")
-        return h.handleError(c, apperror.NewBadRequest("missing authorization code"))
-    }
+	if code == "" {
+		h.logger.Warn(provider + " callback missing code")
+		return h.handleError(c, apperror.NewBadRequest("missing authorization code"))
+	}
 
-    // 1. Validate state (CSRF)
-    savedState := c.Cookies("oauth_state")
-    if state == "" || state != savedState {
-        h.logger.Warn(provider+" callback state mismatch", "received", state, "expected", savedState)
-        return h.handleError(c, apperror.NewBadRequest("invalid state parameter"))
-    }
-    c.ClearCookie("oauth_state")
+	// 1. Validate state (CSRF)
+	savedState := c.Cookies("oauth_state")
+	if state == "" || state != savedState {
+		h.logger.Warn(provider+" callback state mismatch", "received", state, "expected", savedState)
+		return h.handleError(c, apperror.NewBadRequest("invalid state parameter"))
+	}
+	c.ClearCookie("oauth_state")
 
 	var (
-    user        *model.User
-    token       string
-    linkConfirm *model.LinkConfirmationNeeded
-    err         error
+		user        *model.User
+		token       string
+		linkConfirm *model.LinkConfirmationNeeded
+		err         error
 	)
 
 	switch provider {
@@ -86,34 +88,34 @@ func (h *Handler) handleOAuth(c *fiber.Ctx, provider string) error {
 		h.logger.Warn("unsupported provider in handleOAuth", "provider", provider)
 		return h.handleError(c, apperror.NewBadRequest("unsupported provider"))
 	}
-	
-    if err != nil {
-        return h.handleError(c, err)
-    }
 
-    // 3. Manage Link Confirmation
-    if linkConfirm != nil && linkConfirm.NeedsConfirm {
-        return c.JSON(linkConfirm)
-    }
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
-    h.logger.Info(provider+" login successful", "user_id", user.UserID)
-    return c.JSON(fiber.Map{
-        "message": "Login successful",
-        "token":   token,
-        "user":    user,
-    })
+	// 3. Manage Link Confirmation
+	if linkConfirm != nil && linkConfirm.NeedsConfirm {
+		return c.JSON(linkConfirm)
+	}
+
+	h.logger.Info(provider+" login successful", "user_id", user.UserID)
+	return c.JSON(fiber.Map{
+		"message": "Login successful",
+		"token":   token,
+		"user":    user,
+	})
 }
 
 // GoogleCallback handles Google OAuth2 callback
 // @route GET /auth/google/callback
 func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
-    return h.handleOAuth(c, "google")
+	return h.handleOAuth(c, "google")
 }
 
 // DiscordCallback handles Discord OAuth2 callback
 // @route GET /auth/discord/callback
 func (h *Handler) DiscordCallback(c *fiber.Ctx) error {
-    return h.handleOAuth(c, "discord")
+	return h.handleOAuth(c, "discord")
 }
 
 // NativeGoogleSignIn handles native Google Sign-In from mobile apps
@@ -155,6 +157,80 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 			"role":       user.Role,
 		},
 	})
+}
+
+// NativeDiscordSignIn handles native Discord Sign-In from mobile apps
+// @route POST /auth/native/discord
+func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
+	var req struct {
+		Code string `json:"code"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.Warn("invalid request body", "error", err)
+		return h.handleError(c, apperror.NewBadRequest("Invalid request body"))
+	}
+
+	if req.Code == "" {
+		h.logger.Warn("missing code in native discord signin")
+		return h.handleError(c, apperror.NewBadRequest("Authorization code is required"))
+	}
+
+	// Verify and authenticate user
+	user, token, linkConfirm, err := h.socialAuthSvc.HandleNativeDiscordSignIn(c.UserContext(), req.Code)
+	if err != nil {
+		h.logger.Error("native discord signin failed", "error", err)
+		return h.handleError(c, err)
+	}
+
+	if linkConfirm != nil && linkConfirm.NeedsConfirm {
+		return h.handleError(c, apperror.NewBadRequest("account with this email already exists, please use web login to link accounts"))
+	}
+
+	h.logger.Info("native discord signin successful", "user_id", user.UserID, "email", user.Email, "name", user.Username)
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Login successful",
+		"token":   token,
+		"user": fiber.Map{
+			"user_id":    user.UserID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"first_name": user.FirstName,
+			"last_name":  user.LastName,
+			"role":       user.Role,
+		},
+	})
+}
+
+// DiscordNativeCallback handles the Discord OAuth2 redirect for native mobile apps.
+// Discord redirects here with ?code=..., and this handler redirects to the
+// app's custom URL scheme so flutter_web_auth_2 can capture the code.
+// @route GET /auth/discord/native/callback
+func (h *Handler) DiscordNativeCallback(c *fiber.Ctx) error {
+	code := c.Query("code")
+	errorParam := c.Query("error")
+
+	// Build the deep link redirect URL
+	const appScheme = "passiontree://auth/callback"
+
+	if errorParam != "" {
+		redirectURL := fmt.Sprintf("%s?error=%s", appScheme, errorParam)
+		h.logger.Warn("discord native callback received error", "error", errorParam)
+		return c.Redirect(redirectURL, fiber.StatusTemporaryRedirect)
+	}
+
+	if code == "" {
+		redirectURL := fmt.Sprintf("%s?error=missing_code", appScheme)
+		h.logger.Warn("discord native callback missing code")
+		return c.Redirect(redirectURL, fiber.StatusTemporaryRedirect)
+	}
+
+	// Redirect to app with the authorization code
+	redirectURL := fmt.Sprintf("%s?code=%s", appScheme, code)
+	h.logger.Info("discord native callback redirecting to app", "has_code", true)
+	return c.Redirect(redirectURL, fiber.StatusTemporaryRedirect)
 }
 
 func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
