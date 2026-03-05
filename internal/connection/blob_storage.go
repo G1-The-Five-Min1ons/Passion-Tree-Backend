@@ -25,8 +25,10 @@ func InitBlobStorage(cfg *config.Config) (*storage.BlobService, error) {
 	accountName := extractAccountName(cfg.AzureStorageConnString)
 	accountKey := extractAccountKey(cfg.AzureStorageConnString)
 	containerMap := map[string]string{
-		"learning-path": cfg.ContainerLearningPath,
-		"profile":       cfg.ContainerProfile,
+		"learning-paths": cfg.ContainerLearningPath,
+		"profile":        cfg.ContainerProfile,
+		"reflect":        cfg.ContainerReflect,
+		"materials-nodes": cfg.ContainerMaterialsNodes,
 	}
 
 	// 3. ส่งต่อ Client และ Config ไปให้ package storage จัดการต่อ

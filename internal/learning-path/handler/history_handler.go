@@ -4,12 +4,16 @@ import (
 	"context"
 	"time"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetUserHistory(c *fiber.Ctx) error {
-	userID := c.Query("user_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
 
 	if userID == "" {
 		return h.handleError(c, apperror.NewBadRequest("user_id is required"))

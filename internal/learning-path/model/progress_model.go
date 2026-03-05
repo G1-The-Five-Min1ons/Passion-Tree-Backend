@@ -7,9 +7,10 @@ type NodeProgressDetail struct {
 }
 
 type PathProgressResponse struct {
-	PathID         string               `json:"path_id"`
-	UserID         string               `json:"user_id"`
-	TotalNodes     int                  `json:"total_nodes"`
-	CompletedNodes int                  `json:"completed_nodes"`
-	Progress       float64              `json:"progress_percentage"`
+	PathID         string  `json:"path_id"`
+	UserID         string  `json:"user_id"`
+	TotalNodes     int     `json:"total_nodes"`
+	CompletedNodes int     `json:"completed_nodes"`
+	Progress       float64 `json:"progress_percentage"`
+	Status         string  `json:"status"`
 }

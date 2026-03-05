@@ -107,7 +107,8 @@ func TestGetResumeNode(t *testing.T) {
 				m.GetNextNodeIDFunc = func(ctx context.Context, userID, pathID string) (string, error) {
 					return "n1", nil
 				}
-				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string) (*model.Node, error) {
+				// เพิ่ม userID ใน mock
+				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 					return &model.Node{NodeID: nodeID}, nil
 				}
 			},
@@ -146,7 +147,8 @@ func TestGetResumeNode(t *testing.T) {
 				m.GetNextNodeIDFunc = func(ctx context.Context, userID, pathID string) (string, error) {
 					return "n2", nil
 				}
-				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string) (*model.Node, error) {
+				// เพิ่ม userID ใน mock
+				m.GetNodeByIDFunc = func(ctx context.Context, nodeID string, userID string) (*model.Node, error) {
 					return nil, errors.New("db error")
 				}
 			},
@@ -198,7 +200,6 @@ func TestSearchLearningPaths(t *testing.T) {
 	})
 
 	t.Run("SuccessEmptyMockFallback", func(t *testing.T) {
-		// Mocking success with an unresolvable string just to hit the "no matching results" logic
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		aiClient := aiclient.NewAIClient("http://mock-ai")
 		svc := service.NewService(nil, aiClient, logger)
@@ -269,7 +270,7 @@ func TestSyncLearningPath(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger) // Nil AIClient passed
+			svc := service.NewService(mock, nil, logger)
 
 			_, err := svc.SyncLearningPath(context.Background(), tt.pathID)
 			if tt.expectedError == "" {

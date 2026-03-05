@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/pkg/storage"
@@ -20,6 +21,7 @@ type ServiceLearningPath interface {
 	GetPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 	GeneratePathWithAI(ctx context.Context, topic string) (*model.GeneratedPathResponse, error)
 	UpdatePathCoverImage(ctx context.Context, pathID string, coverImgURL string) error
+	GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
 }
 
 type ServiceSearch interface {
@@ -29,21 +31,25 @@ type ServiceSearch interface {
 }
 
 type ServiceNode interface {
-	GetNodeDetails(ctx context.Context, nodeID string) (*model.Node, error)
+	GetNodeDetails(ctx context.Context, nodeID string, userID string) (*model.Node, error)
 	AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error)
 	EditNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error
 	RemoveNode(ctx context.Context, nodeID string) error
 	AddMaterial(ctx context.Context, req model.CreateMaterialRequest) (string, error)
 	RemoveMaterial(ctx context.Context, materialID string) error
 	ReorderNodes(ctx context.Context, pathID string, req model.ReorderNodesRequest) error
-	GetNodesByPathID(ctx context.Context, pathID string) ([]model.Node, error)
+	GetNodesByPathID(ctx context.Context, pathID string, node_id string) ([]model.Node, error)
+	StartNode(ctx context.Context, nodeID string, userID string) error
+	CompleteNode(ctx context.Context, nodeID string, userID string) error
 }
 
 type ServiceComment interface {
 	AddComment(ctx context.Context, req model.CreateCommentRequest) (string, error)
 	GetNodeComments(ctx context.Context, nodeID string) ([]model.NodeComment, error)
-	RemoveComment(ctx context.Context, commentID string) error
-	AddReaction(ctx context.Context, req model.CreateReactionRequest) error
+	GetPathComments(ctx context.Context, pathID string) ([]model.NodeComment, error)
+	RemoveComment(ctx context.Context, userID, commentID string) error
+	UpdateComment(ctx context.Context, userID, commentID, message string) error
+	ToggleReaction(ctx context.Context, req model.CreateReactionRequest) (bool, error)
 	AddMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 }
 
@@ -74,15 +80,16 @@ type Service interface {
 }
 
 type serviceImpl struct {
-	pathRepo    repository.RepositoryLearningPath
-	nodeRepo    repository.RepositoryNode
-	commentRepo repository.RepositoryComment
-	quizRepo    repository.RepositoryQuiz
-	historyRepo repository.RepositoryHistory
-	resumeRepo  repository.RepositoryResume
-	logger      *slog.Logger
-	aiClient    *aiclient.AIClient
-	storage     *storage.BlobService
+	pathRepo     repository.RepositoryLearningPath
+	nodeRepo     repository.RepositoryNode
+	commentRepo  repository.RepositoryComment
+	quizRepo     repository.RepositoryQuiz
+	historyRepo  repository.RepositoryHistory
+	resumeRepo   repository.RepositoryResume
+	progressRepo repository.RepositoryProgress
+	logger       *slog.Logger
+	aiClient     *aiclient.AIClient
+	storage      *storage.BlobService
 }
 
 func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
@@ -92,14 +99,15 @@ func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger 
 		slog.Info("[DEBUG] aiClient successfully passed to NewService", "aiClient", aiClient)
 	}
 	return &serviceImpl{
-		pathRepo:    repo,
-		nodeRepo:    repo,
-		commentRepo: repo,
-		quizRepo:    repo,
-		logger:      logger,
-		aiClient:    aiClient,
-		historyRepo: repo,
-		resumeRepo:  repo,
-		storage:     nil,
+		pathRepo:     repo,
+		nodeRepo:     repo,
+		commentRepo:  repo,
+		quizRepo:     repo,
+		historyRepo:  repo,
+		resumeRepo:   repo,
+		progressRepo: repo,
+		logger:       logger,
+		aiClient:     aiClient,
+		storage:      nil,
 	}
 }
