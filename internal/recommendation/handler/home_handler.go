@@ -10,8 +10,11 @@ import (
 
 func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Please log in again to continue",
+		})
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 15*time.Second)
@@ -26,7 +29,7 @@ func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Home recommendations generated successfully",
+		"message": "Recommendations retrieved successfully",
 		"data":    response,
 	})
 }

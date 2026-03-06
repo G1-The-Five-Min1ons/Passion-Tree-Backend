@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"passiontree/internal/recommendation/model"
 )
 
@@ -18,7 +18,7 @@ func (r *repositoryImpl) GetUserEnrolledPathsForRec(ctx context.Context, userID 
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
-		return nil, errors.New("failed to query enrolled paths: " + err.Error())
+		return nil, fmt.Errorf("repo.GetUserEnrolledPathsForRec query failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -26,7 +26,7 @@ func (r *repositoryImpl) GetUserEnrolledPathsForRec(ctx context.Context, userID 
 	for rows.Next() {
 		var p model.RecommendedPath
 		if err := rows.Scan(&p.PathID, &p.Title, &p.Description); err != nil {
-			return nil, errors.New("failed to scan enrolled path: " + err.Error())
+			return nil, fmt.Errorf("repo.GetUserEnrolledPathsForRec scan failed: %w", err)
 		}
 		paths = append(paths, p)
 	}
@@ -53,7 +53,7 @@ func (r *repositoryImpl) GetTopPopularPaths(ctx context.Context) ([]model.Recomm
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, errors.New("failed to query popular paths: " + err.Error())
+		return nil, fmt.Errorf("repo.GetTopPopularPaths query failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -61,7 +61,7 @@ func (r *repositoryImpl) GetTopPopularPaths(ctx context.Context) ([]model.Recomm
 	for rows.Next() {
 		var p model.RecommendedPath
 		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.RecommendationScore); err != nil {
-			return nil, errors.New("failed to scan popular path: " + err.Error())
+			return nil, fmt.Errorf("repo.GetTopPopularPaths scan failed: %w", err)
 		}
 		p.Reason = "Popular learning path based on ratings and enrollments."
 		paths = append(paths, p)

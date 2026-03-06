@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"passiontree/internal/recommendation/model"
 )
 
@@ -25,7 +25,7 @@ func (r *repositoryImpl) GetUserReflectionsByTree(ctx context.Context, userID st
 
 	rows, err := r.db.QueryContext(ctx, query, treeID, userID)
 	if err != nil {
-		return nil, "", errors.New("query context failed: " + err.Error())
+		return nil, "", fmt.Errorf("repo.GetUserReflectionsByTree query context failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -39,7 +39,7 @@ func (r *repositoryImpl) GetUserReflectionsByTree(ctx context.Context, userID st
 			&ref.ReflectID, &ref.Summary, &ref.PrimaryEmotion,
 			&ref.StrugglePoint, &ref.WeightedScore, &pathID,
 		); err != nil {
-			return nil, "", errors.New("row scanning failed: " + err.Error())
+			return nil, "", fmt.Errorf("repo.GetUserReflectionsByTree row scanning failed: %w", err)
 		}
 		reflections = append(reflections, ref)
 		currentPathID = pathID

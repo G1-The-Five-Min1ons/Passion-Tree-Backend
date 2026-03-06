@@ -14,6 +14,7 @@ import (
 type ServiceRecommendation interface {
 	RecommendPathsForUser(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error)
 	RecommendHomePathsForUser(ctx context.Context, userID string) (*model.RecommendPathResponse, error)
+	getFallbackPopularPaths(ctx context.Context, message string) (*model.RecommendPathResponse, error)
 }
 
 type Service interface {

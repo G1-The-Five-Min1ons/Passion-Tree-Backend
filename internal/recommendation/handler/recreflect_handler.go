@@ -11,13 +11,16 @@ import (
 
 func (h *Handler) GetRecommendations(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Please log in again to continue",
+		})
 	}
 	treeID := c.Query("tree_id")
 
-	if userID == "" || treeID == "" {
-		return h.handleError(c, apperror.NewBadRequest("user_id and tree_id are required"))
+	if treeID == "" {
+		return h.handleError(c, apperror.NewBadRequest("Missing required reflection data"))
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 15*time.Second)
@@ -32,7 +35,7 @@ func (h *Handler) GetRecommendations(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Personalized recommendations generated successfully",
+		"message": "Your personalized recommendations are ready",
 		"data":    response,
 	})
 }
