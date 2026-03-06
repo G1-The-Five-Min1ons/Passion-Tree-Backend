@@ -72,13 +72,30 @@ func SeedRecommendationData(db connection.Database, userID string) (string, func
 	treeNodeID := uuid.New().String()
 	reflectID := uuid.New().String()
 	albumID := uuid.New().String()
+	enrollID := uuid.New().String()
 
 	_, err := sqlDB.ExecContext(ctx, `
-		INSERT INTO dbo.Learning_Path (path_id, title, creator_id) 
-		VALUES (@p1, 'Test Path', @p2)`,
+		INSERT INTO dbo.Learning_Path (path_id, title, description, creator_id, publish_status, avg_rating) 
+		VALUES (@p1, 'Test Path', 'Test Description', @p2, 'published', 4.5)`,
 		pathID, userID)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to insert mock path: %w", err)
+	}
+
+	_, err = sqlDB.ExecContext(ctx, `
+		INSERT INTO dbo.Path_Enroll (enroll_id, user_id, path_id) 
+		VALUES (@p1, @p2, @p3)`,
+		enrollID, userID, pathID)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to insert mock path_enroll: %w", err)
+	}
+
+	_, err = sqlDB.ExecContext(ctx, `
+		INSERT INTO dbo.Tree_Album (album_id, user_id) 
+		VALUES (@p1, @p2)`,
+		albumID, userID)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to insert mock tree_album: %w", err)
 	}
 
 	_, err = sqlDB.ExecContext(ctx, `
@@ -112,6 +129,8 @@ func SeedRecommendationData(db connection.Database, userID string) (string, func
 		_, _ = sqlDB.ExecContext(delCtx, `DELETE FROM dbo.Reflect WHERE reflect_id = @p1`, reflectID)
 		_, _ = sqlDB.ExecContext(delCtx, `DELETE FROM dbo.Tree_Node WHERE tree_node_id = @p1`, treeNodeID)
 		_, _ = sqlDB.ExecContext(delCtx, `DELETE FROM dbo.Tree WHERE tree_id = @p1`, treeID)
+		_, _ = sqlDB.ExecContext(delCtx, `DELETE FROM dbo.Tree_Album WHERE album_id = @p1`, albumID)
+		_, _ = sqlDB.ExecContext(delCtx, `DELETE FROM dbo.Path_Enroll WHERE enroll_id = @p1`, enrollID)
 		_, _ = sqlDB.ExecContext(delCtx, `DELETE FROM dbo.Learning_Path WHERE path_id = @p1`, pathID)
 	}
 

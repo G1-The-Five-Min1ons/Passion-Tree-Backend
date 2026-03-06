@@ -18,7 +18,8 @@ func (r *repositoryImpl) GetUserReflectionsByTree(ctx context.Context, userID st
 		FROM dbo.Reflect r
 		JOIN dbo.Tree_Node tn ON r.tree_node_id = tn.tree_node_id
 		JOIN dbo.Tree t ON tn.tree_id = t.tree_id
-		WHERE tn.tree_id = @p1
+		JOIN dbo.Tree_Album ta ON t.tree_id = ta.tree_id
+		WHERE tn.tree_id = @p1 AND ta.user_id = @p2
 		ORDER BY r.create_at ASC
 	`
 
