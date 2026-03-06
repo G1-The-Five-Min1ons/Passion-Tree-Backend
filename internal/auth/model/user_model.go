@@ -105,6 +105,22 @@ type OAuthUserInfo struct {
 	ProviderUsername string
 }
 
+// NativeGoogleSignInRequest is the request body for native Google Sign-In
+type NativeGoogleSignInRequest struct {
+	IDToken string `json:"id_token"`
+}
+
+// NativeDiscordSignInRequest is the request body for native Discord Sign-In
+type NativeDiscordSignInRequest struct {
+	Code string `json:"code"`
+}
+
+// ConfirmAccountLinkRequest is the request body for confirming account linking
+type ConfirmAccountLinkRequest struct {
+	LinkToken string `json:"link_token"`
+	Confirm   bool   `json:"confirm"`
+}
+
 type ChangePasswordRequest struct {
 	OldPassword string `json:"old_password"`
 	NewPassword string `json:"new_password"`

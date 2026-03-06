@@ -50,48 +50,12 @@ func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 	})
 }
 
-// handleOAuth เป็นฟังก์ชันกลางที่รวม Logic การจัดการ HTTP ไว้ที่เดียว
-func (h *Handler) handleOAuth(c *fiber.Ctx, provider string) error {
-	code := c.Query("code")
-	state := c.Query("state")
-
-	if code == "" {
-		h.logger.Warn(provider + " callback missing code")
-		return h.handleError(c, apperror.NewBadRequest("missing authorization code"))
-	}
-
-	// 1. Validate state (CSRF)
-	savedState := c.Cookies("oauth_state")
-	if state == "" || state != savedState {
-		h.logger.Warn(provider+" callback state mismatch", "received", state, "expected", savedState)
-		return h.handleError(c, apperror.NewBadRequest("invalid state parameter"))
-	}
-	c.ClearCookie("oauth_state")
-
-	var (
-		user        *model.User
-		token       string
-		linkConfirm *model.LinkConfirmationNeeded
-		err         error
-	)
-
-	switch provider {
-	case "google":
-		h.logger.Info("handling Google OAuth callback", "code", code)
-		user, token, linkConfirm, err = h.socialAuthSvc.HandleGoogleCallback(c.UserContext(), code)
-	case "discord":
-		h.logger.Info("handling Discord OAuth callback", "code", code)
-		user, token, linkConfirm, err = h.socialAuthSvc.HandleDiscordCallback(c.UserContext(), code)
-	default:
-		h.logger.Warn("unsupported provider in handleOAuth", "provider", provider)
-		return h.handleError(c, apperror.NewBadRequest("unsupported provider"))
-	}
-
+// handleOAuthResponse handles the common OAuth response logic
+func (h *Handler) handleOAuthResponse(c *fiber.Ctx, provider string, user *model.User, token string, linkConfirm *model.LinkConfirmationNeeded, err error) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	// 3. Manage Link Confirmation
 	if linkConfirm != nil && linkConfirm.NeedsConfirm {
 		return c.JSON(linkConfirm)
 	}
@@ -102,6 +66,39 @@ func (h *Handler) handleOAuth(c *fiber.Ctx, provider string) error {
 		"token":   token,
 		"user":    user,
 	})
+}
+
+// handleOAuth เป็นฟังก์ชันกลางที่รวม Logic การจัดการ HTTP ไว้ที่เดียว
+func (h *Handler) handleOAuth(c *fiber.Ctx, provider string) error {
+	code := c.Query("code")
+	state := c.Query("state")
+
+	if code == "" {
+		h.logger.Warn(provider + " callback missing code")
+		return h.handleError(c, apperror.NewBadRequest("missing authorization code"))
+	}
+
+	// Validate state (CSRF)
+	savedState := c.Cookies("oauth_state")
+	if state == "" || state != savedState {
+		h.logger.Warn(provider+" callback state mismatch", "received", state, "expected", savedState)
+		return h.handleError(c, apperror.NewBadRequest("invalid state parameter"))
+	}
+	c.ClearCookie("oauth_state")
+
+	switch provider {
+	case "google":
+		h.logger.Info("handling Google OAuth callback", "code", code)
+		user, token, linkConfirm, err := h.socialAuthSvc.HandleGoogleCallback(c.UserContext(), code)
+		return h.handleOAuthResponse(c, provider, user, token, linkConfirm, err)
+	case "discord":
+		h.logger.Info("handling Discord OAuth callback", "code", code)
+		user, token, linkConfirm, err := h.socialAuthSvc.HandleDiscordCallback(c.UserContext(), code)
+		return h.handleOAuthResponse(c, provider, user, token, linkConfirm, err)
+	default:
+		h.logger.Warn("unsupported provider in handleOAuth", "provider", provider)
+		return h.handleError(c, apperror.NewBadRequest("unsupported provider"))
+	}
 }
 
 // GoogleCallback handles Google OAuth2 callback
@@ -119,9 +116,7 @@ func (h *Handler) DiscordCallback(c *fiber.Ctx) error {
 // NativeGoogleSignIn handles native Google Sign-In from mobile apps
 // @route POST /auth/native/google
 func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
-	var req struct {
-		IDToken string `json:"id_token"`
-	}
+	var req model.NativeGoogleSignInRequest
 
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.Warn("invalid request body", "error", err)
@@ -160,9 +155,7 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 // NativeDiscordSignIn handles native Discord Sign-In from mobile apps
 // @route POST /auth/native/discord
 func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
-	var req struct {
-		Code string `json:"code"`
-	}
+	var req model.NativeDiscordSignInRequest
 
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.Warn("invalid request body", "error", err)
@@ -284,10 +277,7 @@ func (h *Handler) DiscordNativeCallback(c *fiber.Ctx) error {
 }
 
 func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
-	var req struct {
-		LinkToken string `json:"link_token"`
-		Confirm   bool   `json:"confirm"`
-	}
+	var req model.ConfirmAccountLinkRequest
 
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.Warn("invalid request body", "error", err)
