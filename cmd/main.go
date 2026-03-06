@@ -29,6 +29,7 @@ const (
 )
 
 func main() {
+	// Setup logging
 	isDev := os.Getenv("APP_ENV") != "production"
 	myLogger := logger.SetupLogger(isDev)
 
