@@ -191,7 +191,7 @@ func (r *repositoryImpl) EnrollLearningPathUser(ctx context.Context, pathID stri
 			NEWID(),
 			@p1,
 			node_id,
-			'locked',
+			CASE WHEN sequence = 1 THEN 'active' ELSE 'locked' END,
 			GETDATE(),
 			'false'
 		FROM node 
