@@ -467,9 +467,46 @@ func (s *userServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken 
 		return nil, "", err
 	}
 
-	// Native SSO doesn't support link confirmation - auto-link if user exists
+	// Native SSO doesn't support link confirmation dialog - auto-link the account
+	// since the user is already authenticated via Google's ID token
 	if linkConfirm != nil {
-		return nil, "", apperror.NewBadRequest("account with this email already exists, please use web login to link accounts")
+		existingUser, _, err := s.repo.GetUserByID(ctx, linkConfirm.ExistingUser.UserID)
+		if err != nil || existingUser == nil {
+			return nil, "", apperror.NewInternal("failed to get existing user: %w", err)
+		}
+
+		// Auto-link the social account to the existing user
+		err = s.repo.LinkSocialAccount(ctx, existingUser.UserID, userInfo.Provider, userInfo.ProviderUserID)
+		if err != nil {
+			return nil, "", apperror.NewInternal("failed to link account: %w", err)
+		}
+
+		// Update user info from provider
+		err = s.repo.UpdateSocialUserInfo(ctx, existingUser.UserID, userInfo)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to update user info after auto-linking", "error", err)
+		}
+
+		// Update profile (avatar)
+		if userInfo.AvatarURL != "" {
+			profile := &model.Profile{AvatarURL: userInfo.AvatarURL}
+			err = s.repo.UpsertSocialUserProfile(ctx, existingUser.UserID, profile)
+			if err != nil {
+				s.logger.ErrorContext(ctx, "failed to update profile after auto-linking", "error", err)
+			}
+		}
+
+		s.logger.InfoContext(ctx, "native google signin auto-linked account",
+			"user_id", existingUser.UserID,
+			"provider", userInfo.Provider,
+		)
+
+		jwtToken, err = s.generateJWT(existingUser)
+		if err != nil {
+			return nil, "", apperror.NewInternal("failed to generate token: %w", err)
+		}
+
+		return existingUser, jwtToken, nil
 	}
 
 	return user, jwtToken, nil
