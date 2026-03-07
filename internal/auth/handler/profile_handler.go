@@ -15,8 +15,8 @@ import (
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-        return h.handleError(c, err)
-    }
+		return h.handleError(c, err)
+	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -27,10 +27,11 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	}
 
 	profileData := &model.Profile{
-		UserID:    userID,
-		AvatarURL: req.AvatarURL,
-		Location:  req.Location,
-		Bio:       req.Bio,
+		UserID:      userID,
+		AvatarURL:   req.AvatarURL,
+		Location:    req.Location,
+		Bio:         req.Bio,
+		PhoneNumber: req.PhoneNumber,
 	}
 
 	if err := h.userSvc.UpdateProfile(ctx, userID, profileData); err != nil {
@@ -52,10 +53,10 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 // GetProfile gets profile by user ID
 func (h *Handler) GetProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-    if err != nil {
-        return h.handleError(c, err)
-    }
-	
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 

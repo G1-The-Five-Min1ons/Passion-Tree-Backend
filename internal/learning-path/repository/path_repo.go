@@ -132,6 +132,40 @@ func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string
 	return &p, nil
 }
 
+func (r *repositoryImpl) GetPathCreatorVerification(ctx context.Context, userID string) (string, bool, error) {
+	query := `
+		SELECT
+			u.role,
+			CASE
+				WHEN ISNULL(p.Phone_Number, '') <> ''
+					AND EXISTS (
+						SELECT 1
+						FROM teacher_verification_requests tvr
+						WHERE tvr.user_id = u.user_id
+						AND tvr.status = 'approved'
+					)
+				THEN 1
+				ELSE 0
+			END AS is_teacher_verified
+		FROM users u
+		LEFT JOIN profile p ON u.user_id = p.user_id
+		WHERE u.user_id = @p1`
+
+	var (
+		role            string
+		isVerifiedAsInt int
+	)
+
+	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&role, &isVerifiedAsInt); err != nil {
+		if err == sql.ErrNoRows {
+			return "", false, err
+		}
+		return "", false, fmt.Errorf("repo.GetPathCreatorVerification failed: %w", err)
+	}
+
+	return role, isVerifiedAsInt == 1, nil
+}
+
 func (r *repositoryImpl) CreateLearningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
 	newID := uuid.New().String()
 	query := `INSERT INTO learning_path (path_id, title, objective, description, cover_img_url, avg_rating, publish_status, create_at, update_at, creator_ID) VALUES (@p1, @p2, @p3, @p4, @p5, 0.0, @p6, GETDATE(), GETDATE(), @p7)`

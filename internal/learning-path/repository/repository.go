@@ -19,6 +19,7 @@ type RepositoryLearningPath interface {
 	UpdateLearningPathImage(ctx context.Context, pathID string, coverImgURL string) error
 	GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
 	UpdatePathEnrollmentCompletion(ctx context.Context, pathID string, userID string) error
+	GetPathCreatorVerification(ctx context.Context, userID string) (string, bool, error)
 }
 
 type RepositoryNode interface {

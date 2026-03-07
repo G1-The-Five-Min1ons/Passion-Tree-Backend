@@ -44,6 +44,7 @@ func TestCreatePath(t *testing.T) {
 			req: model.CreatePathRequest{
 				Title:       "",
 				CoverImgURL: "url",
+				CreatorID:   "user-1",
 			},
 			setup:         nil,
 			expectedError: "title cannot be empty",
@@ -53,6 +54,7 @@ func TestCreatePath(t *testing.T) {
 			req: model.CreatePathRequest{
 				Title:       "Error Path",
 				CoverImgURL: "url",
+				CreatorID:   "user-1",
 			},
 			setup: func(m *repository_test.Repopository) {
 				m.CreateLearningPathFunc = func(ctx context.Context, req model.CreatePathRequest) (string, error) {

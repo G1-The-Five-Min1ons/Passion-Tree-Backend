@@ -45,6 +45,10 @@ type UserService interface {
 	// Multi-device Session Management
 	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
 	LogoutSession(ctx context.Context, userID string, sessionID string) error
+	GetTeacherVerificationStatus(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error)
+	ApplyForTeacher(ctx context.Context, userID string, req model.ApplyTeacherRequest) error
+	GetTeacherApplications(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error)
+	ReviewTeacherApplication(ctx context.Context, requestID, reviewedBy string, req model.ReviewTeacherApplicationRequest) error
 }
 
 type EmailService interface {

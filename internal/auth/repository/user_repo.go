@@ -229,6 +229,11 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 		args = append(args, profile.Bio)
 		paramID++
 	}
+	if profile.PhoneNumber != "" {
+		updates = append(updates, fmt.Sprintf("Phone_Number=@p%d", paramID))
+		args = append(args, profile.PhoneNumber)
+		paramID++
+	}
 	if profile.Level != nil {
 		updates = append(updates, fmt.Sprintf("Level=@p%d", paramID))
 		args = append(args, *profile.Level)

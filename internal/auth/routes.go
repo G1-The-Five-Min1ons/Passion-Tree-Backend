@@ -71,6 +71,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		protected.Put("/user", h.UpdateUser)
 		protected.Put("/change-password", h.ChangePassword)
 		protected.Delete("/user", h.DeleteUser)
+		protected.Get("/teacher/verification-status", h.GetTeacherVerificationStatus)
+		protected.Post("/teacher/apply", h.ApplyForTeacher)
 
 		// Admin Routes (JWT + RBAC)
 		adminOnly := protected.Group("/admin", middleware.RbacMiddleware(logger, "admin"))
@@ -78,7 +80,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 			adminOnly.Get("/dashboard", func(c *fiber.Ctx) error {
 				return c.JSON(fiber.Map{"message": "Welcome to Admin Dashboard"})
 			})
-			// สามารถเพิ่ม Route สำหรับจัดการ User ในนี้ได้
+			adminOnly.Get("/teacher-applications", h.ListTeacherApplications)
+			adminOnly.Put("/teacher-applications/:request_id", h.ReviewTeacherApplication)
 		}
 
 		// Teacher Routes

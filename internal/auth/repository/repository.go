@@ -36,6 +36,10 @@ type RepositoryUser interface {
 	UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
 	SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error
+	GetTeacherVerificationStatus(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error)
+	UpsertTeacherApplication(ctx context.Context, userID, phoneNumber, reason, teachingHistory string) error
+	ListTeacherApplications(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error)
+	ReviewTeacherApplication(ctx context.Context, requestID, status, reviewedBy string) error
 }
 
 type RepositoryToken interface {
