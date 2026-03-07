@@ -11,6 +11,8 @@ type Profile struct {
 	Location       string    `json:"location"`
 	Bio            string    `json:"bio"`
 	PhoneNumber    string    `json:"phone_number"`
+	TimeZone       string    `json:"time_zone"`
+	DateFormat     string    `json:"date_format"`
 	Level          *int      `json:"level"`
 	XP             *int64    `json:"xp"`
 	HourLearned    int       `json:"hour_learned"`
@@ -24,4 +26,6 @@ type UpdateProfileRequest struct {
 	Location    string `json:"location"`
 	Bio         string `json:"bio"`
 	PhoneNumber string `json:"phone_number"`
+	TimeZone    string `json:"time_zone"`
+	DateFormat  string `json:"date_format"`
 }

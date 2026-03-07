@@ -59,14 +59,14 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
 			u.is_email_verified, u.require_2fa_next_login, u.create_at, u.update_at,
 			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
-			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
+			p.Location, p.Bio, p.Phone_Number, p.Time_Zone, p.Date_Format, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
 		LEFT JOIN profile p ON u.user_id = p.user_id
 		WHERE u.user_id = @p1`
 
 	var u model.User
 	var p *model.Profile
-	var profileID, avatarURL, rankName, location, bio sql.NullString
+	var profileID, avatarURL, rankName, location, bio, phoneNumber, timeZone, dateFormat sql.NullString
 	var learningStreak, learningCount, level, hourLearned sql.NullInt32
 	var xp sql.NullInt64
 	var createdAt, updatedAt sql.NullTime
@@ -75,7 +75,7 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
 		&u.IsEmailVerified, &u.Require2FANextLogin, &createdAt, &updatedAt,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
-		&location, &bio, &level, &xp, &hourLearned,
+		&location, &bio, &phoneNumber, &timeZone, &dateFormat, &level, &xp, &hourLearned,
 	)
 
 	if err != nil {
@@ -101,6 +101,9 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 		p.LearningCount = int(learningCount.Int32)
 		p.Location = location.String
 		p.Bio = bio.String
+		p.PhoneNumber = phoneNumber.String
+		p.TimeZone = timeZone.String
+		p.DateFormat = dateFormat.String
 		if level.Valid {
 			levelValue := int(level.Int32)
 			p.Level = &levelValue
@@ -234,6 +237,16 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 		args = append(args, profile.PhoneNumber)
 		paramID++
 	}
+	if profile.TimeZone != "" {
+		updates = append(updates, fmt.Sprintf("Time_Zone=@p%d", paramID))
+		args = append(args, profile.TimeZone)
+		paramID++
+	}
+	if profile.DateFormat != "" {
+		updates = append(updates, fmt.Sprintf("Date_Format=@p%d", paramID))
+		args = append(args, profile.DateFormat)
+		paramID++
+	}
 	if profile.Level != nil {
 		updates = append(updates, fmt.Sprintf("Level=@p%d", paramID))
 		args = append(args, *profile.Level)
@@ -250,7 +263,7 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 		return nil
 	}
 
-	query := "UPDATE profile SET " + strings.Join(updates, ", ") + fmt.Sprintf(", update_at=GETDATE() WHERE user_id=@p%d", paramID)
+	query := "UPDATE profile SET " + strings.Join(updates, ", ") + fmt.Sprintf(" WHERE user_id=@p%d", paramID)
 	args = append(args, userID)
 
 	_, err := r.db.ExecContext(ctx, query, args...)

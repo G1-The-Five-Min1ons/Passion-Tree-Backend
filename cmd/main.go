@@ -94,7 +94,15 @@ func runMigrations(db connection.Database, logger *slog.Logger) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	return migrator.RunSocialAuthMigration(ctx)
+	if err := migrator.RunSocialAuthMigration(ctx); err != nil {
+		return err
+	}
+
+	if err := migrator.RunTeacherVerificationAndSettingsMigration(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // initializeAIClient creates and configures the AI service client

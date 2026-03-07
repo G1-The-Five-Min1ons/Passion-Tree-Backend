@@ -12,19 +12,32 @@ import (
 
 func (r *repositoryImpl) GetTeacherVerificationStatus(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error) {
 	query := `
-		SELECT
-			ISNULL(p.Phone_Number, '') AS phone_number,
-			CASE WHEN ISNULL(p.Phone_Number, '') <> '' THEN 1 ELSE 0 END AS has_phone_number,
-			ISNULL(app.status, 'none') AS application_status
-		FROM users u
-		LEFT JOIN profile p ON u.user_id = p.user_id
-		OUTER APPLY (
-			SELECT TOP 1 status
-			FROM teacher_verification_requests tvr
-			WHERE tvr.user_id = u.user_id
-			ORDER BY tvr.created_at DESC
-		) app
-		WHERE u.user_id = @p1`
+		IF OBJECT_ID('teacher_verification_requests', 'U') IS NULL
+		BEGIN
+			SELECT
+				ISNULL(p.Phone_Number, '') AS phone_number,
+				CASE WHEN ISNULL(p.Phone_Number, '') <> '' THEN 1 ELSE 0 END AS has_phone_number,
+				'none' AS application_status
+			FROM users u
+			LEFT JOIN profile p ON u.user_id = p.user_id
+			WHERE u.user_id = @p1
+		END
+		ELSE
+		BEGIN
+			SELECT
+				ISNULL(p.Phone_Number, '') AS phone_number,
+				CASE WHEN ISNULL(p.Phone_Number, '') <> '' THEN 1 ELSE 0 END AS has_phone_number,
+				ISNULL(app.status, 'none') AS application_status
+			FROM users u
+			LEFT JOIN profile p ON u.user_id = p.user_id
+			OUTER APPLY (
+				SELECT TOP 1 status
+				FROM teacher_verification_requests tvr
+				WHERE tvr.user_id = u.user_id
+				ORDER BY tvr.created_at DESC
+			) app
+			WHERE u.user_id = @p1
+		END`
 
 	var (
 		phoneNumber       string
@@ -59,7 +72,7 @@ func (r *repositoryImpl) UpsertTeacherApplication(ctx context.Context, userID, p
 	}
 	defer tx.Rollback()
 
-	updateProfileQuery := `UPDATE profile SET Phone_Number = @p1, update_at = GETDATE() WHERE user_id = @p2`
+	updateProfileQuery := `UPDATE profile SET Phone_Number = @p1 WHERE user_id = @p2`
 	result, err := tx.ExecContext(ctx, updateProfileQuery, phoneNumber, userID)
 	if err != nil {
 		return fmt.Errorf("update profile phone number failed: %w", err)

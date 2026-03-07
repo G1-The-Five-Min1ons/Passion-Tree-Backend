@@ -65,6 +65,11 @@ func (s *userServiceImpl) ApplyForTeacher(ctx context.Context, userID string, re
 		return apperror.NewInternal("failed to submit teacher application: %w", err)
 	}
 
+	s.logger.InfoContext(ctx, "teacher verification application submitted",
+		"user_id", userID,
+		"phone_number", phoneNumber,
+	)
+
 	return nil
 }
 

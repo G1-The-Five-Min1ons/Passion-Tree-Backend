@@ -32,6 +32,8 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 		Location:    req.Location,
 		Bio:         req.Bio,
 		PhoneNumber: req.PhoneNumber,
+		TimeZone:    req.TimeZone,
+		DateFormat:  req.DateFormat,
 	}
 
 	if err := h.userSvc.UpdateProfile(ctx, userID, profileData); err != nil {

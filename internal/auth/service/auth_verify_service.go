@@ -85,11 +85,6 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		return apperror.NewBadRequest("user with this email does not exist")
 	}
 
-	if user.IsEmailVerified {
-		s.logger.WarnContext(ctx, "resend verification email failed: email already verified", "email", email)
-		return apperror.NewBadRequest("email already verified")
-	}
-
 	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, "email_verification")
 	otpCode, _ := GenerateVerificationToken()
 
