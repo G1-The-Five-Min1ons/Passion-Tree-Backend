@@ -35,6 +35,8 @@ type Repository struct {
 	UpsertTeacherApplicationFunc     func(ctx context.Context, userID, phoneNumber, reason, teachingHistory string) error
 	ListTeacherApplicationsFunc      func(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error)
 	ReviewTeacherApplicationFunc     func(ctx context.Context, requestID, status, reviewedBy string) error
+	GetAllUsersFunc                  func(ctx context.Context) ([]*model.UserWithProfile, error)
+	GetDashboardStatsFunc            func(ctx context.Context) (*model.DashboardStats, error)
 }
 
 // Implement RepositoryUser methods
@@ -146,6 +148,20 @@ func (m *Repository) ReviewTeacherApplication(ctx context.Context, requestID, st
 		return m.ReviewTeacherApplicationFunc(ctx, requestID, status, reviewedBy)
 	}
 	return nil
+}
+
+func (m *Repository) GetAllUsers(ctx context.Context) ([]*model.UserWithProfile, error) {
+	if m.GetAllUsersFunc != nil {
+		return m.GetAllUsersFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *Repository) GetDashboardStats(ctx context.Context) (*model.DashboardStats, error) {
+	if m.GetDashboardStatsFunc != nil {
+		return m.GetDashboardStatsFunc(ctx)
+	}
+	return nil, nil
 }
 
 // Implement RepositoryToken methods

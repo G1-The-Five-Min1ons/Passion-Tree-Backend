@@ -80,6 +80,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 			adminOnly.Get("/dashboard", func(c *fiber.Ctx) error {
 				return c.JSON(fiber.Map{"message": "Welcome to Admin Dashboard"})
 			})
+			adminOnly.Get("/dashboard/stats", h.GetDashboardStats)
+			adminOnly.Get("/users", h.GetAllUsers)
 			adminOnly.Get("/teacher-applications", h.ListTeacherApplications)
 			adminOnly.Put("/teacher-applications/:request_id", h.ReviewTeacherApplication)
 		}

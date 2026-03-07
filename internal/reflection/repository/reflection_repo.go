@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"passiontree/internal/reflection/model"
+
 	"github.com/google/uuid"
 )
 
@@ -134,12 +135,12 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context, filter model.Get
 		query += ` 
 		INNER JOIN tree_node tn ON r.tree_node_id = tn.tree_node_id`
 	}
-	
+
 	if needTree {
 		query += `
 		INNER JOIN tree t ON tn.tree_id = t.tree_id`
 	}
-	
+
 	if needAlbum {
 		query += `
 		INNER JOIN Album a ON t.album_id = a.album_id`

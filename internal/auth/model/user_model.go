@@ -129,3 +129,26 @@ type ChangePasswordRequest struct {
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
+
+type UserWithProfile struct {
+	User
+	Profile *Profile `json:"profile,omitempty"`
+}
+
+type DashboardStats struct {
+	TotalUsers       int                `json:"total_users"`
+	TotalPaths       int                `json:"total_paths"`
+	TotalEnrollments int                `json:"total_enrollments"`
+	TotalReflections int                `json:"total_reflections"`
+	RecentUsers      []*UserWithProfile `json:"recent_users"`
+	UserGrowth       []int              `json:"user_growth"`
+	RecentActivities []Activity         `json:"recent_activities"`
+}
+
+type Activity struct {
+	Type      string    `json:"type"`
+	UserID    string    `json:"user_id"`
+	Username  string    `json:"username"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
+}
