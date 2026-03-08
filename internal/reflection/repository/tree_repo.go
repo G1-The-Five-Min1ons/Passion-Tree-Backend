@@ -209,78 +209,46 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 
 // UpdateTree updates an existing tree
 func (r *repositoryImpl) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
-	if req.AlbumID != "" {
-		tx, err := r.db.BeginTx(ctx, nil)
-		if err != nil {
-			return fmt.Errorf("begin transaction failed: %w", err)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get current album_id from DB first to verify actual change
+	var currentAlbumID string
+	getQuery := `SELECT CAST(album_id AS VARCHAR(36)) FROM tree WHERE tree_id = @p1`
+	err = tx.QueryRowContext(ctx, getQuery, treeID).Scan(&currentAlbumID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return err
 		}
-		defer tx.Rollback()
-
-		// Get current album_id
-		var currentAlbumID string
-		getQuery := `SELECT CAST(album_id AS VARCHAR(36)) FROM tree WHERE tree_id = @p1`
-		err = tx.QueryRowContext(ctx, getQuery, treeID).Scan(&currentAlbumID)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return err
-			}
-			return fmt.Errorf("failed to get current album_id: %w", err)
-		}
-
-		if currentAlbumID != req.AlbumID {
-			// Update tree with new album_id and title
-			updateQuery := `
-				UPDATE tree
-				SET title = @p1, album_id = @p2, last_update = GETDATE()
-				WHERE tree_id = @p3
-			`
-			result, err := tx.ExecContext(ctx, updateQuery, req.Title, req.AlbumID, treeID)
-			if err != nil {
-				return fmt.Errorf("failed to update tree: %w", err)
-			}
-
-			rowsAffected, err := result.RowsAffected()
-			if err != nil {
-				return fmt.Errorf("failed to get rows affected: %w", err)
-			}
-
-			if rowsAffected == 0 {
-				return sql.ErrNoRows
-			}
-
-			// Decrement tree_count in old album
-			decrementQuery := `
-				UPDATE tree_album
-				SET tree_count = tree_count - 1, last_edit = GETDATE()
-				WHERE album_id = @p1
-			`
-			_, err = tx.ExecContext(ctx, decrementQuery, currentAlbumID)
-			if err != nil {
-				return fmt.Errorf("failed to decrement old album tree_count: %w", err)
-			}
-
-			// Increment tree_count in new album
-			incrementQuery := `
-				UPDATE tree_album
-				SET tree_count = tree_count + 1, last_edit = GETDATE()
-				WHERE album_id = @p1
-			`
-			_, err = tx.ExecContext(ctx, incrementQuery, req.AlbumID)
-			if err != nil {
-				return fmt.Errorf("failed to increment new album tree_count: %w", err)
-			}
-
-			return tx.Commit()
-		}
+		return fmt.Errorf("failed to get current album_id: %w", err)
 	}
 
-	query := `
-		UPDATE tree
-		SET title = @p1, last_update = GETDATE()
-		WHERE tree_id = @p2
-	`
+	// Determine if album is actually being moved based on DB data
+	isAlbumChanged := req.AlbumID != "" && currentAlbumID != req.AlbumID
 
-	result, err := r.db.ExecContext(ctx, query, req.Title, treeID)
+	// Update tree - include album_id only if it's actually changing
+	var updateQuery string
+	var result sql.Result
+
+	if isAlbumChanged {
+		updateQuery = `
+			UPDATE tree
+			SET title = @p1, album_id = @p2, last_update = GETDATE()
+			WHERE tree_id = @p3
+		`
+		result, err = tx.ExecContext(ctx, updateQuery, req.Title, req.AlbumID, treeID)
+	} else {
+		updateQuery = `
+			UPDATE tree
+			SET title = @p1, last_update = GETDATE()
+			WHERE tree_id = @p2
+		`
+		result, err = tx.ExecContext(ctx, updateQuery, req.Title, treeID)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to update tree: %w", err)
 	}
@@ -294,7 +262,32 @@ func (r *repositoryImpl) UpdateTree(ctx context.Context, treeID string, req mode
 		return sql.ErrNoRows
 	}
 
-	return nil
+	// Update tree_count ONLY if album actually changed (verified from DB)
+	if isAlbumChanged {
+		// Decrement tree_count in old album
+		decrementQuery := `
+			UPDATE tree_album
+			SET tree_count = tree_count - 1, last_edit = GETDATE()
+			WHERE album_id = @p1
+		`
+		_, err = tx.ExecContext(ctx, decrementQuery, currentAlbumID)
+		if err != nil {
+			return fmt.Errorf("failed to decrement old album tree_count: %w", err)
+		}
+
+		// Increment tree_count in new album
+		incrementQuery := `
+			UPDATE tree_album
+			SET tree_count = tree_count + 1, last_edit = GETDATE()
+			WHERE album_id = @p1
+		`
+		_, err = tx.ExecContext(ctx, incrementQuery, req.AlbumID)
+		if err != nil {
+			return fmt.Errorf("failed to increment new album tree_count: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 // DeleteTree deletes a tree by its ID
