@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"strings"
 
 	"passiontree/internal/learning-path/model"
 
@@ -25,7 +26,8 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
     		ISNULL(lp.objective, 'null') as objective,
     		ISNULL(lp.publish_status, 'null') as publish_status, 
     		ISNULL(lp.create_at, GETDATE()) as create_at, 
-    		ISNULL(lp.update_at, GETDATE()) as update_at
+    		ISNULL(lp.update_at, GETDATE()) as update_at,
+			CONVERT(VARCHAR(36), lp.creator_id) creator_id
 		FROM learning_path AS lp 
 		JOIN users AS u ON lp.creator_id = u.user_id
 		LEFT JOIN (
@@ -62,6 +64,7 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 			&p.Publish_status,
 			&p.CreatedAt,
 			&p.UpdatedAt,
+			&p.CreatorID,
 		); err != nil {
 			return nil, fmt.Errorf("repo.GetAllLearningPath scan failed: %w", err)
 		}
@@ -191,7 +194,7 @@ func (r *repositoryImpl) EnrollLearningPathUser(ctx context.Context, pathID stri
 			NEWID(),
 			@p1,
 			node_id,
-			'locked',
+			CASE WHEN sequence = 1 THEN 'active' ELSE 'locked' END,
 			GETDATE(),
 			'false'
 		FROM node 
@@ -347,4 +350,84 @@ func (r *repositoryImpl) UpdatePathEnrollmentCompletion(ctx context.Context, pat
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+func (r *repositoryImpl) GetLearningPathsByIDs(ctx context.Context, pathIDs []string) ([]model.LearningPath, error) {
+	if len(pathIDs) == 0 {
+		return []model.LearningPath{}, nil
+	}
+
+	placeholders := make([]string, len(pathIDs))
+	args := make([]interface{}, len(pathIDs))
+	for i, id := range pathIDs {
+		placeholders[i] = fmt.Sprintf("@p%d", i+1)
+		args[i] = id
+	}
+
+	inClause := strings.Join(placeholders, ", ")
+
+	query := fmt.Sprintf(`
+		SELECT 
+            CONVERT(VARCHAR(36), lp.path_id) as path_id, 
+            lp.title, 
+            lp.cover_img_url, 
+            lp.objective, 
+            lp.description, 
+            lp.avg_rating, 
+            lp.publish_status, 
+            lp.create_at, 
+            lp.update_at, 
+            u.first_name as instructor,
+            CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
+            ISNULL(n_count.total_nodes, 0) as modules,
+            ISNULL(pe_count.total_students, 0) as student
+        FROM learning_path AS lp 
+        JOIN users AS u ON lp.creator_id = u.user_id
+        LEFT JOIN (
+            SELECT path_id, COUNT(node_id) as total_nodes 
+            FROM node 
+            GROUP BY path_id
+        ) AS n_count ON lp.path_id = n_count.path_id
+        LEFT JOIN (
+            SELECT path_id, COUNT(enroll_id) as total_students 
+            FROM path_enroll 
+            GROUP BY path_id
+        ) AS pe_count ON lp.path_id = pe_count.path_id
+        WHERE lp.path_id IN (%s)
+	`, inClause)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetLearningPathsByIDs query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var paths []model.LearningPath
+	for rows.Next() {
+		var p model.LearningPath
+		if err := rows.Scan(
+			&p.PathID,
+			&p.Title,
+			&p.CoverImgURL,
+			&p.Objective,
+			&p.Description,
+			&p.Rating,
+			&p.Publish_status,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+			&p.Instructor,
+			&p.CreatorID,
+			&p.Modules,
+			&p.Students,
+		); err != nil {
+			return nil, fmt.Errorf("repo.GetLearningPathsByIDs scan failed: %w", err)
+		}
+		paths = append(paths, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetLearningPathsByIDs row iteration failed: %w", err)
+	}
+
+	return paths, nil
 }
