@@ -3,23 +3,24 @@ package repository
 import (
 	"context"
 	"fmt"
+	"database/sql"
 	"passiontree/internal/recommendation/model"
 )
 
 func (r *repositoryImpl) GetUserReflectionsByTree(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error) {
 	query := `
 		SELECT 
+			CONVERT(VARCHAR(36), t.path_id) as current_path_id,
 			CONVERT(VARCHAR(36), r.reflect_id) as reflect_id,
-			ISNULL(r.summary, '') as summary,
-			ISNULL(r.primary_emotion, '') as primary_emotion,
-			ISNULL(r.struggle_point, '') as struggle_point,
-			ISNULL(r.weighted_reflection_score, 0) as weighted_score,
-			CONVERT(VARCHAR(36), t.path_id) as current_path_id
-		FROM dbo.Reflect r
-		JOIN dbo.Tree_Node tn ON r.tree_node_id = tn.tree_node_id
-		JOIN dbo.Tree t ON tn.tree_id = t.tree_id
+			r.summary,
+			r.primary_emotion,
+			r.struggle_point,
+			r.weighted_reflection_score as weighted_score
+		FROM dbo.Tree t
 		JOIN dbo.Tree_Album ta ON t.tree_id = ta.tree_id
-		WHERE tn.tree_id = @p1 AND ta.user_id = @p2
+		LEFT JOIN dbo.Tree_Node tn ON t.tree_id = tn.tree_id
+		LEFT JOIN dbo.Reflect r ON tn.tree_node_id = r.tree_node_id
+		WHERE t.tree_id = @p1 AND ta.user_id = @p2
 		ORDER BY r.create_at ASC
 	`
 
@@ -33,16 +34,33 @@ func (r *repositoryImpl) GetUserReflectionsByTree(ctx context.Context, userID st
 	var currentPathID string
 
 	for rows.Next() {
-		var ref model.UserReflection
+		var reflectID, summary, primaryEmotion, strugglePoint sql.NullString
+		var weightedScore sql.NullFloat64
 		var pathID string
+
 		if err := rows.Scan(
-			&ref.ReflectID, &ref.Summary, &ref.PrimaryEmotion,
-			&ref.StrugglePoint, &ref.WeightedScore, &pathID,
+			&pathID, &reflectID, &summary, &primaryEmotion,
+			&strugglePoint, &weightedScore,
 		); err != nil {
 			return nil, "", fmt.Errorf("repo.GetUserReflectionsByTree row scanning failed: %w", err)
 		}
-		reflections = append(reflections, ref)
+
 		currentPathID = pathID
+
+		if reflectID.Valid {
+			ref := model.UserReflection{
+				ReflectID:      reflectID.String,
+				Summary:        summary.String,
+				PrimaryEmotion: primaryEmotion.String,
+				StrugglePoint:  strugglePoint.String,
+				WeightedScore:  weightedScore.Float64,
+			}
+			reflections = append(reflections, ref)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, "", fmt.Errorf("repo.GetAllLearnningPath row iteration failed: %w", err)
 	}
 
 	return reflections, currentPathID, nil

@@ -2,10 +2,9 @@ package service
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
-	"passiontree/internal/learning-path/model"
+	pathmodel "passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
 	recmodel "passiontree/internal/recommendation/model"
@@ -65,89 +64,63 @@ func (s *serviceImpl) RecommendHomePathsForUser(ctx context.Context, userID stri
 
 	var pathIDsToFetch []string
 	for _, aiResult := range aiResp.Results {
-		var resultPathID string
-		if id, ok := aiResult.ID.(float64); ok {
-			resultPathID = strconv.Itoa(int(id))
-		} else if id, ok := aiResult.ID.(string); ok {
-			resultPathID = id
-		} else {
-			continue
-		}
-
-		if enrolledMap[resultPathID] {
+		resultPathID, ok := s.extractPathID(aiResult.ID)
+		if !ok || enrolledMap[resultPathID] {
 			continue
 		}
 		pathIDsToFetch = append(pathIDsToFetch, resultPathID)
 	}
 
+	if len(pathIDsToFetch) == 0 {
+		return s.getFallbackPopularPaths(ctx, "AI yielded no new results. Showing top popular paths.")
+	}
+
+	paths, err := s.pathRepo.GetLearningPathsByIDs(ctx, pathIDsToFetch)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to batch fetch paths from DB", "error", err.Error())
+		return s.getFallbackPopularPaths(ctx, "Could not fetch specific paths. Showing top popular paths.")
+	}
+
+	pathMap := make(map[string]pathmodel.LearningPath)
+	for _, p := range paths {
+		pathMap[p.PathID] = p
+	}
+
 	var finalRecommendations []recmodel.RecommendedPath
+	for _, aiResult := range aiResp.Results {
+		resultPathID, ok := s.extractPathID(aiResult.ID)
+		if !ok || enrolledMap[resultPathID] {
+			continue
+		}
 
-	if len(pathIDsToFetch) > 0 {
-		paths, err := s.pathRepo.GetLearningPathsByIDs(ctx, pathIDsToFetch)
-		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to batch fetch paths from DB", "error", err.Error())
-		} else {
-			pathMap := make(map[string]model.LearningPath)
-			for _, p := range paths {
-				pathMap[p.PathID] = p
+		fullPath, exists := pathMap[resultPathID]
+		if !exists {
+			s.logger.WarnContext(ctx, "path from AI not found in DB", "path_id", resultPathID)
+			continue
+		}
+
+		recPath := recmodel.RecommendedPath{
+			LearningPath:        fullPath,
+			RecommendationScore: aiResult.Score,
+			Reason:              "Recommended based on your current enrolled learning paths.",
+		}
+
+		if aiResult.Payload != nil {
+			if title, ok := aiResult.Payload["title"].(string); ok {
+				recPath.Title = title
 			}
-
-			for _, aiResult := range aiResp.Results {
-				var resultPathID string
-				if id, ok := aiResult.ID.(float64); ok {
-					resultPathID = strconv.Itoa(int(id))
-				} else if id, ok := aiResult.ID.(string); ok {
-					resultPathID = id
-				} else {
-					continue
-				}
-
-				if enrolledMap[resultPathID] {
-					continue
-				}
-
-				fullPath, exists := pathMap[resultPathID]
-				if !exists {
-					s.logger.WarnContext(ctx, "path from AI not found in DB", "path_id", resultPathID)
-					continue
-				}
-
-				recPath := recmodel.RecommendedPath{
-					PathID:              fullPath.PathID,
-					Title:               fullPath.Title,
-					Description:         fullPath.Description,
-					CoverImgURL:         fullPath.CoverImgURL,
-					Objective:           fullPath.Objective,
-					Rating:              fullPath.Rating,
-					Publish_status:      fullPath.Publish_status,
-					CreatedAt:           fullPath.CreatedAt,
-					UpdatedAt:           fullPath.UpdatedAt,
-					CreatorID:           fullPath.CreatorID,
-					Instructor:          fullPath.Instructor,
-					Modules:             fullPath.Modules,
-					Students:            fullPath.Students,
-					RecommendationScore: aiResult.Score,
-					Reason:              "Recommended based on your current enrolled learning paths.",
-				}
-
-				if aiResult.Payload != nil {
-					if title, ok := aiResult.Payload["title"].(string); ok {
-						recPath.Title = title
-					}
-					if cover, ok := aiResult.Payload["cover_img_url"].(string); ok {
-						recPath.CoverImgURL = cover
-					}
-					if obj, ok := aiResult.Payload["objective"].(string); ok {
-						recPath.Objective = obj
-					}
-				}
-
-				finalRecommendations = append(finalRecommendations, recPath)
-
-				if len(finalRecommendations) == 5 {
-					break
-				}
+			if cover, ok := aiResult.Payload["cover_img_url"].(string); ok {
+				recPath.CoverImgURL = cover
 			}
+			if obj, ok := aiResult.Payload["objective"].(string); ok {
+				recPath.Objective = obj
+			}
+		}
+
+		finalRecommendations = append(finalRecommendations, recPath)
+
+		if len(finalRecommendations) == 5 {
+			break
 		}
 	}
 
@@ -161,7 +134,6 @@ func (s *serviceImpl) RecommendHomePathsForUser(ctx context.Context, userID stri
 	}, nil
 }
 
-// หาที่อยู่ให้ด้วยก็ดี
 func (s *serviceImpl) getFallbackPopularPaths(ctx context.Context, message string) (*recmodel.RecommendPathResponse, error) {
 	topPaths, err := s.recRepo.GetTopPopularPaths(ctx)
 	if err != nil {

@@ -5,13 +5,13 @@ import (
 	"strconv"
 	"strings"
 
-	"passiontree/internal/learning-path/model"
+	pathmodel "passiontree/internal/learning-path/model" // ตรวจสอบ import นี้ให้ตรงโปรเจกต์คุณด้วยนะครับ
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
-	recmodel "passiontree/internal/recommendation/model"
+	"passiontree/internal/recommendation/model"
 )
 
-func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, treeID string) (*recmodel.RecommendPathResponse, error) {
+func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error) {
 	if userID == "" {
 		return nil, apperror.NewUnauthorized("Authentication session expired")
 	}
@@ -29,9 +29,9 @@ func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, 
 	}
 
 	if len(reflections) == 0 {
-		return &recmodel.RecommendPathResponse{
+		return &model.RecommendPathResponse{
 			UserPersonaQuery: "No historical data found in this tree.",
-			RecommendedPaths: []recmodel.RecommendedPath{},
+			RecommendedPaths: []model.RecommendedPath{},
 		}, nil
 	}
 
@@ -69,94 +69,79 @@ func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, 
 
 	var pathIDsToFetch []string
 	for _, aiResult := range aiResp.Results {
-		var resultPathID string
-		if id, ok := aiResult.ID.(float64); ok {
-			resultPathID = strconv.Itoa(int(id))
-		} else if id, ok := aiResult.ID.(string); ok {
-			resultPathID = id
-		} else {
-			continue
-		}
-
-		if resultPathID == currentPathID {
+		resultPathID, ok := s.extractPathID(aiResult.ID)
+		if !ok || resultPathID == currentPathID {
 			continue
 		}
 		pathIDsToFetch = append(pathIDsToFetch, resultPathID)
 	}
 
-	var finalRecommendations []recmodel.RecommendedPath
+	if len(pathIDsToFetch) == 0 {
+		return s.getFallbackPopularPaths(ctx, "No relevant reflections found for your current tree. Showing top popular paths.")
+	}
 
-	if len(pathIDsToFetch) > 0 {
-		paths, err := s.pathRepo.GetLearningPathsByIDs(ctx, pathIDsToFetch)
-		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to batch fetch paths from DB", "error", err.Error())
-		} else {
-			pathMap := make(map[string]model.LearningPath)
-			for _, p := range paths {
-				pathMap[p.PathID] = p
+	paths, err := s.pathRepo.GetLearningPathsByIDs(ctx, pathIDsToFetch)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to batch fetch paths from DB", "error", err.Error())
+		return s.getFallbackPopularPaths(ctx, "Could not fetch specific paths. Showing top popular paths.")
+	}
+
+	pathMap := make(map[string]pathmodel.LearningPath)
+	for _, p := range paths {
+		pathMap[p.PathID] = p
+	}
+
+	var finalRecommendations []model.RecommendedPath
+	for _, aiResult := range aiResp.Results {
+		resultPathID, ok := s.extractPathID(aiResult.ID)
+		if !ok || resultPathID == currentPathID {
+			continue
+		}
+
+		fullPath, exists := pathMap[resultPathID]
+		if !exists {
+			s.logger.WarnContext(ctx, "path from AI not found in DB", "path_id", resultPathID)
+			continue
+		}
+
+		recPath := model.RecommendedPath{
+			LearningPath:        fullPath,
+			RecommendationScore: aiResult.Score,
+			Reason:              "Recommended based on your reflections and current path.",
+		}
+
+		if aiResult.Payload != nil {
+			if title, ok := aiResult.Payload["title"].(string); ok {
+				recPath.Title = title
 			}
-
-			for _, aiResult := range aiResp.Results {
-				var resultPathID string
-				if id, ok := aiResult.ID.(float64); ok {
-					resultPathID = strconv.Itoa(int(id))
-				} else if id, ok := aiResult.ID.(string); ok {
-					resultPathID = id
-				} else {
-					continue
-				}
-
-				if resultPathID == currentPathID {
-					continue
-				}
-
-				fullPath, exists := pathMap[resultPathID]
-				if !exists {
-					s.logger.WarnContext(ctx, "path from AI not found in DB", "path_id", resultPathID)
-					continue
-				}
-
-				recPath := recmodel.RecommendedPath{
-					PathID:              fullPath.PathID,
-					Title:               fullPath.Title,
-					Description:         fullPath.Description,
-					CoverImgURL:         fullPath.CoverImgURL,
-					Objective:           fullPath.Objective,
-					Rating:              fullPath.Rating,
-					Publish_status:      fullPath.Publish_status,
-					CreatedAt:           fullPath.CreatedAt,
-					UpdatedAt:           fullPath.UpdatedAt,
-					CreatorID:           fullPath.CreatorID,
-					Instructor:          fullPath.Instructor,
-					Modules:             fullPath.Modules,
-					Students:            fullPath.Students,
-					RecommendationScore: aiResult.Score,
-					Reason:              "Recommended based on your reflections and current path.",
-				}
-
-				if aiResult.Payload != nil {
-					if title, ok := aiResult.Payload["title"].(string); ok {
-						recPath.Title = title
-					}
-					if cover, ok := aiResult.Payload["cover_img_url"].(string); ok {
-						recPath.CoverImgURL = cover
-					}
-					if obj, ok := aiResult.Payload["objective"].(string); ok {
-						recPath.Objective = obj
-					}
-				}
-
-				finalRecommendations = append(finalRecommendations, recPath)
+			if cover, ok := aiResult.Payload["cover_img_url"].(string); ok {
+				recPath.CoverImgURL = cover
+			}
+			if obj, ok := aiResult.Payload["objective"].(string); ok {
+				recPath.Objective = obj
 			}
 		}
+
+		finalRecommendations = append(finalRecommendations, recPath)
 	}
 
 	if len(finalRecommendations) == 0 {
 		return s.getFallbackPopularPaths(ctx, "No relevant reflections found for your current path. Showing top popular paths.")
 	}
 
-	return &recmodel.RecommendPathResponse{
+	return &model.RecommendPathResponse{
 		RecommendedPaths: finalRecommendations,
 		UserPersonaQuery: userPersonaQuery,
 	}, nil
+}
+
+func (s *serviceImpl) extractPathID(id any) (string, bool) {
+	switch v := id.(type) {
+	case string:
+		return v, true
+	case float64:
+		return strconv.Itoa(int(v)), true
+	default:
+		return "", false
+	}
 }
