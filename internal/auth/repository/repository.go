@@ -69,7 +69,6 @@ type Repository interface {
 	RepositoryUser
 	RepositoryToken
 	RepositorySocial
-	GetDB() Database
 }
 
 type repositoryImpl struct {
@@ -80,8 +79,4 @@ func NewRepository(ds connection.Database) Repository {
 	return &repositoryImpl{
 		db: ds.GetDB(),
 	}
-}
-
-func (r *repositoryImpl) GetDB() Database {
-	return r.db
 }

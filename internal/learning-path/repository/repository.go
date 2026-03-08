@@ -47,7 +47,6 @@ type RepositoryComment interface {
 	GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 	UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error)
-	// GetCommentOwner returns the user_id of the comment author — used for auto-mention on reply
 	GetCommentOwner(ctx context.Context, commentID string) (string, error)
 }
 

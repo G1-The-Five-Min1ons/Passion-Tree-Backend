@@ -29,8 +29,12 @@ func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 
 	authURL := h.socialAuthSvc.GetGoogleAuthURL(state)
 
-	return c.JSON(fiber.Map{
-		"auth_url": authURL,
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Google OAuth URL generated",
+		"data": fiber.Map{
+			"auth_url": authURL,
+		},
 	})
 }
 
@@ -45,8 +49,12 @@ func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 
 	authURL := h.socialAuthSvc.GetDiscordAuthURL(state)
 
-	return c.JSON(fiber.Map{
-		"auth_url": authURL,
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Discord OAuth URL generated",
+		"data": fiber.Map{
+			"auth_url": authURL,
+		},
 	})
 }
 
@@ -59,13 +67,14 @@ func (h *Handler) handleOAuthResponse(c *fiber.Ctx, provider string, user *model
 	if linkConfirm != nil && linkConfirm.NeedsConfirm {
         return c.Status(fiber.StatusMultipleChoices).JSON(fiber.Map{
             "success": false,
+			"message": "Account with this email already exists, please confirm linking",
             "type":    "LINK_CONFIRMATION_REQUIRED",
             "data":    linkConfirm,
         })
     }
 
 	h.logger.Info(provider + " login successful", "user_id", user.UserID)
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": provider + " Login successful",
 		"data": fiber.Map{
@@ -144,7 +153,7 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 
 	h.logger.Info("native google signin successful", "user_id", user.UserID, "email", user.Email, "name", user.Username)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Login successful",
 		"token":   token,
@@ -187,7 +196,7 @@ func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
 
 	h.logger.Info("native discord signin successful", "user_id", user.UserID, "email", user.Email, "name", user.Username)
 
-	return c.JSON(fiber.Map{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Login successful",
 		"token":   token,

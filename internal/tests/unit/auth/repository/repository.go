@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"passiontree/internal/auth/model"
-	"passiontree/internal/auth/repository"
 )
 
 // MockRepository implements repository.Repository
@@ -237,6 +236,3 @@ func (m *Repository) UpdateSocialUserInfo(ctx context.Context, userID string, us
 func (m *Repository) UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error {
 	return nil
 }
-
-// Implement GetDB
-func (m *Repository) GetDB() repository.Database { return nil }
