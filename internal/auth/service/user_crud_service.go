@@ -23,11 +23,10 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	}
 	if user.Username == "" {
 		return "", apperror.NewBadRequest("username is required")
-	}	
+	}
 	if _, err := mail.ParseAddress(user.Email); err != nil {
 		return "", apperror.NewBadRequest("invalid email format")
 	}
-
 
 	// Check if email already exists
 	if existingUser, _ := s.repo.GetUserByEmail(ctx, user.Email); existingUser != nil {
@@ -80,7 +79,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	if profile.LearningStreak == 0 {
 		profile.LearningStreak = 0
 	}
-	if profile.LearningCount == 0 {	
+	if profile.LearningCount == 0 {
 		profile.LearningCount = 0
 	}
 	if profile.HourLearned == 0 {

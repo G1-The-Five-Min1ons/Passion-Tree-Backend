@@ -44,6 +44,22 @@ func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*mode
 }
 
 func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathRequest) (string, error) {
+	if req.CreatorID == "" {
+		return "", apperror.NewBadRequest("creator_id is required")
+	}
+
+	creatorRole, isTeacherVerified, err := s.pathRepo.GetPathCreatorVerification(ctx, req.CreatorID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", apperror.NewBadRequest("invalid creator_id: user does not exist")
+		}
+		return "", apperror.NewInternal("failed to validate creator verification status: %w", err)
+	}
+
+	if creatorRole == "teacher" && !isTeacherVerified {
+		return "", apperror.NewForbidden("teacher account must be approved before creating learning paths (bind phone number, submit application, and wait for admin approval)")
+	}
+
 	if req.Title == "" {
 		return "", apperror.NewBadRequest("title cannot be empty")
 	}

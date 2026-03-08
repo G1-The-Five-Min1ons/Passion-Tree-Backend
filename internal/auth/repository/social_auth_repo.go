@@ -14,14 +14,17 @@ import (
 func (r *repositoryImpl) GetUserByProvider(ctx context.Context, provider, providerUserID string) (*model.User, error) {
 	query := `
 		SELECT
-			user_id, username, email, first_name, last_name, role,
-			heart_count, is_email_verified, created_at, updated_at,
+			CONVERT(VARCHAR(36), user_id) as user_id,
+			username, email, first_name, last_name, role,
+			heart_count, is_email_verified, create_at, update_at,
 			auth_provider, provider_user_id
 		FROM users
 		WHERE auth_provider = @p1 AND provider_user_id = @p2
 	`
 
 	var user model.User
+	var createdAt, updatedAt sql.NullTime
+
 	err := r.db.QueryRowContext(ctx, query, provider, providerUserID).Scan(
 		&user.UserID,
 		&user.Username,
@@ -31,8 +34,8 @@ func (r *repositoryImpl) GetUserByProvider(ctx context.Context, provider, provid
 		&user.Role,
 		&user.HeartCount,
 		&user.IsEmailVerified,
-		&user.CreatedAt,
-		&user.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 		&user.AuthProvider,
 		&user.ProviderUserID,
 	)
@@ -43,6 +46,13 @@ func (r *repositoryImpl) GetUserByProvider(ctx context.Context, provider, provid
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by provider: %w", err)
+	}
+
+	if createdAt.Valid {
+		user.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		user.UpdatedAt = updatedAt.Time
 	}
 
 	return &user, nil
@@ -72,9 +82,11 @@ func (r *repositoryImpl) CreateSocialUser(ctx context.Context, user *model.User,
 	userQuery := `
 		INSERT INTO users (
 			user_id, username, email, password, first_name, last_name, 
-			role, heart_count, is_email_verified, auth_provider, provider_user_id
+			role, heart_count, is_email_verified, auth_provider, provider_user_id,
+			create_at, update_at
 		) VALUES (
-			@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11
+			@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11,
+			GETUTCDATE(), GETUTCDATE()
 		)
 	`
 
@@ -99,15 +111,17 @@ func (r *repositoryImpl) CreateSocialUser(ctx context.Context, user *model.User,
 	// Insert profile if provided
 	if profile != nil {
 		profile.UserID = userID
+		profileID := uuid.New().String()
 		profileQuery := `
-			INSERT INTO profiles (
-				user_id, bio, location, avatar_url
+			INSERT INTO profile (
+				profile_id, user_id, bio, location, avatar_url
 			) VALUES (
-				@p1, @p2, @p3, @p4
+				@p1, @p2, @p3, @p4, @p5
 			)
 		`
 
 		_, err = tx.ExecContext(ctx, profileQuery,
+			profileID,
 			profile.UserID,
 			profile.Bio,
 			profile.Location,
@@ -128,25 +142,38 @@ func (r *repositoryImpl) CreateSocialUser(ctx context.Context, user *model.User,
 
 // LinkSocialAccount links a social account to an existing user
 func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error {
-	// Check if this social account is already linked to another user
-	existingUser, err := r.GetUserByProvider(ctx, provider, providerUserID)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Check if this social account is already linked to another user
+	existingCheckQuery := `
+		SELECT CONVERT(VARCHAR(36), user_id)
+		FROM users WITH (UPDLOCK, HOLDLOCK)
+		WHERE auth_provider = @p1 AND provider_user_id = @p2
+	`
+
+	var existingUserID string
+	err = tx.QueryRowContext(ctx, existingCheckQuery, provider, providerUserID).Scan(&existingUserID)
+	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("failed to check existing social account: %w", err)
 	}
 
-	if existingUser != nil && existingUser.UserID != userID {
+	if err == nil && existingUserID != userID {
 		return fmt.Errorf("social account is already linked to another user")
 	}
 
 	// Check if the target user already has a social account linked
 	checkQuery := `
 		SELECT auth_provider, provider_user_id
-		FROM users
+		FROM users WITH (UPDLOCK, HOLDLOCK)
 		WHERE user_id = @p1
 	`
 
 	var currentProvider, currentProviderUserID sql.NullString
-	err = r.db.QueryRowContext(ctx, checkQuery, userID).Scan(&currentProvider, &currentProviderUserID)
+	err = tx.QueryRowContext(ctx, checkQuery, userID).Scan(&currentProvider, &currentProviderUserID)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("user not found")
 	}
@@ -162,11 +189,11 @@ func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider
 	// Link the social account
 	query := `
 		UPDATE users
-		SET auth_provider = @p1, provider_user_id = @p2, updated_at = GETDATE()
+		SET auth_provider = @p1, provider_user_id = @p2, update_at = GETUTCDATE()
 		WHERE user_id = @p3
 	`
 
-	result, err := r.db.ExecContext(ctx, query, provider, providerUserID, userID)
+	result, err := tx.ExecContext(ctx, query, provider, providerUserID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to link social account: %w", err)
 	}
@@ -180,6 +207,10 @@ func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider
 		return fmt.Errorf("user not found")
 	}
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return nil
 }
 
@@ -188,11 +219,11 @@ func (r *repositoryImpl) UpdateSocialUserInfo(ctx context.Context, userID string
 	query := `
 		UPDATE users
 		SET 
-			first_name = @p1,
-			last_name = @p2,
-			email = @p3,
+			first_name = COALESCE(NULLIF(LTRIM(RTRIM(@p1)), ''), first_name),
+			last_name = COALESCE(NULLIF(LTRIM(RTRIM(@p2)), ''), last_name),
+			email = COALESCE(NULLIF(LTRIM(RTRIM(@p3)), ''), email),
 			is_email_verified = 1,
-			updated_at = GETDATE()
+			update_at = GETUTCDATE()
 		WHERE user_id = @p4
 	`
 
@@ -229,7 +260,7 @@ func (r *repositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID str
 	// 1. MATCHED: If a profile exists for this user_id, update only the avatar_url
 	// 2. NOT MATCHED: If no profile exists, insert a new record with all provided data
 	query := `
-		MERGE INTO profiles AS target
+		MERGE INTO profile AS target
 		USING (SELECT @p1 AS user_id) AS source
 		ON target.user_id = source.user_id
 		WHEN MATCHED THEN
@@ -238,17 +269,17 @@ func (r *repositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID str
 					WHEN @p2 IS NOT NULL AND @p2 != '' THEN @p2 
 					ELSE target.avatar_url 
 				END,
-				updated_at = GETUTCDATE()
+				update_at = GETUTCDATE()
 		WHEN NOT MATCHED THEN
-			INSERT (user_id, bio, location, avatar_url, created_at, updated_at)
+			INSERT (user_id, bio, location, avatar_url, created_at, update_at)
 			VALUES (@p1, @p3, @p4, @p2, GETUTCDATE(), GETUTCDATE());
 	`
 
 	_, err := r.db.ExecContext(ctx, query,
-		userID,            
-		profile.AvatarURL,  
-		profile.Bio,        
-		profile.Location,   
+		userID,
+		profile.AvatarURL,
+		profile.Bio,
+		profile.Location,
 	)
 
 	if err != nil {

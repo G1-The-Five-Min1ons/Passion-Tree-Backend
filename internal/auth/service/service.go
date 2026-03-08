@@ -29,6 +29,8 @@ type UserService interface {
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	GetAllUsers(ctx context.Context) ([]*model.UserWithProfile, error)
+	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
 	UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
 	UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error
 	DeleteUser(ctx context.Context, id string, password string) error
@@ -45,6 +47,10 @@ type UserService interface {
 	// Multi-device Session Management
 	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
 	LogoutSession(ctx context.Context, userID string, sessionID string) error
+	GetTeacherVerificationStatus(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error)
+	ApplyForTeacher(ctx context.Context, userID string, req model.ApplyTeacherRequest) error
+	GetTeacherApplications(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error)
+	ReviewTeacherApplication(ctx context.Context, requestID, reviewedBy string, req model.ReviewTeacherApplicationRequest) error
 }
 
 type EmailService interface {
@@ -59,6 +65,7 @@ type SocialAuthService interface {
 	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
+	HandleNativeDiscordSignIn(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 

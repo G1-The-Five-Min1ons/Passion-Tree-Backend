@@ -1,29 +1,42 @@
 package handler
 
 import (
+	"html/template"
 	"log/slog"
 	"os"
 
 	"passiontree/internal/auth/service"
+	"passiontree/internal/config"
 	"passiontree/internal/pkg/apperror"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type Handler struct {
-	userSvc       service.UserService
-	socialAuthSvc service.SocialAuthService
-	logger        *slog.Logger
-	isProduction  bool
+	userSvc          service.UserService
+	socialAuthSvc    service.SocialAuthService
+	logger           *slog.Logger
+	isProduction     bool
+	config           *config.Config
+	oauthRedirectTpl *template.Template
 }
 
-func NewHandler(userSvc service.UserService, socialAuthSvc service.SocialAuthService, logger *slog.Logger) *Handler {
+func NewHandler(userSvc service.UserService, socialAuthSvc service.SocialAuthService, cfg *config.Config, logger *slog.Logger) *Handler {
 	appEnv := os.Getenv("APP_ENV")
+
+	// Load OAuth redirect template
+	tpl, err := template.ParseFiles("internal/auth/handler/templates/oauth_redirect.html")
+	if err != nil {
+		logger.Warn("failed to load oauth_redirect template, will use inline HTML as fallback", "error", err)
+	}
+
 	return &Handler{
-		userSvc:       userSvc,
-		socialAuthSvc: socialAuthSvc,
-		logger:        logger,
-		isProduction:  appEnv == "production",
+		userSvc:          userSvc,
+		socialAuthSvc:    socialAuthSvc,
+		logger:           logger,
+		isProduction:     appEnv == "production",
+		config:           cfg,
+		oauthRedirectTpl: tpl,
 	}
 }
 

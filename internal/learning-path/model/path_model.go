@@ -20,19 +20,21 @@ type UpdatePathRequest struct {
 }
 
 type LearningPath struct {
-	PathID         string     `json:"path_id"`
-	Title          string     `json:"title"`
-	CoverImgURL    string     `json:"cover_img_url"`
-	Objective      string     `json:"objective"`
-	Description    string     `json:"description"`
-	Rating         float64    `json:"avg_rating"`
-	Publish_status string     `json:"publish_status"`
-	CreatedAt      *time.Time `json:"created_at"`
-	UpdatedAt      *time.Time `json:"updated_at"`
-	CreatorID      string     `json:"creator_id"`
-	Instructor     string     `json:"instructor"`
-	Modules        int        `json:"modules"`
-	Students       int        `json:"student"`
+	PathID          string     `json:"path_id"`
+	Title           string     `json:"title"`
+	CoverImgURL     string     `json:"cover_img_url"`
+	Objective       string     `json:"objective"`
+	Description     string     `json:"description"`
+	Rating          float64    `json:"avg_rating"`
+	Publish_status  string     `json:"publish_status"`
+	CreatedAt       *time.Time `json:"created_at"`
+	UpdatedAt       *time.Time `json:"updated_at"`
+	CreatorID       string     `json:"creator_id"`
+	CreatorName     string     `json:"creator_name"`
+	CreatorUsername string     `json:"creator_username"`
+	Instructor      string     `json:"instructor"`
+	Modules         int        `json:"modules"`
+	Students        int        `json:"student"`
 }
 
 type PathEnroll struct {

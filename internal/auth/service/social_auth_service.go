@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/idtoken"
 )
 
 // GetGoogleAuthURL generates the Google OAuth2 authorization URL
@@ -28,21 +28,18 @@ func (s *userServiceImpl) GetDiscordAuthURL(state string) string {
 
 // Private helper function to handle OAuth callbacks for Google and Discord
 // handleOAuthCallback is a generic handler for OAuth callbacks
-func (s *userServiceImpl) handleOAuthCallback(ctx context.Context, code string, config *oauth2.Config, fetchUserInfo func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error), providerName string,) (*model.User, string, *model.LinkConfirmationNeeded, error) {
-	// Exchange code for token
-	token, err := config.Exchange(ctx, code)
+func (s *userServiceImpl) handleOAuthCallback(ctx context.Context, code string, config *oauth2.Config, fetchUserInfo func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error), providerName string, opts ...oauth2.AuthCodeOption) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+	token, err := config.Exchange(ctx, code, opts...)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to exchange oauth code", "provider", providerName, "error", err)
 		return nil, "", nil, apperror.NewInternal("failed to authenticate with %s: %w", providerName, err)
 	}
 
-	// Fetch user info from provider
 	userInfo, err := fetchUserInfo(ctx, token)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	// Find or create user
 	user, jwtToken, linkConfirm, err := s.findOrCreateUser(ctx, userInfo)
 	if err != nil {
 		return nil, "", nil, err
@@ -56,9 +53,18 @@ func (s *userServiceImpl) HandleGoogleCallback(ctx context.Context, code string)
 	return s.handleOAuthCallback(ctx, code, s.googleConfig, s.fetchGoogleUserInfo, "google")
 }
 
-// HandleDiscordCallback processes the Discord OAuth2 callback
+// HandleDiscordCallback processes the Discord OAuth2 callback from web
 func (s *userServiceImpl) HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	return s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord")
+}
+
+// HandleNativeDiscordSignIn processes native Discord Sign-In from mobile apps
+func (s *userServiceImpl) HandleNativeDiscordSignIn(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+	// For native Discord login, the authorization request used the backend's
+	nativeRedirectUri := s.config.DiscordNativeRedirectURL
+	nativeRedirectUriOpt := oauth2.SetAuthURLParam("redirect_uri", nativeRedirectUri)
+
+	return s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord", nativeRedirectUriOpt)
 }
 
 // fetchGoogleUserInfo retrieves user information from Google API
@@ -117,13 +123,11 @@ func (s *userServiceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth
 		return nil, apperror.NewInternal("failed to parse discord user data: %w", err)
 	}
 
-	// Build avatar URL
 	avatarURL := ""
 	if discordUser.Avatar != "" {
 		avatarURL = fmt.Sprintf("https://cdn.discordapp.com/avatars/%s/%s.png", discordUser.ID, discordUser.Avatar)
 	}
 
-	// Parse name
 	firstName := discordUser.GlobalName
 	lastName := ""
 	if firstName == "" {
@@ -136,20 +140,17 @@ func (s *userServiceImpl) fetchDiscordUserInfo(ctx context.Context, token *oauth
 	}
 
 	return &model.OAuthUserInfo{
-		ProviderUserID: discordUser.ID,
-		Email:          discordUser.Email,
-		FirstName:      firstName,
-		LastName:       lastName,
-		AvatarURL:      avatarURL,
-		Provider:       model.AuthProviderDiscord,
+		ProviderUserID:   discordUser.ID,
+		Email:            discordUser.Email,
+		FirstName:        firstName,
+		LastName:         lastName,
+		AvatarURL:        avatarURL,
+		Provider:         model.AuthProviderDiscord,
+		ProviderUsername: discordUser.Username,
 	}, nil
 }
 
 // findOrCreateUser finds an existing user or creates a new one from OAuth info
-// This function implements UPSERT logic:
-// - If user exists with provider: Update their info from provider
-// - If user exists with email only: Ask user to confirm linking
-// - If user doesn't exist: Create new user
 func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, string, *model.LinkConfirmationNeeded, error) {
 	// Check if user exists with this provider
 	user, err := s.repo.GetUserByProvider(ctx, userInfo.Provider, userInfo.ProviderUserID)
@@ -157,7 +158,6 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 		return nil, "", nil, apperror.NewInternal("failed to check user existence: %w", err)
 	}
 
-	// CASE 1: User exists with this social provider
 	if user != nil {
 		s.logger.InfoContext(ctx, "user exists with provider, updating info",
 			"user_id", user.UserID,
@@ -181,12 +181,10 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 			// Continue anyway - profile update is not critical
 		}
 
-		// Refresh user data
 		user.FirstName = userInfo.FirstName
 		user.LastName = userInfo.LastName
 		user.Email = userInfo.Email
 
-		// Generate JWT token
 		jwtToken, err := s.generateJWT(user)
 		if err != nil {
 			return nil, "", nil, apperror.NewInternal("failed to generate token: %w", err)
@@ -195,29 +193,23 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 		return user, jwtToken, nil, nil
 	}
 
-	// CASE 2: User doesn't have this provider, check by email
 	existingUser, err := s.repo.GetUserByEmail(ctx, userInfo.Email)
 	if err != nil {
 		return nil, "", nil, apperror.NewInternal("failed to check user by email: %w", err)
 	}
 
 	if existingUser != nil {
-		// CASE 2A: User exists with same email but different provider (or local account)
-		// NEED TO ASK USER TO CONFIRM LINKING
 		s.logger.InfoContext(ctx, "user exists with email, need confirmation to link",
 			"user_id", existingUser.UserID,
 			"email", userInfo.Email,
 			"existing_provider", existingUser.AuthProvider,
 			"new_provider", userInfo.Provider,
 		)
-
-		// Create link token with provider info
 		linkToken, err := s.generateLinkToken(existingUser.UserID, userInfo)
 		if err != nil {
 			return nil, "", nil, apperror.NewInternal("failed to generate link token: %w", err)
 		}
 
-		// Return confirmation needed
 		linkConfirm := &model.LinkConfirmationNeeded{
 			LinkToken: linkToken,
 			ExistingUser: &model.User{
@@ -237,7 +229,6 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 		return nil, "", linkConfirm, nil
 	}
 
-	// CASE 3: User doesn't exist at all - Create new user
 	s.logger.InfoContext(ctx, "creating new user from social auth",
 		"email", userInfo.Email,
 		"provider", userInfo.Provider,
@@ -247,8 +238,6 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 	if err != nil {
 		return nil, "", nil, err
 	}
-
-	// Generate JWT token
 	jwtToken, err := s.generateJWT(user)
 	if err != nil {
 		return nil, "", nil, apperror.NewInternal("failed to generate token: %w", err)
@@ -259,13 +248,14 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 
 // createUserFromOAuth creates a new user from OAuth provider information
 func (s *userServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *model.OAuthUserInfo) (*model.User, error) {
-	// Generate username from email
-	username := strings.Split(userInfo.Email, "@")[0]
+	username := userInfo.ProviderUsername
+	if username == "" {
+		username = strings.Split(userInfo.Email, "@")[0]
+	}
 
-	// Check if username exists, append random number if needed
 	existingUser, _ := s.repo.GetUserByUsername(ctx, username)
 	if existingUser != nil {
-		username = fmt.Sprintf("%s_%d", username, time.Now().Unix()%10000)
+		username = fmt.Sprintf("%s_%04d", username, time.Now().UnixNano()%10000)
 	}
 
 	user := &model.User{
@@ -273,7 +263,7 @@ func (s *userServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *mod
 		Email:           userInfo.Email,
 		FirstName:       userInfo.FirstName,
 		LastName:        userInfo.LastName,
-		Role:            model.RoleStudent,
+		Role:            model.RolePending,
 		HeartCount:      0,
 		IsEmailVerified: true,
 		AuthProvider:    userInfo.Provider,
@@ -296,12 +286,10 @@ func (s *userServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *mod
 	return user, nil
 }
 
-// generateJWT creates a JWT token for authenticated user
 func (s *userServiceImpl) generateJWT(user *model.User) (string, error) {
 	return s.jwtService.GenerateAccessToken(user)
 }
 
-// generateLinkToken creates a temporary token for account linking confirmation
 func (s *userServiceImpl) generateLinkToken(userID string, providerInfo *model.OAuthUserInfo) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":          userID,
@@ -319,24 +307,20 @@ func (s *userServiceImpl) generateLinkToken(userID string, providerInfo *model.O
 
 // ConfirmAccountLink handles user's decision to link or not link accounts
 func (s *userServiceImpl) ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error) {
-	// Parse and validate link token
 	claims, err := s.jwtService.ValidateCustomToken(linkToken)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to parse link token", "error", err)
 		return nil, "", apperror.NewUnauthorized("invalid or expired link token")
 	}
 
-	// Verify token type
 	if claims["type"] != "link_confirmation" {
 		return nil, "", apperror.NewUnauthorized("invalid token type")
 	}
 
-	// Extract claims
 	userID := claims["user_id"].(string)
 	provider := claims["provider"].(string)
 	providerUserID := claims["provider_user_id"].(string)
 
-	// Get existing user
 	existingUser, _, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, "", apperror.NewInternal("failed to get user: %w", err)
@@ -347,7 +331,6 @@ func (s *userServiceImpl) ConfirmAccountLink(ctx context.Context, linkToken stri
 	}
 
 	if confirm {
-		// User confirmed - Link the accounts
 		s.logger.InfoContext(ctx, "user confirmed account linking",
 			"user_id", userID,
 			"provider", provider,
@@ -371,7 +354,11 @@ func (s *userServiceImpl) ConfirmAccountLink(ctx context.Context, linkToken stri
 
 		err = s.repo.UpdateSocialUserInfo(ctx, userID, providerInfo)
 		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to update user info after linking", "error", err)
+			s.logger.ErrorContext(ctx, "failed to update user info after linking",
+				"user_id", userID,
+				"provider", provider,
+				"error", err)
+			// Continue - non-critical failure
 		}
 
 		// Update profile (avatar)
@@ -381,11 +368,13 @@ func (s *userServiceImpl) ConfirmAccountLink(ctx context.Context, linkToken stri
 			}
 			err = s.repo.UpsertSocialUserProfile(ctx, userID, profile)
 			if err != nil {
-				s.logger.ErrorContext(ctx, "failed to update profile after linking", "error", err)
+				s.logger.ErrorContext(ctx, "failed to update profile after linking",
+					"user_id", userID,
+					"error", err)
+				// Continue - non-critical failure
 			}
 		}
 
-		// Update user object
 		existingUser.AuthProvider = provider
 		existingUser.ProviderUserID = providerUserID
 
@@ -394,14 +383,12 @@ func (s *userServiceImpl) ConfirmAccountLink(ctx context.Context, linkToken stri
 			"provider", provider,
 		)
 	} else {
-		// User declined - Just login with existing account
 		s.logger.InfoContext(ctx, "user declined account linking, using existing account",
 			"user_id", userID,
 			"provider", provider,
 		)
 	}
 
-	// Generate JWT token for login
 	jwtToken, err := s.generateJWT(existingUser)
 	if err != nil {
 		return nil, "", apperror.NewInternal("failed to generate token: %w", err)
@@ -419,77 +406,131 @@ func getStringClaim(claims jwt.MapClaims, key string) string {
 }
 
 // HandleNativeGoogleSignIn processes native Google Sign-In from mobile apps
-// This method verifies the Google ID token and authenticates the user
 func (s *userServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error) {
-	// Verify the ID token with Google
 	userInfo, err := s.verifyGoogleIDToken(ctx, idToken)
 	if err != nil {
 		return nil, "", err
 	}
 
-	// Find or create user
 	user, jwtToken, linkConfirm, err := s.findOrCreateUser(ctx, userInfo)
 	if err != nil {
 		return nil, "", err
 	}
 
-	// Native SSO doesn't support link confirmation - auto-link if user exists
+	// Native SSO doesn't support link confirmation dialog - auto-link the account
 	if linkConfirm != nil {
-		return nil, "", apperror.NewBadRequest("account with this email already exists, please use web login to link accounts")
+		existingUser, _, err := s.repo.GetUserByID(ctx, linkConfirm.ExistingUser.UserID)
+		if err != nil || existingUser == nil {
+			return nil, "", apperror.NewInternal("failed to get existing user: %w", err)
+		}
+
+		// Auto-link the social account to the existing user
+		err = s.repo.LinkSocialAccount(ctx, existingUser.UserID, userInfo.Provider, userInfo.ProviderUserID)
+		if err != nil {
+			return nil, "", apperror.NewInternal("failed to link account: %w", err)
+		}
+
+		err = s.repo.UpdateSocialUserInfo(ctx, existingUser.UserID, userInfo)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to update user info after auto-linking",
+				"user_id", existingUser.UserID,
+				"provider", userInfo.Provider,
+				"error", err)
+			// Continue - non-critical failure
+		}
+
+		// Update profile (avatar)
+		if userInfo.AvatarURL != "" {
+			profile := &model.Profile{AvatarURL: userInfo.AvatarURL}
+			err = s.repo.UpsertSocialUserProfile(ctx, existingUser.UserID, profile)
+			if err != nil {
+				s.logger.ErrorContext(ctx, "failed to update profile after auto-linking",
+					"user_id", existingUser.UserID,
+					"error", err)
+				// Continue - non-critical failure
+			}
+		}
+
+		s.logger.InfoContext(ctx, "native google signin auto-linked account",
+			"user_id", existingUser.UserID,
+			"provider", userInfo.Provider,
+		)
+
+		jwtToken, err = s.generateJWT(existingUser)
+		if err != nil {
+			return nil, "", apperror.NewInternal("failed to generate token: %w", err)
+		}
+
+		return existingUser, jwtToken, nil
 	}
 
 	return user, jwtToken, nil
 }
 
 // verifyGoogleIDToken verifies Google ID token from native apps
-func (s *userServiceImpl) verifyGoogleIDToken(ctx context.Context, idToken string) (*model.OAuthUserInfo, error) {
-	// Call Google's tokeninfo endpoint to verify the token
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://oauth2.googleapis.com/tokeninfo?id_token=%s", idToken), nil)
+// Uses google.golang.org/api/idtoken for secure token verification
+func (s *userServiceImpl) verifyGoogleIDToken(ctx context.Context, idTokenString string) (*model.OAuthUserInfo, error) {
+	payload, err := idtoken.Validate(ctx, idTokenString, s.googleConfig.ClientID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to create verification request", "error", err)
-		return nil, apperror.NewInternal("failed to create verification request: %w", err)
+		s.logger.ErrorContext(ctx, "failed to validate google id token", "error", err)
+
+		if strings.Contains(err.Error(), "token expired") {
+			return nil, apperror.NewUnauthorized("google id token has expired")
+		}
+		if strings.Contains(err.Error(), "audience") {
+			return nil, apperror.NewUnauthorized("invalid token audience - token was not issued for this app")
+		}
+
+		return nil, apperror.NewUnauthorized("invalid google id token: %v", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to verify google id token", "error", err)
-		return nil, apperror.NewInternal("failed to verify google id token: %w", err)
-	}
-	defer resp.Body.Close()
+	claims := payload.Claims
 
-	if resp.StatusCode != http.StatusOK {
-		s.logger.WarnContext(ctx, "invalid google id token", "status", resp.StatusCode)
-		return nil, apperror.NewUnauthorized("invalid or expired google id token")
+	sub, ok := claims["sub"].(string)
+	if !ok || sub == "" {
+		s.logger.ErrorContext(ctx, "missing sub claim in google token")
+		return nil, apperror.NewUnauthorized("invalid google id token: missing user ID")
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to read token verification response", "error", err)
-		return nil, apperror.NewInternal("failed to read verification response: %w", err)
+	email, ok := claims["email"].(string)
+	if !ok || email == "" {
+		s.logger.ErrorContext(ctx, "missing email claim in google token")
+		return nil, apperror.NewUnauthorized("invalid google id token: missing email")
 	}
 
-	var tokenInfo model.GoogleTokenInfo
-
-	if err := json.Unmarshal(body, &tokenInfo); err != nil {
-		s.logger.ErrorContext(ctx, "failed to parse token info", "error", err)
-		return nil, apperror.NewInternal("failed to parse token information: %w", err)
+	emailVerified, _ := claims["email_verified"].(bool)
+	if !emailVerified {
+		s.logger.WarnContext(ctx, "google email not verified", "email", email)
+		return nil, apperror.NewUnauthorized("google account email is not verified")
 	}
 
-	// Verify the audience matches our client ID
-	if tokenInfo.Aud != s.googleConfig.ClientID {
-		s.logger.WarnContext(ctx, "token audience mismatch",
-			"expected", s.googleConfig.ClientID,
-			"got", tokenInfo.Aud,
-		)
-		return nil, apperror.NewUnauthorized("invalid token audience")
+	givenName, _ := claims["given_name"].(string)
+	familyName, _ := claims["family_name"].(string)
+	picture, _ := claims["picture"].(string)
+
+	if givenName == "" {
+		if name, ok := claims["name"].(string); ok && name != "" {
+			parts := strings.Fields(name)
+			if len(parts) > 0 {
+				givenName = parts[0]
+				if len(parts) > 1 {
+					familyName = strings.Join(parts[1:], " ")
+				}
+			}
+		}
 	}
+
+	s.logger.InfoContext(ctx, "google id token verified successfully",
+		"sub", sub,
+		"email", email,
+	)
 
 	return &model.OAuthUserInfo{
-		ProviderUserID: tokenInfo.Sub,
-		Email:          tokenInfo.Email,
-		FirstName:      tokenInfo.GivenName,
-		LastName:       tokenInfo.FamilyName,
-		AvatarURL:      tokenInfo.Picture,
+		ProviderUserID: sub,
+		Email:          email,
+		FirstName:      givenName,
+		LastName:       familyName,
+		AvatarURL:      picture,
 		Provider:       model.AuthProviderGoogle,
 	}, nil
 }

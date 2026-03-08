@@ -14,9 +14,12 @@ import (
 // UpdateProfile updates user profile information
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-        return h.handleError(c, err)
-    }
+	if err != nil || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Please log in to update your profile",
+		})
+	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -27,10 +30,13 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	}
 
 	profileData := &model.Profile{
-		UserID:    userID,
-		AvatarURL: req.AvatarURL,
-		Location:  req.Location,
-		Bio:       req.Bio,
+		UserID:      userID,
+		AvatarURL:   req.AvatarURL,
+		Location:    req.Location,
+		Bio:         req.Bio,
+		PhoneNumber: req.PhoneNumber,
+		TimeZone:    req.TimeZone,
+		DateFormat:  req.DateFormat,
 	}
 
 	if err := h.userSvc.UpdateProfile(ctx, userID, profileData); err != nil {
@@ -52,16 +58,19 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 // GetProfile gets profile by user ID
 func (h *Handler) GetProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-    if err != nil {
-        return h.handleError(c, err)
-    }
-	
+	if err != nil || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Please log in to view your profile",
+		})
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
 	_, profile, err := h.userSvc.GetUserByID(ctx, userID)
 	if err != nil {
-		return h.handleError(c, err)
+		return h.handleError(c, apperror.NewInternal("failed to retrieve profile"))
 	}
 
 	if profile == nil {
