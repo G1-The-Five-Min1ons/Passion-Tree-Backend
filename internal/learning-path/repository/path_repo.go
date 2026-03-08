@@ -26,7 +26,8 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
     		ISNULL(lp.objective, 'null') as objective,
     		ISNULL(lp.publish_status, 'null') as publish_status, 
     		ISNULL(lp.create_at, GETDATE()) as create_at, 
-    		ISNULL(lp.update_at, GETDATE()) as update_at
+    		ISNULL(lp.update_at, GETDATE()) as update_at,
+			CONVERT(VARCHAR(36), lp.creator_id) creator_id
 		FROM learning_path AS lp 
 		JOIN users AS u ON lp.creator_id = u.user_id
 		LEFT JOIN (
@@ -63,6 +64,7 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 			&p.Publish_status,
 			&p.CreatedAt,
 			&p.UpdatedAt,
+			&p.CreatorID,
 		); err != nil {
 			return nil, fmt.Errorf("repo.GetAllLearningPath scan failed: %w", err)
 		}
