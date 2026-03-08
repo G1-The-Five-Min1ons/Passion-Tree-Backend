@@ -57,14 +57,21 @@ func (h *Handler) handleOAuthResponse(c *fiber.Ctx, provider string, user *model
 	}
 
 	if linkConfirm != nil && linkConfirm.NeedsConfirm {
-		return c.JSON(linkConfirm)
-	}
+        return c.Status(fiber.StatusMultipleChoices).JSON(fiber.Map{
+            "success": false,
+            "type":    "LINK_CONFIRMATION_REQUIRED",
+            "data":    linkConfirm,
+        })
+    }
 
-	h.logger.Info(provider+" login successful", "user_id", user.UserID)
+	h.logger.Info(provider + " login successful", "user_id", user.UserID)
 	return c.JSON(fiber.Map{
-		"message": "Login successful",
-		"token":   token,
-		"user":    user,
+		"success": true,
+		"message": provider + " Login successful",
+		"data": fiber.Map{
+			"token": token,
+			"user":  user,
+		},
 	})
 }
 
@@ -141,7 +148,7 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Login successful",
 		"token":   token,
-		"user": fiber.Map{
+		"data": fiber.Map{
 			"user_id":    user.UserID,
 			"username":   user.Username,
 			"email":      user.Email,
@@ -184,7 +191,7 @@ func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Login successful",
 		"token":   token,
-		"user": fiber.Map{
+		"data": fiber.Map{
 			"user_id":    user.UserID,
 			"username":   user.Username,
 			"email":      user.Email,
@@ -203,12 +210,14 @@ func (h *Handler) DiscordNativeCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	errorParam := c.Query("error")
 
-	const appScheme = "passiontree://auth/callback"
+	// Use config values for mobile app scheme and package
+	appScheme := h.config.MobileAppScheme + "://auth/callback"
+	appPackage := h.config.MobileAppPackage
 
 	// Android intent:// URL natively closes Chrome Custom Tabs
 	buildIntentURL := func(queryPart string) string {
 		return "intent://auth/callback" + queryPart +
-			"#Intent;scheme=passiontree;package=com.example.passion_tree_frontend;end"
+			"#Intent;scheme=" + h.config.MobileAppScheme + ";package=" + appPackage + ";end"
 	}
 
 	renderRedirectPage := func(customSchemeURL string, intentURL string, isError bool) error {
@@ -217,44 +226,53 @@ func (h *Handler) DiscordNativeCallback(c *fiber.Ctx) error {
 			message = "Authentication failed. Returning to Passion Tree..."
 		}
 
+		// Use template if available, otherwise fallback to inline HTML
+		if h.oauthRedirectTpl != nil {
+			c.Set("Content-Type", "text/html; charset=utf-8")
+			return h.oauthRedirectTpl.Execute(c.Response().BodyWriter(), map[string]string{
+				"Message":         message,
+				"CustomSchemeURL": customSchemeURL,
+				"IntentURL":       intentURL,
+			})
+		}
+
+		// Fallback to inline HTML if template loading failed
 		html := `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Passion Tree — Redirecting</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #1a1a2e; color: #e0e0e0;
-    }
-    .container { text-align: center; padding: 2rem; }
-    .spinner {
-      width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
-      border-top-color: #7289da; border-radius: 50%;
-      animation: spin 0.8s linear infinite; margin: 0 auto 1.5rem;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    h2 { font-size: 1rem; font-weight: 500; margin-bottom: 1rem; }
-    a { color: #7289da; font-size: 0.875rem; }
-  </style>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Passion Tree — Redirecting</title>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body {
+			display: flex; align-items: center; justify-content: center;
+			min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			background: #1a1a2e; color: #e0e0e0;
+		}
+		.container { text-align: center; padding: 2rem; }
+		.spinner {
+			width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+			border-top-color: #7289da; border-radius: 50%;
+			animation: spin 0.8s linear infinite; margin: 0 auto 1.5rem;
+		}
+		@keyframes spin { to { transform: rotate(360deg); } }
+		h2 { font-size: 1rem; font-weight: 500; margin-bottom: 1rem; }
+		a { color: #7289da; font-size: 0.875rem; }
+	</style>
 </head>
 <body>
-  <div class="container">
-    <div class="spinner"></div>
-    <h2>` + message + `</h2>
-    <a href="` + customSchemeURL + `">Click here if you are not redirected</a>
-  </div>
-  <script>
-    // CCT natively closes on intent:// URLs
-    window.location.href = '` + intentURL + `';
-    setTimeout(function() {
-      // Fallback if intent:// is ignored
-      window.location.href = '` + customSchemeURL + `';
-    }, 500);
-  </script>
+	<div class="container">
+		<div class="spinner"></div>
+		<h2>` + message + `</h2>
+		<a href="` + customSchemeURL + `">Click here if you are not redirected</a>
+	</div>
+	<script>
+		window.location.href = '` + intentURL + `';
+		setTimeout(function() {
+			window.location.href = '` + customSchemeURL + `';
+		}, 500);
+	</script>
 </body>
 </html>`
 
@@ -311,7 +329,7 @@ func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
 		"message": "Account link confirmation processed",
 		"token":   token,
 		"linked":  req.Confirm,
-		"user": fiber.Map{
+		"data": fiber.Map{
 			"user_id":    user.UserID,
 			"username":   user.Username,
 			"email":      user.Email,

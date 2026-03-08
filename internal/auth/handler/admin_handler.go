@@ -21,7 +21,11 @@ func (h *Handler) GetAllUsers(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(users)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Users retrieved successfully",
+		"data":    users,
+	})
 }
 
 // GetDashboardStats returns dashboard statistics (admin only)
@@ -38,5 +42,9 @@ func (h *Handler) GetDashboardStats(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(stats)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Dashboard stats retrieved successfully",
+		"data":    stats,
+	})
 }

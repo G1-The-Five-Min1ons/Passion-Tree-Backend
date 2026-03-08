@@ -27,7 +27,7 @@ func (r *repositoryImpl) GetAllUsers(ctx context.Context) ([]*model.UserWithProf
 	}
 	defer rows.Close()
 
-	var users []*model.UserWithProfile
+	users := make([]*model.UserWithProfile, 0)
 	for rows.Next() {
 		var u model.User
 		var p *model.Profile
@@ -92,6 +92,10 @@ func (r *repositoryImpl) GetAllUsers(ctx context.Context) ([]*model.UserWithProf
 		})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate users rows failed: %w", err)
+	}
+
 	return users, nil
 }
 
@@ -99,28 +103,21 @@ func (r *repositoryImpl) GetAllUsers(ctx context.Context) ([]*model.UserWithProf
 func (r *repositoryImpl) GetDashboardStats(ctx context.Context) (*model.DashboardStats, error) {
 	stats := &model.DashboardStats{}
 
-	// Get total users
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&stats.TotalUsers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get total users: %w", err)
-	}
+	statsQuery := `
+		SELECT
+			(SELECT COUNT(*) FROM users) AS total_users,
+			(SELECT COUNT(*) FROM learning_path) AS total_paths,
+			(SELECT COUNT(*) FROM path_enroll) AS total_enrollments,
+			(SELECT COUNT(*) FROM reflect) AS total_reflections`
 
-	// Get total paths
-	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM learning_path").Scan(&stats.TotalPaths)
+	err := r.db.QueryRowContext(ctx, statsQuery).Scan(
+		&stats.TotalUsers,
+		&stats.TotalPaths,
+		&stats.TotalEnrollments,
+		&stats.TotalReflections,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get total paths: %w", err)
-	}
-
-	// Get total enrollments
-	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM path_enroll").Scan(&stats.TotalEnrollments)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get total enrollments: %w", err)
-	}
-
-	// Get total reflections
-	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM reflect").Scan(&stats.TotalReflections)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get total reflections: %w", err)
+		return nil, fmt.Errorf("failed to get dashboard summary stats: %w", err)
 	}
 
 	// Get recent activities (last 10)
@@ -130,14 +127,14 @@ func (r *repositoryImpl) GetDashboardStats(ctx context.Context) (*model.Dashboar
 			SELECT 'user_registered' as activity_type, 
 				   CONVERT(VARCHAR(36), u.user_id) as user_id,
 				   u.username,
-				   u.first_name + ' ' + u.last_name + ' joined the platform' as message,
+				   CONCAT(ISNULL(u.first_name, ''), ' ', ISNULL(u.last_name, ''), ' joined the platform') as message,
 				   u.create_at as timestamp
 			FROM users u
 			UNION ALL
 			SELECT 'path_created' as activity_type,
 				   CONVERT(VARCHAR(36), lp.creator_id) as user_id,
 				   u.username,
-				   u.first_name + ' ' + u.last_name + ' created learning path: ' + lp.title as message,
+				   CONCAT(ISNULL(u.first_name, ''), ' ', ISNULL(u.last_name, ''), ' created learning path: ', ISNULL(lp.title, '')) as message,
 				   lp.create_at as timestamp
 			FROM learning_path lp
 			INNER JOIN users u ON lp.creator_id = u.user_id
@@ -145,7 +142,7 @@ func (r *repositoryImpl) GetDashboardStats(ctx context.Context) (*model.Dashboar
 			SELECT 'reflection_created' as activity_type,
 				   CONVERT(VARCHAR(36), ta.user_id) as user_id,
 				   u.username,
-				   u.first_name + ' ' + u.last_name + ' published a reflection' as message,
+				   CONCAT(ISNULL(u.first_name, ''), ' ', ISNULL(u.last_name, ''), ' published a reflection') as message,
 				   r.create_at as timestamp
 			FROM Reflect r
 			INNER JOIN tree_node tn ON r.tree_node_id = tn.tree_node_id
@@ -170,15 +167,47 @@ func (r *repositoryImpl) GetDashboardStats(ctx context.Context) (*model.Dashboar
 		}
 		activities = append(activities, a)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate activity rows failed: %w", err)
+	}
 	stats.RecentActivities = activities
 
-	// Get user growth for the last 12 months
+	// Get user growth for the last 12 months (including months with zero signups)
 	growthQuery := `
-		SELECT COUNT(*) as count
-		FROM users
-		WHERE create_at >= DATEADD(month, -12, GETDATE())
-		GROUP BY DATEPART(year, create_at), DATEPART(month, create_at)
-		ORDER BY DATEPART(year, create_at), DATEPART(month, create_at)`
+		WITH months AS (
+			SELECT
+				0 AS idx,
+				DATEFROMPARTS(
+					YEAR(DATEADD(month, -11, GETDATE())),
+					MONTH(DATEADD(month, -11, GETDATE())),
+					1
+				) AS month_start
+			UNION ALL
+			SELECT
+				idx + 1,
+				DATEADD(month, 1, month_start)
+			FROM months
+			WHERE idx < 11
+		),
+		user_counts AS (
+			SELECT
+				DATEFROMPARTS(YEAR(create_at), MONTH(create_at), 1) AS month_start,
+				COUNT(*) AS user_count
+			FROM users
+			WHERE create_at >= DATEFROMPARTS(
+				YEAR(DATEADD(month, -11, GETDATE())),
+				MONTH(DATEADD(month, -11, GETDATE())),
+				1
+			)
+			GROUP BY DATEFROMPARTS(YEAR(create_at), MONTH(create_at), 1)
+		)
+		SELECT
+			m.idx,
+			ISNULL(uc.user_count, 0) AS user_count
+		FROM months m
+		LEFT JOIN user_counts uc ON m.month_start = uc.month_start
+		ORDER BY m.idx
+		OPTION (MAXRECURSION 12)`
 
 	rows, err = r.db.QueryContext(ctx, growthQuery)
 	if err != nil {
@@ -186,14 +215,19 @@ func (r *repositoryImpl) GetDashboardStats(ctx context.Context) (*model.Dashboar
 	}
 	defer rows.Close()
 
-	var growth []int
+	growth := make([]int, 12)
 	for rows.Next() {
-		var count int
-		err := rows.Scan(&count)
+		var idx, count int
+		err := rows.Scan(&idx, &count)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan growth: %w", err)
 		}
-		growth = append(growth, count)
+		if idx >= 0 && idx < len(growth) {
+			growth[idx] = count
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate growth rows failed: %w", err)
 	}
 	stats.UserGrowth = growth
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,7 +13,13 @@ import (
 )
 
 func (h *Handler) ListTeacherApplications(c *fiber.Ctx) error {
-	status := c.Query("status")
+	// Supported status values for filtering: pending (default), approved, rejected
+	status := strings.ToLower(strings.TrimSpace(c.Query("status", model.TeacherApplicationStatusPending)))
+	if status != model.TeacherApplicationStatusPending &&
+		status != model.TeacherApplicationStatusApproved &&
+		status != model.TeacherApplicationStatusRejected {
+		return h.handleError(c, apperror.NewBadRequest("status must be one of: pending, approved, rejected"))
+	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -45,12 +52,23 @@ func (h *Handler) ReviewTeacherApplication(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
+	req.Status = strings.ToLower(strings.TrimSpace(req.Status))
+	if req.Status != model.TeacherApplicationStatusApproved && req.Status != model.TeacherApplicationStatusRejected {
+		return h.handleError(c, apperror.NewBadRequest("status must be either 'approved' or 'rejected'"))
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
 	if err := h.userSvc.ReviewTeacherApplication(ctx, requestID, adminID, req); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.Info("admin reviewed teacher application",
+		"admin_id", adminID,
+		"request_id", requestID,
+		"action", req.Status,
+	)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

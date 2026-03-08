@@ -59,6 +59,24 @@ func (s *userServiceImpl) ApplyForTeacher(ctx context.Context, userID string, re
 	if user == nil {
 		return apperror.NewNotFound("user with id '%s' not found", userID)
 	}
+	if user.Role == model.RoleTeacher {
+		return apperror.NewConflict("user is already a teacher")
+	}
+
+	verificationStatus, err := s.repo.GetTeacherVerificationStatus(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to check existing teacher application", "error", err, "user_id", userID)
+		return apperror.NewInternal("failed to verify existing teacher application: %w", err)
+	}
+
+	if verificationStatus != nil {
+		if verificationStatus.ApplicationStatus == model.TeacherApplicationStatusPending {
+			return apperror.NewConflict("teacher application is already pending review")
+		}
+		if verificationStatus.ApplicationStatus == model.TeacherApplicationStatusApproved || verificationStatus.IsVerified {
+			return apperror.NewConflict("teacher application is already approved")
+		}
+	}
 
 	if err := s.repo.UpsertTeacherApplication(ctx, userID, phoneNumber, reason, teachingHistory); err != nil {
 		s.logger.ErrorContext(ctx, "failed to apply for teacher", "error", err, "user_id", userID)
@@ -74,7 +92,10 @@ func (s *userServiceImpl) ApplyForTeacher(ctx context.Context, userID string, re
 }
 
 func (s *userServiceImpl) GetTeacherApplications(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error) {
-	if status != "" && status != "pending" && status != "approved" && status != "rejected" {
+	if status != "" &&
+		status != model.TeacherApplicationStatusPending &&
+		status != model.TeacherApplicationStatusApproved &&
+		status != model.TeacherApplicationStatusRejected {
 		return nil, apperror.NewBadRequest("status must be one of: pending, approved, rejected")
 	}
 
@@ -94,7 +115,7 @@ func (s *userServiceImpl) ReviewTeacherApplication(ctx context.Context, requestI
 	if reviewedBy == "" {
 		return apperror.NewBadRequest("reviewed_by is required")
 	}
-	if req.Status != "approved" && req.Status != "rejected" {
+	if req.Status != model.TeacherApplicationStatusApproved && req.Status != model.TeacherApplicationStatusRejected {
 		return apperror.NewBadRequest("status must be either 'approved' or 'rejected'")
 	}
 

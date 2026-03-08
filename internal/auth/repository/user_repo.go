@@ -266,8 +266,22 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 	query := "UPDATE profile SET " + strings.Join(updates, ", ") + fmt.Sprintf(" WHERE user_id=@p%d", paramID)
 	args = append(args, userID)
 
-	_, err := r.db.ExecContext(ctx, query, args...)
-	return err
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	// Check if user exists
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user with id '%s' not found", userID)
+	}
+
+	return nil
 }
 
 func (r *repositoryImpl) DeleteUser(ctx context.Context, id string) error {

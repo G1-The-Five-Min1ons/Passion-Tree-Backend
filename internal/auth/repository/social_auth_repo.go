@@ -86,7 +86,7 @@ func (r *repositoryImpl) CreateSocialUser(ctx context.Context, user *model.User,
 			create_at, update_at
 		) VALUES (
 			@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11,
-			GETDATE(), GETDATE()
+			GETUTCDATE(), GETUTCDATE()
 		)
 	`
 
@@ -142,25 +142,38 @@ func (r *repositoryImpl) CreateSocialUser(ctx context.Context, user *model.User,
 
 // LinkSocialAccount links a social account to an existing user
 func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider, providerUserID string) error {
-	// Check if this social account is already linked to another user
-	existingUser, err := r.GetUserByProvider(ctx, provider, providerUserID)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Check if this social account is already linked to another user
+	existingCheckQuery := `
+		SELECT CONVERT(VARCHAR(36), user_id)
+		FROM users WITH (UPDLOCK, HOLDLOCK)
+		WHERE auth_provider = @p1 AND provider_user_id = @p2
+	`
+
+	var existingUserID string
+	err = tx.QueryRowContext(ctx, existingCheckQuery, provider, providerUserID).Scan(&existingUserID)
+	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("failed to check existing social account: %w", err)
 	}
 
-	if existingUser != nil && existingUser.UserID != userID {
+	if err == nil && existingUserID != userID {
 		return fmt.Errorf("social account is already linked to another user")
 	}
 
 	// Check if the target user already has a social account linked
 	checkQuery := `
 		SELECT auth_provider, provider_user_id
-		FROM users
+		FROM users WITH (UPDLOCK, HOLDLOCK)
 		WHERE user_id = @p1
 	`
 
 	var currentProvider, currentProviderUserID sql.NullString
-	err = r.db.QueryRowContext(ctx, checkQuery, userID).Scan(&currentProvider, &currentProviderUserID)
+	err = tx.QueryRowContext(ctx, checkQuery, userID).Scan(&currentProvider, &currentProviderUserID)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("user not found")
 	}
@@ -176,11 +189,11 @@ func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider
 	// Link the social account
 	query := `
 		UPDATE users
-		SET auth_provider = @p1, provider_user_id = @p2, update_at = GETDATE()
+		SET auth_provider = @p1, provider_user_id = @p2, update_at = GETUTCDATE()
 		WHERE user_id = @p3
 	`
 
-	result, err := r.db.ExecContext(ctx, query, provider, providerUserID, userID)
+	result, err := tx.ExecContext(ctx, query, provider, providerUserID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to link social account: %w", err)
 	}
@@ -194,6 +207,10 @@ func (r *repositoryImpl) LinkSocialAccount(ctx context.Context, userID, provider
 		return fmt.Errorf("user not found")
 	}
 
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
 	return nil
 }
 
@@ -202,11 +219,11 @@ func (r *repositoryImpl) UpdateSocialUserInfo(ctx context.Context, userID string
 	query := `
 		UPDATE users
 		SET 
-			first_name = @p1,
-			last_name = @p2,
-			email = @p3,
+			first_name = COALESCE(NULLIF(LTRIM(RTRIM(@p1)), ''), first_name),
+			last_name = COALESCE(NULLIF(LTRIM(RTRIM(@p2)), ''), last_name),
+			email = COALESCE(NULLIF(LTRIM(RTRIM(@p3)), ''), email),
 			is_email_verified = 1,
-			update_at = GETDATE()
+			update_at = GETUTCDATE()
 		WHERE user_id = @p4
 	`
 

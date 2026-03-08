@@ -36,3 +36,9 @@ type TeacherVerificationRequest struct {
 type ReviewTeacherApplicationRequest struct {
 	Status string `json:"status"`
 }
+
+const (
+	TeacherApplicationStatusPending  = "pending"
+	TeacherApplicationStatusApproved = "approved"
+	TeacherApplicationStatusRejected = "rejected"
+)

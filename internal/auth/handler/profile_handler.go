@@ -14,8 +14,11 @@ import (
 // UpdateProfile updates user profile information
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Please log in to update your profile",
+		})
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -55,8 +58,11 @@ func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 // GetProfile gets profile by user ID
 func (h *Handler) GetProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Please log in to view your profile",
+		})
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -64,7 +70,7 @@ func (h *Handler) GetProfile(c *fiber.Ctx) error {
 
 	_, profile, err := h.userSvc.GetUserByID(ctx, userID)
 	if err != nil {
-		return h.handleError(c, err)
+		return h.handleError(c, apperror.NewInternal("failed to retrieve profile"))
 	}
 
 	if profile == nil {

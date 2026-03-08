@@ -109,12 +109,12 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		return "", "", apperror.NewInternal("failed to generate verification code")
 	}
 
-	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, "email_verification")
+	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypeEmailVerification)
 
 	otpToken := &model.Token{
 		UserID:    user.UserID,
 		Token:     otpCode,
-		TokenType: "email_verification",
+		TokenType: model.TokenTypeEmailVerification,
 		IsRevoked: false,
 		ExpireAt:  time.Now().Add(15 * time.Minute),
 	}
@@ -127,7 +127,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	s.logger.InfoContext(ctx, "[DEBUG] OTP stored successfully",
 		"otp_code", otpCode,
 		"user_id", user.UserID,
-		"token_type", "email_verification",
+		"token_type", model.TokenTypeEmailVerification,
 		"expire_at", otpToken.ExpireAt,
 	)
 

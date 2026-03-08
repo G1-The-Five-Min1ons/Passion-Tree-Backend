@@ -19,6 +19,8 @@ const (
 	DefaultJWTAccessTTL       = "1"   // 1 hour
 	DefaultJWTRefreshTTL      = "168" // 7 days
 	DefaultJWTRefreshAbsolute = "720" // 30 days
+	DefaultMobileAppScheme    = "passiontree"
+	DefaultMobileAppPackage   = "com.example.passion_tree_frontend"
 )
 
 // Environment variable keys
@@ -60,6 +62,10 @@ const (
 	EnvDiscordClientSecret      = "DISCORD_CLIENT_SECRET"
 	EnvDiscordRedirectURL       = "DISCORD_REDIRECT_URL"
 	EnvDiscordNativeRedirectURL = "DISCORD_NATIVE_REDIRECT_URL"
+
+	// Mobile App Environment variables
+	EnvMobileAppScheme  = "MOBILE_APP_SCHEME"
+	EnvMobileAppPackage = "MOBILE_APP_PACKAGE"
 )
 
 type Config struct {
@@ -95,6 +101,10 @@ type Config struct {
 	JWTAccessTTL       string // in hours
 	JWTRefreshTTL      string // in hours (sliding window)
 	JWTRefreshAbsolute string // in hours (absolute maximum)
+
+	// Mobile App settings
+	MobileAppScheme  string
+	MobileAppPackage string
 }
 
 // LoadDBConfig loads configuration from environment variables
@@ -124,6 +134,10 @@ func LoadDBConfig() (*Config, error) {
 		JWTAccessTTL:       getEnvOrDefault(EnvJWTAccessTTL, DefaultJWTAccessTTL),
 		JWTRefreshTTL:      getEnvOrDefault(EnvJWTRefreshTTL, DefaultJWTRefreshTTL),
 		JWTRefreshAbsolute: getEnvOrDefault(EnvJWTRefreshAbsolute, DefaultJWTRefreshAbsolute),
+
+		// Mobile App settings
+		MobileAppScheme:  getEnvOrDefault(EnvMobileAppScheme, DefaultMobileAppScheme),
+		MobileAppPackage: getEnvOrDefault(EnvMobileAppPackage, DefaultMobileAppPackage),
 
 		SMTPHost:         os.Getenv(EnvSMTPHost),
 		SMTPPort:         getEnvOrDefault(EnvSMTPPort, "587"),

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -41,6 +42,20 @@ func (h *Handler) ApplyForTeacher(c *fiber.Ctx) error {
 	var req model.ApplyTeacherRequest
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	req.PhoneNumber = strings.TrimSpace(req.PhoneNumber)
+	req.Reason = strings.TrimSpace(req.Reason)
+	req.TeachingHistory = strings.TrimSpace(req.TeachingHistory)
+
+	if req.PhoneNumber == "" {
+		return h.handleError(c, apperror.NewBadRequest("phone_number is required"))
+	}
+	if req.Reason == "" {
+		return h.handleError(c, apperror.NewBadRequest("reason is required"))
+	}
+	if req.TeachingHistory == "" {
+		return h.handleError(c, apperror.NewBadRequest("teaching_history is required"))
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)

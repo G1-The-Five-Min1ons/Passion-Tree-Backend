@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"passiontree/internal/auth/handler"
+	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/auth/service"
 	"passiontree/internal/config"
@@ -27,7 +28,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	emailSvc := service.NewEmailService(cfg, logger)
 	userSvc := service.NewUserService(repo, emailSvc, cfg, jwtService, logger)
 	socialAuthSvc := service.NewSocialAuthService(repo, cfg, jwtService, logger)
-	h := handler.NewHandler(userSvc, socialAuthSvc, logger)
+	h := handler.NewHandler(userSvc, socialAuthSvc, cfg, logger)
 
 	auth := r.Group("/auth")
 	{
@@ -75,7 +76,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		protected.Post("/teacher/apply", h.ApplyForTeacher)
 
 		// Admin Routes (JWT + RBAC)
-		adminOnly := protected.Group("/admin", middleware.RbacMiddleware(logger, "admin"))
+		adminOnly := protected.Group("/admin", middleware.RbacMiddleware(logger, string(model.RoleAdmin)))
 		{
 			adminOnly.Get("/dashboard", func(c *fiber.Ctx) error {
 				return c.JSON(fiber.Map{"message": "Welcome to Admin Dashboard"})

@@ -10,6 +10,7 @@ import (
 type AppError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+	Type    string `json:"type,omitempty"`
 	Log     error  `json:"-"`
 }
 
@@ -19,6 +20,11 @@ func (e *AppError) Error() string {
 
 func (e *AppError) Unwrap() error {
 	return e.Log
+}
+
+func (e *AppError) WithType(t string) *AppError {
+    e.Type = t
+    return e
 }
 
 // 404
@@ -64,10 +70,10 @@ func NewUnauthorized(format string, args ...interface{}) *AppError {
 
 // 403
 func NewForbidden(format string, args ...interface{}) *AppError {
-	return &AppError{
-		Code:    fiber.StatusForbidden,
-		Message: fmt.Sprintf(format, args...),
-	}
+    return &AppError{
+        Code:    fiber.StatusForbidden,
+        Message: fmt.Sprintf(format, args...),
+    }
 }
 
 // 429
