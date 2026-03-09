@@ -10,6 +10,7 @@ import (
 type RepositoryLearningPath interface {
 	GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error)
 	GetLearningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error)
+	GetLearningPathsByIDs(ctx context.Context, pathIDs []string) ([]model.LearningPath, error)
 	CreateLearningPath(ctx context.Context, req model.CreatePathRequest) (string, error)
 	UpdateLearningPath(ctx context.Context, path_id string, req model.UpdatePathRequest) error
 	DeleteLearningPath(ctx context.Context, path_id string) error

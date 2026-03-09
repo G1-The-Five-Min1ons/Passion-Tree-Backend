@@ -26,7 +26,7 @@ type CreateTreeRequest struct {
 // UpdateTreeRequest
 type UpdateTreeRequest struct {
 	Title   string `json:"title"`
-	Status  string `json:"status"`
+	AlbumID string `json:"album_id,omitempty"`
 	// Note: Use PATCH /trees/:tree_id/pause to toggle pause status
 }
 
