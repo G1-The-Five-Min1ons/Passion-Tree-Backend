@@ -18,13 +18,19 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 		primaryEmotionStr = sql.NullString{String: *primaryEmotion, Valid: true}
 	}
 
-	query := `INSERT INTO Reflect
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	insertQuery := `INSERT INTO Reflect
 		(reflect_id, reflect_score, reflect_description, reflect, progress_score, challenge_score, 
 		summary, sentiment_analysis, primary_emotion, struggle_point, ai_confident_score, reflection_score, weighted_reflection_score,
 		create_at, tree_node_id) 
 		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13, GETDATE(), @p14)`
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = tx.ExecContext(ctx, insertQuery,
 		id,
 		req.FeelScore,
 		req.LearningReflect,
@@ -43,6 +49,57 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 
 	if err != nil {
 		return "", fmt.Errorf("repo.CreateReflection exec failed: %w", err)
+	}
+
+	// Sync last_reflect_at on the parent tree using step-based recovery:
+	//   died => no change (stays dead)
+	//   dying => step back to just inside fading zone
+	//   fading / growing => reset to NOW (becomes growing)
+	//
+	// Thresholds in seconds (must match ComputeTreeStatus in model/tree.go):
+	//   easy:   fading=2592000(30d) dying=5184000(60d) died=7776000(90d)
+	//   medium: fading=604800(7d)   dying=1209600(14d) died=1814400(21d)
+	//   hard:   fading=300(5min)    dying=600(10min)   died=900(15min)  ← TEST VALUES
+	//
+	// Only update when the tree is NOT paused — paused trees freeze their timer.
+	syncQuery := `
+		UPDATE tree
+		SET last_reflect_at = CASE
+		    -- DIED: no recovery
+		    WHEN last_reflect_at IS NOT NULL AND (
+		             (LOWER(difficulties) = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
+		          OR (LOWER(difficulties) = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
+		          OR (LOWER(difficulties) = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
+		         ) THEN last_reflect_at
+
+		    -- DYING → FADING: set last_reflect_at to fading_threshold + 1 sec ago
+		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'easy'
+		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 5184000
+		         THEN DATEADD(SECOND, -2592001, GETDATE())   -- 30d+1s ago
+
+		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'medium'
+		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1209600
+		         THEN DATEADD(SECOND, -604801, GETDATE())    -- 7d+1s ago
+
+		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'hard'
+		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
+		         THEN DATEADD(SECOND, -301, GETDATE())       -- 5min+1s ago (TEST VALUE)
+
+		    -- FADING or GROWING: reset to NOW → becomes growing
+		    ELSE GETDATE()
+		END,
+		last_update = GETDATE()
+		WHERE tree_id = (
+		    SELECT tree_id FROM tree_node WHERE tree_node_id = @p1
+		)
+		AND is_pause = 0
+	`
+	if _, err = tx.ExecContext(ctx, syncQuery, req.TreeNodeID); err != nil {
+		return "", fmt.Errorf("repo.CreateReflection sync last_reflect_at failed: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return "", fmt.Errorf("repo.CreateReflection commit failed: %w", err)
 	}
 
 	return id, nil
