@@ -18,8 +18,8 @@ BEGIN
         status NVARCHAR(20) NOT NULL DEFAULT 'pending',
         reviewed_by UNIQUEIDENTIFIER NULL,
         reviewed_at DATETIME NULL,
-        created_at DATETIME NOT NULL DEFAULT GETDATE(),
-        updated_at DATETIME NOT NULL DEFAULT GETDATE(),
+        create_at DATETIME NOT NULL DEFAULT GETDATE(),
+        update_at DATETIME NOT NULL DEFAULT GETDATE(),
 
         CONSTRAINT FK_teacher_verification_user FOREIGN KEY (user_id) REFERENCES users(user_id),
         CONSTRAINT FK_teacher_verification_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(user_id),

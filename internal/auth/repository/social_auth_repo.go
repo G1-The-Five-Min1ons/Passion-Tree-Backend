@@ -268,11 +268,10 @@ func (r *repositoryImpl) UpsertSocialUserProfile(ctx context.Context, userID str
 				avatar_url = CASE 
 					WHEN @p2 IS NOT NULL AND @p2 != '' THEN @p2 
 					ELSE target.avatar_url 
-				END,
-				update_at = GETUTCDATE()
+				END
 		WHEN NOT MATCHED THEN
-			INSERT (user_id, bio, location, avatar_url, created_at, update_at)
-			VALUES (@p1, @p3, @p4, @p2, GETUTCDATE(), GETUTCDATE());
+			INSERT (user_id, bio, location, avatar_url)
+			VALUES (@p1, @p3, @p4, @p2);
 	`
 
 	_, err := r.db.ExecContext(ctx, query,

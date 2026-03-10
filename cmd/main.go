@@ -150,12 +150,12 @@ func createFiberApp(logger *slog.Logger) *fiber.App {
 		},
 	})
 
-	// Apply middleware
-	app.Use(flogger.New()) // บันทึก HTTP Request ทั่วไป
+	app.Use(flogger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
+		AllowOrigins: "https://passion-tree.org, http://localhost:3000",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
+		AllowCredentials: true,
 	}))
 
 	logger.Info("fiber_application_initialized", "app_name", AppName)
