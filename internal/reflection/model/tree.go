@@ -1,63 +1,8 @@
 package model
 
 import (
-	"strings"
 	"time"
 )
-
-// Tree status constants.
-const (
-	StatusGrowing = "growing"
-	StatusFading  = "fading"
-	StatusDying   = "dying"
-	StatusDied    = "died"
-)
-
-func ComputeTreeStatus(difficulties string, lastReflectAt *time.Time, isPause bool, pausedAt *time.Time) string {
-	if lastReflectAt == nil {
-		return StatusGrowing // brand-new tree, not yet reflected
-	}
-
-	// While paused: freeze elapsed time at the moment pause started.
-	reference := time.Now()
-	if isPause && pausedAt != nil {
-		reference = *pausedAt
-	}
-
-	elapsed := reference.Sub(*lastReflectAt)
-	if elapsed < 0 {
-		elapsed = 0
-	}
-
-	var fading, dying, died time.Duration
-	switch strings.ToLower(difficulties) {
-	case "easy":
-		fading = 30 * 24 * time.Hour
-		dying = 60 * 24 * time.Hour
-		died = 90 * 24 * time.Hour
-	case "medium":
-		fading = 7 * 24 * time.Hour
-		dying = 14 * 24 * time.Hour
-		died = 21 * 24 * time.Hour
-	case "hard":
-		fading = 24 * time.Hour
-		dying = 48 * time.Hour
-		died = 72 * time.Hour
-	default:
-		return StatusGrowing
-	}
-
-	switch {
-	case elapsed >= died:
-		return StatusDied
-	case elapsed >= dying:
-		return StatusDying
-	case elapsed >= fading:
-		return StatusFading
-	default:
-		return StatusGrowing
-	}
-}
 
 type Tree struct {
 	TreeID        string     `json:"tree_id"`
