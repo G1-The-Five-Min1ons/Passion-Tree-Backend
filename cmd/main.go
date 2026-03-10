@@ -102,6 +102,10 @@ func runMigrations(db connection.Database, logger *slog.Logger) error {
 		return err
 	}
 
+	if err := migrator.RunUserSettingsTableMigration(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -152,9 +156,9 @@ func createFiberApp(logger *slog.Logger) *fiber.App {
 
 	app.Use(flogger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://passion-tree.org, http://localhost:3000",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
+		AllowOrigins:     "https://passion-tree.org, http://localhost:3000",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
 		AllowCredentials: true,
 	}))
 
