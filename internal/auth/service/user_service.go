@@ -35,6 +35,20 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		return "", "", apperror.NewUnauthorized("invalid username/email or password")
 	}
 
+	deactivatedUntil, err := s.repo.GetAccountDeactivatedUntil(ctx, user.UserID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to check account deactivation", "error", err, "user_id", user.UserID)
+		return "", "", apperror.NewInternal("failed to verify account status")
+	}
+	if deactivatedUntil != nil {
+		now := time.Now().UTC()
+		if deactivatedUntil.After(now) {
+			timeLeft := time.Until(*deactivatedUntil).Round(time.Hour)
+			return "", "", apperror.NewForbidden("account is temporarily deactivated. try again in %s", timeLeft.String())
+		}
+		_ = s.repo.ClearAccountDeactivatedUntil(ctx, user.UserID)
+	}
+
 	// [Check Lock Account]
 	if user.LockedUntil != nil && user.LockedUntil.After(time.Now()) {
 		timeLeft := time.Until(*user.LockedUntil).Minutes()

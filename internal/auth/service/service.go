@@ -43,6 +43,7 @@ type UserService interface {
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, code string, newPassword string) error
 	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
+	DeactivateAccount(ctx context.Context, userID string, days int) error
 
 	// Multi-device Session Management
 	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
@@ -57,6 +58,7 @@ type EmailService interface {
 	SendVerificationEmail(to, token string) error
 	SendPasswordResetEmail(to, token string) error
 	SendSecurityAlertEmail(to, userID string) error
+	SendNotificationEmail(to, subject, headline, message string) error
 }
 
 type SocialAuthService interface {

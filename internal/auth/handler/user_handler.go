@@ -236,6 +236,29 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	})
 }
 
+// DeactivateAccount deactivates account temporarily and revokes active refresh sessions
+func (h *Handler) DeactivateAccount(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.userSvc.DeactivateAccount(ctx, userID, 14); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "User account deactivated for 14 days",
+		"data": fiber.Map{
+			"user_id": userID,
+		},
+	})
+}
+
 // GetActiveSessions retrieves all active sessions/devices for the authenticated user
 func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)

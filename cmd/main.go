@@ -9,8 +9,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	flogger "github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/robfig/cron/v3"
 
+	authservice "passiontree/internal/auth/service"
 	"passiontree/internal/config"
 	"passiontree/internal/connection"
 	"passiontree/internal/pkg/logger"
@@ -19,6 +21,7 @@ import (
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/routes"
 	"passiontree/internal/worker"
+	workerRepo "passiontree/internal/worker/repository"
 )
 
 const (
@@ -65,7 +68,8 @@ func main() {
 	app := createFiberApp(myLogger)
 	routes.Setup(app, db, aiClient, storageClient, myLogger)
 
-	cronJob := initializeBackgroundJobs(db, storageClient, myLogger)
+	emailService := authservice.NewEmailService(cfg, myLogger)
+	cronJob := initializeBackgroundJobs(db, storageClient, emailService, myLogger)
 	defer cronJob.Stop()
 
 	// Start server
@@ -94,19 +98,7 @@ func runMigrations(db connection.Database, logger *slog.Logger) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	if err := migrator.RunSocialAuthMigration(ctx); err != nil {
-		return err
-	}
-
-	if err := migrator.RunTeacherVerificationAndSettingsMigration(ctx); err != nil {
-		return err
-	}
-
-	if err := migrator.RunUserSettingsTableMigration(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return migrator.RunAllMigrations(ctx)
 }
 
 // initializeAIClient creates and configures the AI service client
@@ -155,6 +147,7 @@ func createFiberApp(logger *slog.Logger) *fiber.App {
 	})
 
 	app.Use(flogger.New())
+	app.Use(recover.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "https://passion-tree.org, http://localhost:3000",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
@@ -175,8 +168,10 @@ func getPort() string {
 	return DefaultPort
 }
 
-func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, logger *slog.Logger) *cron.Cron {
+func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, emailService authservice.EmailService, logger *slog.Logger) *cron.Cron {
 	cleanupWorker := worker.NewCleanupWorker(db, storage)
+	notificationProvider := workerRepo.NewSQLEmailNotificationDataProvider(db)
+	notificationWorker := worker.NewEmailNotificationWorker(notificationProvider, emailService, logger)
 	c := cron.New()
 
 	// Run every midnight
@@ -186,6 +181,24 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 
 	if err != nil {
 		logger.Error("error initializing background jobs", "error", err)
+		return c
+	}
+
+	// Run daily notifications at 08:00
+	_, err = c.AddFunc("0 8 * * *", func() {
+		notificationWorker.RunDailyNotifications()
+	})
+	if err != nil {
+		logger.Error("error initializing daily notification job", "error", err)
+		return c
+	}
+
+	// Run weekly notifications every Monday at 09:00
+	_, err = c.AddFunc("0 9 * * 1", func() {
+		notificationWorker.RunWeeklyNotifications()
+	})
+	if err != nil {
+		logger.Error("error initializing weekly notification job", "error", err)
 		return c
 	}
 

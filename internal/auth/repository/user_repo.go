@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -298,6 +299,51 @@ func (r *repositoryImpl) DeleteUser(ctx context.Context, id string) error {
 	}
 
 	return tx.Commit()
+}
+
+func (r *repositoryImpl) SetAccountDeactivatedUntil(ctx context.Context, userID string, until time.Time) error {
+	query := `
+		IF EXISTS (SELECT 1 FROM settings WHERE user_id = @p1 AND [key] = @p2)
+		BEGIN
+			UPDATE settings
+			SET [value] = @p3, updated_at = GETDATE()
+			WHERE user_id = @p1 AND [key] = @p2
+		END
+		ELSE
+		BEGIN
+			INSERT INTO settings (id, user_id, [key], [value], created_at, updated_at)
+			VALUES (NEWID(), @p1, @p2, @p3, GETDATE(), GETDATE())
+		END
+	`
+
+	value := until.UTC().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, query, userID, "account_deactivated_until", value)
+	return err
+}
+
+func (r *repositoryImpl) GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error) {
+	query := `SELECT [value] FROM settings WHERE user_id = @p1 AND [key] = @p2`
+
+	var raw string
+	err := r.db.QueryRowContext(ctx, query, userID, "account_deactivated_until").Scan(&raw)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &parsed, nil
+}
+
+func (r *repositoryImpl) ClearAccountDeactivatedUntil(ctx context.Context, userID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM settings WHERE user_id = @p1 AND [key] = @p2", userID, "account_deactivated_until")
+	return err
 }
 
 // --- Password & Security ---

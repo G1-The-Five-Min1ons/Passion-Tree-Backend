@@ -69,6 +69,18 @@ func (s *emailServiceImpl) SendSecurityAlertEmail(to, userID string) error {
 	return s.sendEmail(to, subject, htmlBuf.String(), text, "Passiontree Security Team")
 }
 
+func (s *emailServiceImpl) SendNotificationEmail(to, subject, headline, message string) error {
+	text := fmt.Sprintf("%s\n\n%s", headline, message)
+	html := fmt.Sprintf(`
+		<div style="font-family: Arial, sans-serif; color:#1f2937; line-height:1.5;">
+		  <h2 style="margin:0 0 8px 0;">%s</h2>
+		  <p style="margin:0;">%s</p>
+		</div>
+	`, headline, message)
+
+	return s.sendEmail(to, subject, html, text, "Passiontree Notifications")
+}
+
 func (s *emailServiceImpl) sendEmail(to, subject, html, text, fromName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

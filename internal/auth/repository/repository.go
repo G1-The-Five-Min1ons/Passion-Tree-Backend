@@ -33,6 +33,9 @@ type RepositoryUser interface {
 	ChangePasswordAndRevokeSessions(ctx context.Context, userID string, hashedPassword string) error
 	ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error
 	DeleteUser(ctx context.Context, id string) error
+	SetAccountDeactivatedUntil(ctx context.Context, userID string, until time.Time) error
+	GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error)
+	ClearAccountDeactivatedUntil(ctx context.Context, userID string) error
 	UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error
 	VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error
 	UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error)
