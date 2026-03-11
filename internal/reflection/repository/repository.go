@@ -25,7 +25,7 @@ type RepositoryReflection interface {
 	CreateTree(ctx context.Context, req model.CreateTreeRequest) (string, error)
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error)
-	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error)
+	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTree(ctx context.Context, treeID string) error
 	PauseTree(ctx context.Context, treeID string, isPause bool) error

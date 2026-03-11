@@ -87,8 +87,8 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 	return tree, nil
 }
 
-func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool) (interface{}, error) {
-	s.logger.InfoContext(ctx, "fetching trees for album", "album_id", albumID, "include_nodes", includeNodes)
+func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool, userID string) (interface{}, error) {
+	s.logger.InfoContext(ctx, "fetching trees for album", "album_id", albumID, "include_nodes", includeNodes, "user_id", userID)
 
 	if albumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
@@ -96,7 +96,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 
 	// If nodes are requested, use optimized query
 	if includeNodes {
-		treesWithNodes, err := s.refRepo.GetTreesWithNodesByAlbumID(ctx, albumID)
+		treesWithNodes, err := s.refRepo.GetTreesWithNodesByAlbumID(ctx, albumID, userID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				s.logger.WarnContext(ctx, "no trees found for album", "album_id", albumID)

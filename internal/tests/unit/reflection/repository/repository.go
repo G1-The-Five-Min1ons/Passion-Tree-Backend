@@ -25,7 +25,7 @@ type Repository struct {
 	CreateTreeFunc                 func(ctx context.Context, req model.CreateTreeRequest) (string, error)
 	GetTreeByIDFunc                func(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumIDFunc          func(ctx context.Context, albumID string) ([]model.Tree, error)
-	GetTreesWithNodesByAlbumIDFunc func(ctx context.Context, albumID string) ([]model.TreeResponse, error)
+	GetTreesWithNodesByAlbumIDFunc func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
 	UpdateTreeFunc                 func(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTreeFunc                 func(ctx context.Context, treeID string) error
 	PauseTreeFunc                  func(ctx context.Context, treeID string, isPause bool) error
@@ -122,9 +122,9 @@ func (m *Repository) GetTreesByAlbumID(ctx context.Context, albumID string) ([]m
 	}
 	return nil, nil
 }
-func (m *Repository) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+func (m *Repository) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
 	if m.GetTreesWithNodesByAlbumIDFunc != nil {
-		return m.GetTreesWithNodesByAlbumIDFunc(ctx, albumID)
+		return m.GetTreesWithNodesByAlbumIDFunc(ctx, albumID, userID)
 	}
 	return nil, nil
 }

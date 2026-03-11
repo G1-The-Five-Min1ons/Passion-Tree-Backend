@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/reflection/model"
 	"time"
 
@@ -66,7 +67,14 @@ func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("album_id is required as query parameter"))
 	}
 
-	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID, includeNodes)
+	// Get user_id from auth middleware
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		// If no user is authenticated, pass empty string
+		userID = ""
+	}
+
+	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID, includeNodes, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}

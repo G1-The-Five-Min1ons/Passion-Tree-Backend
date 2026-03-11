@@ -376,7 +376,15 @@ func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, isPause b
 }
 
 // GetTreesWithNodesByAlbumID retrieves all trees with their nodes for a specific album ใช้ join มา optimize
-func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
+	// Determine userID for query - if empty, pass NULL to SQL
+	var dbUserID interface{}
+	if userID != "" {
+		dbUserID = userID
+	} else {
+		dbUserID = nil
+	}
+
 	query := `
 		SELECT
 			CONVERT(VARCHAR(36), t.tree_id) as tree_id,
@@ -392,14 +400,19 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
 			tn.node_title,
 			CONVERT(VARCHAR(36), tn.node_id) as node_id,
-			tn.create_at as node_create_at
+			tn.create_at as node_create_at,
+			CASE WHEN @p2 IS NULL THEN NULL ELSE np.status END as node_status,
+			CASE WHEN @p2 IS NULL THEN NULL ELSE np.complete END as node_complete,
+			ISNULL(n.sequence, 0) as sequence
 		FROM tree t
 		LEFT JOIN Tree_Node tn ON t.tree_id = tn.tree_id
+		LEFT JOIN node n ON tn.node_id = n.node_id
+		LEFT JOIN node_progress np ON tn.node_id = np.node_id AND np.user_id = @p2
 		WHERE t.album_id = @p1
-		ORDER BY t.last_update DESC, tn.create_at ASC
+		ORDER BY t.last_update DESC, n.sequence ASC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, albumID)
+	rows, err := r.db.QueryContext(ctx, query, albumID, dbUserID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trees with nodes: %w", err)
 	}
@@ -418,11 +431,15 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		// Nullable node fields
 		var treeNodeID, nodeTitle, nodeID sql.NullString
 		var nodeCreatedAt sql.NullTime
+		var nodeStatus, nodeComplete sql.NullString
+		var sequence int
 
 		err := rows.Scan(
 			&treeID, &title, &difficulties, &pathID, &status, &isPause, &nodeCount,
 			&createdAt, &lastUpdate, &treeAlbumID,
 			&treeNodeID, &nodeTitle, &nodeID, &nodeCreatedAt,
+			&nodeStatus, &nodeComplete,
+			&sequence,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tree with nodes: %w", err)
@@ -454,10 +471,21 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 				NodeTitle:  nodeTitle.String,
 				NodeID:     nodeID.String,
 				TreeID:     treeID,
+				Sequence:   sequence,
 			}
 
 			if nodeCreatedAt.Valid {
 				node.CreatedAt = nodeCreatedAt.Time
+			}
+
+			if nodeStatus.Valid {
+				status := nodeStatus.String
+				node.Status = &status
+			}
+
+			if nodeComplete.Valid {
+				complete := nodeComplete.String
+				node.Complete = &complete
 			}
 
 			treeMap[treeID].Nodes = append(treeMap[treeID].Nodes, node)

@@ -12,6 +12,8 @@ type TreeNode struct {
 	TreeID     string     `json:"tree_id"`
 	ChildNode  *string    `json:"child_node"`
 	Sequence   int        `json:"sequence"`
+	Status     *string    `json:"status"`
+	Complete   *string    `json:"complete"`
 }
 
 // CreateTreeNodeRequest represents the request to create a tree node
