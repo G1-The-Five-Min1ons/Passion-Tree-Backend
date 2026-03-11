@@ -6,6 +6,7 @@ import (
 	"passiontree/internal/connection"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
+	"passiontree/internal/worker"
 
 	"passiontree/internal/config"
 	"passiontree/internal/pkg/jwt"
@@ -21,7 +22,7 @@ import (
 )
 
 // Setup configures all routes for the application
-func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, storageClient *storage.BlobService, logger *slog.Logger) {
+func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, storageClient *storage.BlobService, notificationWorker *worker.EmailNotificationWorker, logger *slog.Logger) {
 	// Health check endpoint
 	api := app.Group("/api/v1")
 
@@ -44,7 +45,7 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 	reflection.RegisterRoutes(api, db, aiClient, jwtService, logger)
 	upload.RegisterRoutes(api, jwtService, logger, storageClient)
 	recommendation.RegisterRoutes(api, db, aiClient, jwtService, logger, storageClient)
-	setting.RegisterRoutes(api, db, jwtService, logger)
+	setting.RegisterRoutes(api, db, jwtService, notificationWorker, logger)
 }
 
 // healthCheck returns the service health status

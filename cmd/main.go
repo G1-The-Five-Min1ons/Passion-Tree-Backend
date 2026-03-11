@@ -64,10 +64,9 @@ func main() {
 
 	// Setup Fiber with custom Logger
 	app := createFiberApp(myLogger)
-	routes.Setup(app, db, aiClient, storageClient, myLogger)
-
 	emailService := authservice.NewEmailService(cfg, myLogger)
-	cronJob := initializeBackgroundJobs(db, storageClient, emailService, myLogger)
+	cronJob, notificationWorker := initializeBackgroundJobs(db, storageClient, emailService, myLogger)
+	routes.Setup(app, db, aiClient, storageClient, notificationWorker, myLogger)
 	defer cronJob.Stop()
 
 	port := getPort()
@@ -183,7 +182,7 @@ func getPort() string {
 	return DefaultPort
 }
 
-func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, emailService authservice.EmailService, logger *slog.Logger) *cron.Cron {
+func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, emailService authservice.EmailService, logger *slog.Logger) (*cron.Cron, *worker.EmailNotificationWorker) {
 	cleanupWorker := worker.NewCleanupWorker(db, storage)
 	notificationProvider := workerRepo.NewSQLEmailNotificationDataProvider(db)
 	authRepository := authrepo.NewRepository(db)
@@ -198,7 +197,7 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 
 	if err != nil {
 		logger.Error("error initializing background jobs", "error", err)
-		return c
+		return c, notificationWorker
 	}
 
 	// Run daily notifications at 08:00
@@ -207,7 +206,7 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	})
 	if err != nil {
 		logger.Error("error initializing daily notification job", "error", err)
-		return c
+		return c, notificationWorker
 	}
 
 	// Run weekly notifications every Monday at 09:00
@@ -216,10 +215,10 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	})
 	if err != nil {
 		logger.Error("error initializing weekly notification job", "error", err)
-		return c
+		return c, notificationWorker
 	}
 
 	c.Start()
 	logger.Info("background jobs started")
-	return c
+	return c, notificationWorker
 }

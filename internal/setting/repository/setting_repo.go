@@ -8,7 +8,7 @@ import (
 
 // GetSettings retrieves all settings for a user
 func (r *repositoryImpl) GetSettings(ctx context.Context, userID string) ([]model.Setting, error) {
-	query := "SELECT id, user_id, [key], [value], created_at, updated_at FROM settings WHERE user_id = @p1 ORDER BY created_at DESC"
+	query := "SELECT CONVERT(VARCHAR(36), id) AS id, CONVERT(VARCHAR(36), user_id) AS user_id, [key], [value], created_at, updated_at FROM settings WHERE user_id = @p1 ORDER BY created_at DESC"
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -30,7 +30,7 @@ func (r *repositoryImpl) GetSettings(ctx context.Context, userID string) ([]mode
 
 // GetSetting retrieves a specific setting
 func (r *repositoryImpl) GetSetting(ctx context.Context, userID, key string) (*model.Setting, error) {
-	query := "SELECT id, user_id, [key], [value], created_at, updated_at FROM settings WHERE user_id = @p1 AND [key] = @p2"
+	query := "SELECT CONVERT(VARCHAR(36), id) AS id, CONVERT(VARCHAR(36), user_id) AS user_id, [key], [value], created_at, updated_at FROM settings WHERE user_id = @p1 AND [key] = @p2"
 
 	var s model.Setting
 	err := r.db.QueryRowContext(ctx, query, userID, key).Scan(&s.SettingID, &s.UserID, &s.Key, &s.Value, &s.CreatedAt, &s.UpdatedAt)
@@ -82,7 +82,6 @@ func (r *repositoryImpl) UpdateMultipleSettings(ctx context.Context, userID stri
 	if len(keys) != len(values) {
 		return nil // Should not happen if validation done in service layer
 	}
-
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
