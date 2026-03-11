@@ -141,6 +141,13 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 		s.logger.ErrorContext(ctx, "failed to update learning path", "error", err, "path_id", path_id)
 		return apperror.NewInternal("failed to update learning path: %w", err)
 	}
+	if req.Publish_status == "published" {
+		_, err = s.SyncLearningPath(ctx, path_id)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to sync learning path after creation", "error", err, "path_id", path_id)
+			return apperror.NewInternal("failed to sync learning path: %w", err)
+		}
+	}
 
 	s.logger.InfoContext(ctx, "learning path updated successfully", "path_id", path_id)
 	return nil
