@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -302,7 +301,7 @@ func (r *repositoryImpl) DeleteUser(ctx context.Context, id string) error {
 }
 
 func (r *repositoryImpl) SetAccountDeactivatedUntil(ctx context.Context, userID string, until time.Time) error {
-    query := `
+	query := `
         MERGE INTO settings AS target
         USING (SELECT @p1 AS user_id, @p2 AS [key]) AS source
         ON (target.user_id = source.user_id AND target.[key] = source.[key])
@@ -313,9 +312,9 @@ func (r *repositoryImpl) SetAccountDeactivatedUntil(ctx context.Context, userID 
             VALUES (NEWID(), @p1, @p2, @p3, GETDATE(), GETDATE());
     `
 
-    value := until.UTC().Format(time.RFC3339)
-    _, err := r.db.ExecContext(ctx, query, userID, "account_deactivated_until", value)
-    return err
+	value := until.UTC().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, query, userID, "account_deactivated_until", value)
+	return err
 }
 
 func (r *repositoryImpl) GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error) {
@@ -324,7 +323,7 @@ func (r *repositoryImpl) GetAccountDeactivatedUntil(ctx context.Context, userID 
 	var raw string
 	err := r.db.QueryRowContext(ctx, query, userID, "account_deactivated_until").Scan(&raw)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
