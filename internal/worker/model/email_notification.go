@@ -16,3 +16,8 @@ type CommentNotificationRow struct {
 	NotificationRecipient
 	NewComments int
 }
+
+type PlatformAnnouncement struct {
+	Title   string
+	Content string
+}

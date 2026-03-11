@@ -2,7 +2,6 @@ package setting
 
 import (
 	"log/slog"
-	"os"
 
 	"passiontree/internal/connection"
 	"passiontree/internal/pkg/jwt"
@@ -37,25 +36,5 @@ func RegisterRoutes(r fiber.Router, db connection.Database, jwtService *jwt.Serv
 		// Delete setting
 		settings.Delete("/:key", h.DeleteSetting)
 	}
-
-	if os.Getenv("APP_ENV") != "production" && notificationWorker != nil {
-		debug := r.Group("/debug")
-		debug.Post("/notifications/daily", func(c *fiber.Ctx) error {
-			go notificationWorker.RunDailyNotifications()
-			return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
-				"success": true,
-				"message": "daily notifications triggered",
-			})
-		})
-
-		debug.Post("/notifications/weekly", func(c *fiber.Ctx) error {
-			go notificationWorker.RunWeeklyNotifications()
-			return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
-				"success": true,
-				"message": "weekly notifications triggered",
-			})
-		})
-
-		logger.Info("debug notification trigger endpoints enabled")
-	}
+	registerDebugNotificationRoutes(r, db, notificationWorker, logger)
 }

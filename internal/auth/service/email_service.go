@@ -79,14 +79,19 @@ func (s *emailServiceImpl) SendSecurityAlertEmail(ctx context.Context, to, userI
 
 func (s *emailServiceImpl) SendNotificationEmail(ctx context.Context, to, subject, headline, message string) error {
 	text := fmt.Sprintf("%s\n\n%s", headline, message)
-	html := fmt.Sprintf(`
-		<div style="font-family: Arial, sans-serif; color:#1f2937; line-height:1.5;">
-		  <h2 style="margin:0 0 8px 0;">%s</h2>
-		  <p style="margin:0;">%s</p>
-		</div>
-	`, headline, message)
 
-	return s.sendEmail(ctx, to, subject, html, text, "Passiontree Notifications")
+	var htmlBuf bytes.Buffer
+	data := map[string]string{
+		"Subject":  subject,
+		"Headline": headline,
+		"Message":  message,
+	}
+	if err := s.templates.notification.Execute(&htmlBuf, data); err != nil {
+		s.logger.Error("failed to execute notification template", "error", err)
+		return apperror.NewInternal("failed to generate email content")
+	}
+
+	return s.sendEmail(ctx, to, subject, htmlBuf.String(), text, "Passiontree Notifications")
 }
 
 func (s *emailServiceImpl) sendEmail(ctx context.Context, to, subject, html, text, fromName string) error {
@@ -143,14 +148,14 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 	// Plain text part
 	body += fmt.Sprintf("--%s\r\n", boundary)
 	body += "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: quoted-printable\r\n"
+	body += "Content-Transfer-Encoding: 8bit\r\n"
 	body += "\r\n"
 	body += textBody + "\r\n"
 
 	// HTML part
 	body += fmt.Sprintf("--%s\r\n", boundary)
 	body += "Content-Type: text/html; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: quoted-printable\r\n"
+	body += "Content-Transfer-Encoding: 8bit\r\n"
 	body += "\r\n"
 	body += htmlBody + "\r\n"
 

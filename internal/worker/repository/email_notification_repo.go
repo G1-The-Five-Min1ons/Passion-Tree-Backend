@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"passiontree/internal/connection"
 	workerModel "passiontree/internal/worker/model"
@@ -86,7 +87,7 @@ func (p *SQLEmailNotificationDataProvider) WeeklyProgressRows(ctx context.Contex
 
 func (p *SQLEmailNotificationDataProvider) RecommendationNewPathCount(ctx context.Context) (int, error) {
 	query := `SELECT COUNT(*) FROM learning_path WHERE create_at >= DATEADD(day, -7, GETDATE())`
-	
+
 	var newPathCount int
 	err := p.db.GetDB().QueryRowContext(ctx, query).Scan(&newPathCount)
 	if err != nil {
@@ -150,6 +151,29 @@ func (p *SQLEmailNotificationDataProvider) CommentNotificationRows(ctx context.C
 		err := rows.Scan(&row.UserID, &row.Email, &row.FirstName, &row.NewComments)
 		return row, err
 	})
+}
+
+func (p *SQLEmailNotificationDataProvider) LatestPlatformAnnouncement(ctx context.Context) (*workerModel.PlatformAnnouncement, error) {
+	query := `
+		SELECT TOP 1
+			ISNULL(title, '') AS title,
+			ISNULL(content, '') AS content
+		FROM platform_announcements
+		WHERE is_active = 1
+		  AND publish_at <= GETDATE()
+		ORDER BY publish_at DESC, created_at DESC
+	`
+
+	var announcement workerModel.PlatformAnnouncement
+	err := p.db.GetDB().QueryRowContext(ctx, query).Scan(&announcement.Title, &announcement.Content)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &announcement, nil
 }
 
 // scanRows เป็น helper สำหรับลด code ซ้ำซ้อนในการวน loop rows

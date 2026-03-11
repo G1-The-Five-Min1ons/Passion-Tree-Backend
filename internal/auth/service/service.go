@@ -24,6 +24,8 @@ var (
 	passwordResetTemplate string
 	//go:embed templates/security_alert.html
 	securityAlertTemplate string
+	//go:embed templates/notification.html
+	notificationTemplate string
 )
 
 type UserService interface {
@@ -92,6 +94,7 @@ type emailTemplates struct {
 	verification  *template.Template
 	passwordReset *template.Template
 	securityAlert *template.Template
+	notification  *template.Template
 }
 type emailServiceImpl struct {
 	mailersendClient *mailersend.Mailersend
@@ -116,6 +119,7 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 	verificationTmpl := template.Must(template.New("verification").Parse(verificationTemplate))
 	passwordResetTmpl := template.Must(template.New("passwordReset").Parse(passwordResetTemplate))
 	securityAlertTmpl := template.Must(template.New("securityAlert").Parse(securityAlertTemplate))
+	notificationTmpl := template.Must(template.New("notification").Parse(notificationTemplate))
 
 	return &emailServiceImpl{
 		mailersendClient: mailersend.NewMailersend(cfg.MailerSendAPIKey),
@@ -123,6 +127,7 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 			verification:  verificationTmpl,
 			passwordReset: passwordResetTmpl,
 			securityAlert: securityAlertTmpl,
+			notification:  notificationTmpl,
 		},
 		config: cfg,
 		logger: logger,

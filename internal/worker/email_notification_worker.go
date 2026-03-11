@@ -34,6 +34,7 @@ type EmailNotificationDataProvider interface {
 	RecommendationNewPathCount(ctx context.Context) (int, error)
 	RecipientsBySetting(ctx context.Context, settingKey string) ([]workerModel.NotificationRecipient, error)
 	CommentNotificationRows(ctx context.Context, settingKey string) ([]workerModel.CommentNotificationRow, error)
+	LatestPlatformAnnouncement(ctx context.Context) (*workerModel.PlatformAnnouncement, error)
 }
 
 func NewEmailNotificationWorker(provider EmailNotificationDataProvider, emailService authservice.EmailService, userService authservice.UserService, logger *slog.Logger) *EmailNotificationWorker {
@@ -184,6 +185,17 @@ func (w *EmailNotificationWorker) sendPlatformUpdateEmails(ctx context.Context) 
 		return
 	}
 
+	announcement, err := w.provider.LatestPlatformAnnouncement(ctx)
+	if err != nil {
+		w.logger.Error("platform_update_announcement_query_failed", "error", err)
+		return
+	}
+
+	if announcement == nil {
+		w.logger.Info("platform_update_skipped_no_announcement")
+		return
+	}
+
 	recipients, err := w.provider.RecipientsBySetting(ctx, settingEmailPlatformUpdates)
 	if err != nil {
 		w.logger.Error("platform_update_recipient_query_failed", "error", err)
@@ -197,8 +209,12 @@ func (w *EmailNotificationWorker) sendPlatformUpdateEmails(ctx context.Context) 
 			continue
 		}
 
-		message := "Platform updates are available this week. Visit Passion-Tree to see what’s new."
-		if err := w.emailService.SendNotificationEmail(ctx, recipient.Email, "Platform Updates · Passion-Tree", "Platform updates", message); err != nil {
+		subject := announcement.Title
+		if strings.TrimSpace(subject) == "" {
+			subject = "Platform Updates · Passion-Tree"
+		}
+
+		if err := w.emailService.SendNotificationEmail(ctx, recipient.Email, subject, "Platform updates", announcement.Content); err != nil {
 			w.logger.Error("platform_update_send_failed", "user_id", recipient.UserID, "error", err)
 		}
 	}

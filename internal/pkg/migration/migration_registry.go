@@ -11,6 +11,7 @@ func (m *Migrator) RunAllMigrations(ctx context.Context) error {
 		{name: "social_auth", run: m.RunSocialAuthMigration},
 		{name: "teacher_verification_and_settings", run: m.RunTeacherVerificationAndSettingsMigration},
 		{name: "user_settings_table", run: m.RunUserSettingsTableMigration},
+		{name: "platform_announcements", run: m.RunPlatformAnnouncementsMigration},
 		{name: "remove_web_push_setting", run: m.RunRemoveWebPushSettingMigration},
 	}
 
