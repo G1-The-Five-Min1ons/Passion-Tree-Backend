@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"html/template"
 	"log/slog"
+	"time"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
@@ -29,6 +30,7 @@ type UserService interface {
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	GetAllUsers(ctx context.Context) ([]*model.UserWithProfile, error)
 	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
 	UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
@@ -44,6 +46,8 @@ type UserService interface {
 	ResetPassword(ctx context.Context, code string, newPassword string) error
 	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
 	DeactivateAccount(ctx context.Context, userID string, days int) error
+	ReactivateAccount(ctx context.Context, userID string) error
+	GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error)
 
 	// Multi-device Session Management
 	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
@@ -55,10 +59,10 @@ type UserService interface {
 }
 
 type EmailService interface {
-	SendVerificationEmail(to, token string) error
-	SendPasswordResetEmail(to, token string) error
-	SendSecurityAlertEmail(to, userID string) error
-	SendNotificationEmail(to, subject, headline, message string) error
+	SendVerificationEmail(ctx context.Context, to, token string) error
+	SendPasswordResetEmail(ctx context.Context, to, token string) error
+	SendSecurityAlertEmail(ctx context.Context, to, userID string) error
+	SendNotificationEmail(ctx context.Context, to, subject, headline, message string) error
 }
 
 type SocialAuthService interface {

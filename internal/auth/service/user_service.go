@@ -44,8 +44,10 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		now := time.Now().UTC()
 		if deactivatedUntil.After(now) {
 			timeLeft := time.Until(*deactivatedUntil).Round(time.Hour)
-			return "", "", apperror.NewForbidden("account is temporarily deactivated. try again in %s", timeLeft.String())
+			s.logger.WarnContext(ctx, "login blocked: account deactivated", "user_id", user.UserID, "until", deactivatedUntil)
+			return "", "", apperror.NewForbidden("account is temporarily deactivated. try again in %s", timeLeft.String()).WithType("ACCOUNT_DEACTIVATED")
 		}
+		// Grace period expired, auto-clear deactivation
 		_ = s.repo.ClearAccountDeactivatedUntil(ctx, user.UserID)
 	}
 
@@ -95,13 +97,13 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 
 		// Send OTP to user's email
 		if s.emailService != nil {
-			if err := s.emailService.SendVerificationEmail(user.Email, otpCode); err != nil {
+			if err := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); err != nil {
 				s.logger.ErrorContext(ctx, "failed to send 2FA OTP email (1st attempt)", "error", err, "user_id", user.UserID)
 
 				// ถอยออกมาตั้งหลักสัก 1-2 วินาทีก่อนลองใหม่
 				time.Sleep(1 * time.Second)
 
-				if retryErr := s.emailService.SendVerificationEmail(user.Email, otpCode); retryErr != nil {
+				if retryErr := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); retryErr != nil {
 					s.logger.ErrorContext(ctx, "failed to send 2FA OTP email (2nd attempt)", "error", retryErr, "user_id", user.UserID)
 					// แจ้งให้ User ทราบใน Error Message ว่าอีเมลอาจจะมาช้าหน่อย
 				}
@@ -145,7 +147,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		"expire_at", otpToken.ExpireAt,
 	)
 
-	if err := s.emailService.SendVerificationEmail(user.Email, otpCode); err != nil {
+	if err := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); err != nil {
 		s.logger.ErrorContext(ctx, "failed to send otp email", "error", err)
 		return "", "", apperror.NewInternal("failed to send verification email")
 	}
@@ -329,7 +331,7 @@ func (s *userServiceImpl) handleTokenTheft(ctx context.Context, userID string) {
 	// Send security alert email to user
 	user, _, err := s.repo.GetUserByID(ctx, userID)
 	if err == nil && user != nil && s.emailService != nil {
-		if err := s.emailService.SendSecurityAlertEmail(user.Email, userID); err != nil {
+		if err := s.emailService.SendSecurityAlertEmail(ctx, user.Email, userID); err != nil {
 			s.logger.ErrorContext(ctx, "failed to send security alert email", "error", err, "user_id", userID)
 		} else {
 			s.logger.InfoContext(ctx, "security alert email sent", "user_id", userID, "email", user.Email)
@@ -411,6 +413,56 @@ func (s *userServiceImpl) LogoutSession(ctx context.Context, userID string, sess
 
 	s.logger.InfoContext(ctx, "session revoked", "user_id", userID, "session_id", sessionID)
 	return nil
+}
+
+// ReactivateAccount clears the deactivation and allows account to be used again
+func (s *userServiceImpl) ReactivateAccount(ctx context.Context, userID string) error {
+	if userID == "" {
+		return apperror.NewBadRequest("user_id is required")
+	}
+
+	user, _, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return apperror.NewInternal("failed to get user by ID: %w", err)
+	}
+	if user == nil {
+		return apperror.NewNotFound("user with id '%s' not found", userID)
+	}
+
+	// Check if account is actually deactivated
+	deactivatedUntil, err := s.repo.GetAccountDeactivatedUntil(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to check account deactivation", "error", err, "user_id", userID)
+		return apperror.NewInternal("failed to verify account status: %w", err)
+	}
+
+	if deactivatedUntil == nil {
+		return apperror.NewBadRequest("account is not deactivated")
+	}
+
+	// Clear the deactivation
+	if err := s.repo.ClearAccountDeactivatedUntil(ctx, userID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to clear account deactivation", "error", err, "user_id", userID)
+		return apperror.NewInternal("failed to reactivate account: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "account reactivated successfully", "user_id", userID)
+	return nil
+}
+
+// GetAccountDeactivatedUntil returns the deactivation timestamp if account is deactivated, nil otherwise
+func (s *userServiceImpl) GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error) {
+	if userID == "" {
+		return nil, apperror.NewBadRequest("user_id is required")
+	}
+
+	deactivatedUntil, err := s.repo.GetAccountDeactivatedUntil(ctx, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to get account deactivation status", "error", err, "user_id", userID)
+		return nil, apperror.NewInternal("failed to check account status: %w", err)
+	}
+
+	return deactivatedUntil, nil
 }
 
 // Helper function to safely get string value from pointer

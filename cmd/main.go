@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/robfig/cron/v3"
 
+	authrepo "passiontree/internal/auth/repository"
 	authservice "passiontree/internal/auth/service"
 	"passiontree/internal/config"
 	"passiontree/internal/connection"
@@ -32,11 +35,10 @@ const (
 )
 
 func main() {
-	// Setup logging
+	// Setup
 	isDev := os.Getenv("APP_ENV") != "production"
 	myLogger := logger.SetupLogger(isDev)
 
-	// Load configuration
 	cfg, err := config.LoadDBConfig()
 	if err != nil {
 		myLogger.Error("Failed to load config", "error", err)
@@ -54,15 +56,11 @@ func main() {
 	// Run database migrations
 	if err := runMigrations(db, myLogger); err != nil {
 		myLogger.Error("Failed to run migrations", "error", err)
-		// Don't exit - migrations might have already been applied
 		myLogger.Warn("Continuing despite migration error - tables may already exist")
 	}
 
-	// Initialize AI client
-	aiClient := initializeAIClient(cfg.AIServiceURL, myLogger)
-
-	// Initialize Azure Storage client
-	storageClient := initializeStorageClient(cfg, myLogger)
+	aiClient := initializeAIClient(cfg.AIServiceURL, myLogger) // Initialize AI client
+	storageClient := initializeStorageClient(cfg, myLogger)    // Initialize Azure Storage client
 
 	// Setup Fiber with custom Logger
 	app := createFiberApp(myLogger)
@@ -72,14 +70,31 @@ func main() {
 	cronJob := initializeBackgroundJobs(db, storageClient, emailService, myLogger)
 	defer cronJob.Stop()
 
-	// Start server
 	port := getPort()
 	myLogger.Info("starting server", "port", port, "app_name", AppName)
 
-	if err := app.Listen(":" + port); err != nil {
-		myLogger.Error("server crashed", "error", err)
-		os.Exit(1)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		if err := app.Listen(":" + port); err != nil {
+			myLogger.Error("server crashed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-quit
+	myLogger.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := app.ShutdownWithContext(ctx); err != nil {
+		myLogger.Error("Fiber shutdown error", "error", err)
 	}
+
+	cronJob.Stop()
+	myLogger.Info("Server exited gracefully")
 }
 
 // initializeDatabase connects to the database with retry logic
@@ -171,7 +186,9 @@ func getPort() string {
 func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, emailService authservice.EmailService, logger *slog.Logger) *cron.Cron {
 	cleanupWorker := worker.NewCleanupWorker(db, storage)
 	notificationProvider := workerRepo.NewSQLEmailNotificationDataProvider(db)
-	notificationWorker := worker.NewEmailNotificationWorker(notificationProvider, emailService, logger)
+	authRepository := authrepo.NewRepository(db)
+	userService := authservice.NewUserService(authRepository, nil, nil, nil, logger)
+	notificationWorker := worker.NewEmailNotificationWorker(notificationProvider, emailService, userService, logger)
 	c := cron.New()
 
 	// Run every midnight

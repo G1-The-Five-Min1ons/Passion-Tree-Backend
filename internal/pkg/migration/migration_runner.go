@@ -14,6 +14,18 @@ func (m *Migrator) RunStatements(ctx context.Context, sqlScript string) error {
 
 	m.logger.Info("starting migration", "total_batches", len(batches))
 
+	tx, err := m.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin migration transaction: %w", err)
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
 	for i, batch := range batches {
 		batch = strings.TrimSpace(batch)
 		if batch == "" || isCommentOnly(batch) {
@@ -22,7 +34,7 @@ func (m *Migrator) RunStatements(ctx context.Context, sqlScript string) error {
 
 		m.logger.Info("executing batch", "batch_number", i+1)
 
-		_, err := m.db.ExecContext(ctx, batch)
+		_, err := tx.ExecContext(ctx, batch)
 		if err != nil {
 			m.logger.Error("migration batch failed",
 				"batch_number", i+1,
@@ -34,6 +46,11 @@ func (m *Migrator) RunStatements(ctx context.Context, sqlScript string) error {
 
 		m.logger.Info("batch executed successfully", "batch_number", i+1)
 	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit migration transaction: %w", err)
+	}
+	committed = true
 
 	m.logger.Info("migration completed successfully")
 	return nil

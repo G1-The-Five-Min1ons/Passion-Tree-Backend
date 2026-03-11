@@ -32,17 +32,43 @@ func splitByGO(sql string) []string {
 
 // isCommentOnly checks if a batch contains only comments
 func isCommentOnly(batch string) bool {
-	lines := strings.Split(batch, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+	s := batch
+	inBlockComment := false
+
+	for i := 0; i < len(s); {
+		if inBlockComment {
+			if i+1 < len(s) && s[i] == '*' && s[i+1] == '/' {
+				inBlockComment = false
+				i += 2
+				continue
+			}
+			i++
 			continue
 		}
-		if !strings.HasPrefix(trimmed, "--") && !strings.HasPrefix(trimmed, "/*") {
-			return false
+
+		if i+1 < len(s) && s[i] == '/' && s[i+1] == '*' {
+			inBlockComment = true
+			i += 2
+			continue
 		}
+
+		if i+1 < len(s) && s[i] == '-' && s[i+1] == '-' {
+			i += 2
+			for i < len(s) && s[i] != '\n' {
+				i++
+			}
+			continue
+		}
+
+		if s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' {
+			i++
+			continue
+		}
+
+		return false
 	}
-	return true
+
+	return !inBlockComment
 }
 
 // truncateSQL truncates SQL for logging preview

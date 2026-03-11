@@ -24,6 +24,7 @@ const (
 type EmailNotificationWorker struct {
 	provider     EmailNotificationDataProvider
 	emailService authservice.EmailService
+	userService  authservice.UserService
 	logger       *slog.Logger
 }
 
@@ -35,8 +36,8 @@ type EmailNotificationDataProvider interface {
 	CommentNotificationRows(ctx context.Context, settingKey string) ([]workerModel.CommentNotificationRow, error)
 }
 
-func NewEmailNotificationWorker(provider EmailNotificationDataProvider, emailService authservice.EmailService, logger *slog.Logger) *EmailNotificationWorker {
-	return &EmailNotificationWorker{provider: provider, emailService: emailService, logger: logger}
+func NewEmailNotificationWorker(provider EmailNotificationDataProvider, emailService authservice.EmailService, userService authservice.UserService, logger *slog.Logger) *EmailNotificationWorker {
+	return &EmailNotificationWorker{provider: provider, emailService: emailService, userService: userService, logger: logger}
 }
 
 func (w *EmailNotificationWorker) RunDailyNotifications() {
@@ -66,11 +67,17 @@ func (w *EmailNotificationWorker) sendDailyReminderEmails(ctx context.Context) {
 	}
 
 	for _, recipient := range recipients {
+		// Skip email if user account is deactivated
+		if isDeactivated, _ := w.isUserDeactivated(ctx, recipient.UserID); isDeactivated {
+			w.logger.Info("daily_reminder_skipped_deactivated", "user_id", recipient.UserID)
+			continue
+		}
+
 		subject := "Daily Reminder · Keep your learning streak alive"
 		name := displayName(recipient.FirstName)
 		headline := "You missed practice today"
 		body := fmt.Sprintf("Hi %s, it looks like you haven’t practiced in the past 24 hours. A short session today can keep your momentum going.", name)
-		if err := w.emailService.SendNotificationEmail(recipient.Email, subject, headline, body); err != nil {
+		if err := w.emailService.SendNotificationEmail(ctx, recipient.Email, subject, headline, body); err != nil {
 			w.logger.Error("daily_reminder_send_failed", "user_id", recipient.UserID, "error", err)
 		}
 	}
@@ -90,11 +97,17 @@ func (w *EmailNotificationWorker) sendWeeklyProgressEmails(ctx context.Context) 
 	}
 
 	for _, recipient := range recipients {
+		// Skip email if user account is deactivated
+		if isDeactivated, _ := w.isUserDeactivated(ctx, recipient.UserID); isDeactivated {
+			w.logger.Info("weekly_progress_skipped_deactivated", "user_id", recipient.UserID)
+			continue
+		}
+
 		name := displayName(recipient.FirstName)
 
 		headline := "Your weekly progress report is ready"
 		message := fmt.Sprintf("Hi %s! In the last 7 days, you completed %d nodes across %d active days.", name, recipient.CompletedNodes, recipient.ActiveDays)
-		if err := w.emailService.SendNotificationEmail(recipient.Email, "Weekly Progress Report · Passion-Tree", headline, message); err != nil {
+		if err := w.emailService.SendNotificationEmail(ctx, recipient.Email, "Weekly Progress Report · Passion-Tree", headline, message); err != nil {
 			w.logger.Error("weekly_progress_send_failed", "user_id", recipient.UserID, "error", err)
 		}
 	}
@@ -124,8 +137,14 @@ func (w *EmailNotificationWorker) sendRecommendationEmails(ctx context.Context) 
 	}
 
 	for _, recipient := range recipients {
+		// Skip email if user account is deactivated
+		if isDeactivated, _ := w.isUserDeactivated(ctx, recipient.UserID); isDeactivated {
+			w.logger.Info("recommendation_skipped_deactivated", "user_id", recipient.UserID)
+			continue
+		}
+
 		message := fmt.Sprintf("There are %d new learning paths this week. Explore your personalized recommendations now.", newPathCount)
-		if err := w.emailService.SendNotificationEmail(recipient.Email, "Course Recommendations · Passion-Tree", "New recommendations available", message); err != nil {
+		if err := w.emailService.SendNotificationEmail(ctx, recipient.Email, "Course Recommendations · Passion-Tree", "New recommendations available", message); err != nil {
 			w.logger.Error("recommendation_send_failed", "user_id", recipient.UserID, "error", err)
 		}
 	}
@@ -145,8 +164,14 @@ func (w *EmailNotificationWorker) sendCommentNotificationEmails(ctx context.Cont
 	}
 
 	for _, recipient := range recipients {
+		// Skip email if user account is deactivated
+		if isDeactivated, _ := w.isUserDeactivated(ctx, recipient.UserID); isDeactivated {
+			w.logger.Info("comment_notification_skipped_deactivated", "user_id", recipient.UserID)
+			continue
+		}
+
 		message := fmt.Sprintf("You have %d new comments on your learning paths.", recipient.NewComments)
-		if err := w.emailService.SendNotificationEmail(recipient.Email, "New Comments · Passion-Tree", "New comments on your learning paths", message); err != nil {
+		if err := w.emailService.SendNotificationEmail(ctx, recipient.Email, "New Comments · Passion-Tree", "New comments on your learning paths", message); err != nil {
 			w.logger.Error("comment_notification_send_failed", "user_id", recipient.UserID, "error", err)
 		}
 	}
@@ -166,8 +191,14 @@ func (w *EmailNotificationWorker) sendPlatformUpdateEmails(ctx context.Context) 
 	}
 
 	for _, recipient := range recipients {
+		// Skip email if user account is deactivated
+		if isDeactivated, _ := w.isUserDeactivated(ctx, recipient.UserID); isDeactivated {
+			w.logger.Info("platform_update_skipped_deactivated", "user_id", recipient.UserID)
+			continue
+		}
+
 		message := "Platform updates are available this week. Visit Passion-Tree to see what’s new."
-		if err := w.emailService.SendNotificationEmail(recipient.Email, "Platform Updates · Passion-Tree", "Platform updates", message); err != nil {
+		if err := w.emailService.SendNotificationEmail(ctx, recipient.Email, "Platform Updates · Passion-Tree", "Platform updates", message); err != nil {
 			w.logger.Error("platform_update_send_failed", "user_id", recipient.UserID, "error", err)
 		}
 	}
@@ -200,4 +231,23 @@ func displayName(firstName string) string {
 	}
 
 	return name
+}
+
+// isUserDeactivated checks if a user's account is currently deactivated
+func (w *EmailNotificationWorker) isUserDeactivated(ctx context.Context, userID string) (bool, error) {
+	if w.userService == nil {
+		return false, nil
+	}
+
+	deactivatedUntil, err := w.userService.GetAccountDeactivatedUntil(ctx, userID)
+	if err != nil {
+		w.logger.Warn("check_deactivation_status_failed", "user_id", userID, "error", err)
+		return false, err
+	}
+
+	if deactivatedUntil == nil {
+		return false, nil
+	}
+
+	return deactivatedUntil.After(time.Now().UTC()), nil
 }

@@ -62,6 +62,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		// Authentication
 		protected.Post("/logout", h.Logout) // Logout and revoke tokens
 		protected.Post("/deactivate", h.DeactivateAccount)
+		protected.Post("/reactivate", h.ReactivateAccount)
 
 		protected.Get("/sessions", h.GetActiveSessions)            // List all active sessions/devices
 		protected.Delete("/sessions/:session_id", h.LogoutSession) // Logout from a specific device

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net/smtp"
+	"strings"
 	"time"
 
 	"passiontree/internal/pkg/apperror"
@@ -22,7 +23,14 @@ func ExportSetSMTPSendMail(mock func(addr string, a smtp.Auth, from string, to [
 	return original
 }
 
-func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
+// sanitizeHeaderValue removes newlines and carriage returns to prevent SMTP header injection
+func sanitizeHeaderValue(value string) string {
+	value = strings.ReplaceAll(value, "\r", "")
+	value = strings.ReplaceAll(value, "\n", "")
+	return value
+}
+
+func (s *emailServiceImpl) SendVerificationEmail(ctx context.Context, to, token string) error {
 	subject := "รหัสยืนยันตัวตน - Passion-Tree"
 	text := fmt.Sprintf("ยินดีต้อนรับสู่ Passion-Tree!\n\nรหัสยืนยันตัวตนของคุณคือ: %s\n\nรหัสนี้จะหมดอายุใน 15 นาที", token)
 
@@ -33,10 +41,10 @@ func (s *emailServiceImpl) SendVerificationEmail(to, token string) error {
 		return apperror.NewInternal("failed to generate email content")
 	}
 
-	return s.sendEmail(to, subject, htmlBuf.String(), text, "Passiontree Team")
+	return s.sendEmail(ctx, to, subject, htmlBuf.String(), text, "Passiontree Team")
 }
 
-func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
+func (s *emailServiceImpl) SendPasswordResetEmail(ctx context.Context, to, token string) error {
 	subject := "รีเซ็ตรหัสผ่าน - Passiontree"
 	text := fmt.Sprintf("รหัสรีเซ็ตรหัสผ่าน: %s\n\nรหัสนี้จะหมดอายุใน 15 นาที", token)
 
@@ -47,10 +55,10 @@ func (s *emailServiceImpl) SendPasswordResetEmail(to, token string) error {
 		return apperror.NewInternal("failed to generate email content")
 	}
 
-	return s.sendEmail(to, subject, htmlBuf.String(), text, "Passiontree Security")
+	return s.sendEmail(ctx, to, subject, htmlBuf.String(), text, "Passiontree Security")
 }
 
-func (s *emailServiceImpl) SendSecurityAlertEmail(to, userID string) error {
+func (s *emailServiceImpl) SendSecurityAlertEmail(ctx context.Context, to, userID string) error {
 	subject := "แจ้งเตือนความปลอดภัย - Passiontree"
 	now := time.Now().Format("02/01/2006 15:04:05")
 	text := fmt.Sprintf("ตรวจพบกิจกรรมที่น่าสงสัยในบัญชีของคุณ\n\nUser ID: %s\nเวลา: %s\n\nเราได้ล็อกเอาท์ทุกอุปกรณ์เพื่อความปลอดภัย\nกรุณาเปลี่ยนรหัสผ่านทันที", userID, now)
@@ -66,10 +74,10 @@ func (s *emailServiceImpl) SendSecurityAlertEmail(to, userID string) error {
 		return apperror.NewInternal("failed to generate email content")
 	}
 
-	return s.sendEmail(to, subject, htmlBuf.String(), text, "Passiontree Security Team")
+	return s.sendEmail(ctx, to, subject, htmlBuf.String(), text, "Passiontree Security Team")
 }
 
-func (s *emailServiceImpl) SendNotificationEmail(to, subject, headline, message string) error {
+func (s *emailServiceImpl) SendNotificationEmail(ctx context.Context, to, subject, headline, message string) error {
 	text := fmt.Sprintf("%s\n\n%s", headline, message)
 	html := fmt.Sprintf(`
 		<div style="font-family: Arial, sans-serif; color:#1f2937; line-height:1.5;">
@@ -78,13 +86,10 @@ func (s *emailServiceImpl) SendNotificationEmail(to, subject, headline, message 
 		</div>
 	`, headline, message)
 
-	return s.sendEmail(to, subject, html, text, "Passiontree Notifications")
+	return s.sendEmail(ctx, to, subject, html, text, "Passiontree Notifications")
 }
 
-func (s *emailServiceImpl) sendEmail(to, subject, html, text, fromName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (s *emailServiceImpl) sendEmail(ctx context.Context, to, subject, html, text, fromName string) error {
 	// 1. ลองส่งด้วย MailerSend ก่อน (ถ้าตั้งค่า API Key ไว้)
 	if s.config.MailerSendAPIKey != "" {
 		message := s.mailersendClient.Email.NewMessage()
@@ -105,35 +110,87 @@ func (s *emailServiceImpl) sendEmail(to, subject, html, text, fromName string) e
 	}
 
 	// 2. Fallback: ส่งด้วย Gmail SMTP (ถ้า MailerSend ใช้ไม่ได้)
-	return s.sendViaGmail(to, subject, html)
+	return s.sendViaGmail(ctx, to, subject, html, text)
 }
 
-func (s *emailServiceImpl) sendViaGmail(to, subject, htmlBody string) error {
+func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBody, textBody string) error {
 	from := s.config.GmailEmail
 	password := s.config.GmailAppPassword
+
+	// Sanitize header values to prevent SMTP header injection
+	to = sanitizeHeaderValue(to)
+	subject = sanitizeHeaderValue(subject)
+
+	// Generate boundary for multipart/alternative
+	boundaryBuffer := make([]byte, 16)
+	_, err := rand.Read(boundaryBuffer)
+	if err != nil {
+		return fmt.Errorf("failed to generate boundary: %w", err)
+	}
+	boundary := fmt.Sprintf("%x", boundaryBuffer)
 
 	// 1. สร้างหัวจดหมาย (Headers) - ต้องใช้ \r\n เท่านั้น
 	header := fmt.Sprintf("From: %s\r\n", from)
 	header += fmt.Sprintf("To: %s\r\n", to)
 	header += fmt.Sprintf("Subject: %s\r\n", subject)
 	header += "MIME-Version: 1.0\r\n"
-	header += "Content-Type: text/html; charset=\"UTF-8\"\r\n"
+	header += fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary)
 	header += "\r\n" // บรรทัดว่างแบ่ง Header และ Body (ห้ามขาด!)
 
-	// 2. รวมร่าง Message
-	message := []byte(header + htmlBody)
+	// 2. สร้าง Body ที่มีทั้ง Plain Text และ HTML Parts
+	body := ""
 
-	// 3. Authentication & Send
-	auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
-	err := smtpSendMail("smtp.gmail.com:587", auth, from, []string{to}, message)
+	// Plain text part
+	body += fmt.Sprintf("--%s\r\n", boundary)
+	body += "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
+	body += "Content-Transfer-Encoding: quoted-printable\r\n"
+	body += "\r\n"
+	body += textBody + "\r\n"
 
-	if err != nil {
-		s.logger.Error("Gmail ultimate failure", "error", err)
-		return err
+	// HTML part
+	body += fmt.Sprintf("--%s\r\n", boundary)
+	body += "Content-Type: text/html; charset=\"UTF-8\"\r\n"
+	body += "Content-Transfer-Encoding: quoted-printable\r\n"
+	body += "\r\n"
+	body += htmlBody + "\r\n"
+
+	// Closing boundary
+	body += fmt.Sprintf("--%s--\r\n", boundary)
+
+	// 3. รวมร่าง Message
+	message := []byte(header + body)
+
+	// 4. ตรวจเช็ค Context ว่าไม่ถูก Cancel หรือ Timeout
+	select {
+	case <-ctx.Done():
+		s.logger.Warn("context cancelled before sending email", "to", to)
+		return ctx.Err()
+	default:
 	}
 
-	s.logger.Info("OTP sent via Gmail successfully", "to", to)
-	return nil
+	// 5. Authentication & Send with timeout
+	sendCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// Create a channel to send the result
+	errChan := make(chan error, 1)
+	go func() {
+		auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
+		errChan <- smtpSendMail("smtp.gmail.com:587", auth, from, []string{to}, message)
+	}()
+
+	select {
+	case err := <-errChan:
+		if err != nil {
+			s.logger.Error("Gmail send failed", "error", err, "to", to)
+			return err
+		}
+		s.logger.Info("email sent via Gmail successfully", "to", to)
+		return nil
+	case <-sendCtx.Done():
+		s.logger.Warn("email send timeout", "to", to, "error", sendCtx.Err())
+		return sendCtx.Err()
+	}
 }
 
 func GenerateVerificationToken() (string, error) {

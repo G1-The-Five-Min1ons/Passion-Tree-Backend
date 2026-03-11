@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"context"
+	"time"
+
 	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/setting/model"
 
@@ -14,12 +17,14 @@ func (h *Handler) GetSettings(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	settings, err := h.svc.GetSettings(c.Context(), userID)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+	settings, err := h.svc.GetSettings(ctx, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(c.Context(), "successfully retrieved settings", "user_id", userID, "count", len(settings))
+	h.logger.InfoContext(ctx, "successfully retrieved settings", "user_id", userID, "count", len(settings))
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -36,10 +41,14 @@ func (h *Handler) GetSetting(c *fiber.Ctx) error {
 	}
 
 	key := c.Params("key")
-	setting, err := h.svc.GetSetting(c.Context(), userID, key)
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+	setting, err := h.svc.GetSetting(ctx, userID, key)
 	if err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "successfully retrieved setting", "user_id", userID, "key", key)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -48,7 +57,7 @@ func (h *Handler) GetSetting(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateSettings updates multiple settings at once
+// UpdateSettings updates multiple settings at once in a single atomic transaction
 func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -62,11 +71,15 @@ func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 		})
 	}
 
-	for _, req := range requests {
-		if err := h.svc.UpdateSetting(c.Context(), userID, &req); err != nil {
-			return h.handleError(c, err)
-		}
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	// Use batch update method for atomicity and performance
+	if err := h.svc.UpdateMultipleSettings(ctx, userID, requests); err != nil {
+		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "successfully updated settings", "user_id", userID, "count", len(requests))
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -93,9 +106,14 @@ func (h *Handler) UpdateSetting(c *fiber.Ctx) error {
 
 	req.Key = key
 
-	if err := h.svc.UpdateSetting(c.Context(), userID, &req); err != nil {
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.svc.UpdateSetting(ctx, userID, &req); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "successfully updated setting", "user_id", userID, "key", key)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -112,9 +130,14 @@ func (h *Handler) DeleteSetting(c *fiber.Ctx) error {
 	}
 
 	key := c.Params("key")
-	if err := h.svc.DeleteSetting(c.Context(), userID, key); err != nil {
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.svc.DeleteSetting(ctx, userID, key); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "successfully deleted setting", "user_id", userID, "key", key)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

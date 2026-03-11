@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -74,7 +75,8 @@ func TestEmailServiceFallbackToSMTP(t *testing.T) {
 	})
 
 	t.Run("SendPasswordResetEmail", func(t *testing.T) {
-		err := emailSvc.SendPasswordResetEmail("user@example.com", "reset-token")
+		ctx := context.Background()
+		err := emailSvc.SendPasswordResetEmail(ctx, "user@example.com", "reset-token")
 		if err == nil {
 			t.Fatal("Expected an error due to mock SMTP simulated error, got nil")
 		}

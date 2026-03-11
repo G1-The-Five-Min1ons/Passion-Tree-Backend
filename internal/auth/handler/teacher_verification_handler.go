@@ -65,6 +65,8 @@ func (h *Handler) ApplyForTeacher(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "teacher application submitted successfully", "user_id", userID)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "Teacher application submitted successfully",

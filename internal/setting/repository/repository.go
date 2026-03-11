@@ -13,6 +13,7 @@ type Repository interface {
 	GetSetting(ctx context.Context, userID, key string) (*model.Setting, error)
 	CreateSetting(ctx context.Context, setting *model.Setting) error
 	UpdateSetting(ctx context.Context, userID, key, value string) error
+	UpdateMultipleSettings(ctx context.Context, userID string, keys []string, values []string) error
 	DeleteSetting(ctx context.Context, userID, key string) error
 }
 

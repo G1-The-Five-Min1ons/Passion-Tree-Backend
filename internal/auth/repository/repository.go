@@ -35,6 +35,7 @@ type RepositoryUser interface {
 	DeleteUser(ctx context.Context, id string) error
 	SetAccountDeactivatedUntil(ctx context.Context, userID string, until time.Time) error
 	GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error)
+	DeactivateAccountWithTokenRevoke(ctx context.Context, userID string, until time.Time) error
 	ClearAccountDeactivatedUntil(ctx context.Context, userID string) error
 	UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error
 	VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error

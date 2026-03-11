@@ -13,7 +13,7 @@ func (s *userServiceImpl) DeactivateAccount(ctx context.Context, userID string, 
 		return apperror.NewBadRequest("user_id is required")
 	}
 	if days <= 0 {
-		days = 14
+		days = model.DefaultDeactivationGracePeriod
 	}
 
 	user, _, err := s.repo.GetUserByID(ctx, userID)
@@ -24,13 +24,9 @@ func (s *userServiceImpl) DeactivateAccount(ctx context.Context, userID string, 
 		return apperror.NewNotFound("user with id '%s' not found", userID)
 	}
 
-	until := time.Now().UTC().Add(time.Duration(days) * 24 * time.Hour)
-	if err := s.repo.SetAccountDeactivatedUntil(ctx, userID, until); err != nil {
+	until := time.Now().UTC().AddDate(0, 0, days)
+	if err := s.repo.DeactivateAccountWithTokenRevoke(ctx, userID, until); err != nil {
 		return apperror.NewInternal("failed to deactivate account: %w", err)
-	}
-
-	if err := s.repo.RevokeAllUserTokens(ctx, userID, model.TokenTypeRefresh); err != nil {
-		return apperror.NewInternal("failed to revoke sessions: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "account deactivated successfully", "user_id", userID, "until", until)

@@ -76,3 +76,51 @@ func (r *repositoryImpl) DeleteSetting(ctx context.Context, userID, key string) 
 	_, err := r.db.ExecContext(ctx, query, userID, key)
 	return err
 }
+
+// UpdateMultipleSettings updates multiple settings in a single atomic transaction
+func (r *repositoryImpl) UpdateMultipleSettings(ctx context.Context, userID string, keys []string, values []string) error {
+	if len(keys) != len(values) {
+		return nil // Should not happen if validation done in service layer
+	}
+
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	for i := 0; i < len(keys); i++ {
+		query := `
+			IF EXISTS (SELECT 1 FROM settings WHERE user_id = @p2 AND [key] = @p3)
+			BEGIN
+				UPDATE settings
+				SET [value] = @p1, updated_at = GETDATE()
+				WHERE user_id = @p2 AND [key] = @p3
+			END
+			ELSE
+			BEGIN
+				INSERT INTO settings (id, user_id, [key], [value], created_at, updated_at)
+				VALUES (NEWID(), @p2, @p3, @p1, GETDATE(), GETDATE())
+			END
+		`
+
+		_, err := tx.ExecContext(ctx, query, values[i], userID, keys[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	committed = true
+	return nil
+}

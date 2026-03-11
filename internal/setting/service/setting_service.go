@@ -95,6 +95,38 @@ func (s *serviceImpl) UpdateSetting(ctx context.Context, userID string, req *mod
 	return nil
 }
 
+// UpdateMultipleSettings updates multiple settings in a single atomic transaction
+func (s *serviceImpl) UpdateMultipleSettings(ctx context.Context, userID string, requests []model.SettingRequest) error {
+	if userID == "" {
+		return apperror.NewBadRequest("user_id is required")
+	}
+
+	if len(requests) == 0 {
+		return apperror.NewBadRequest("at least one setting is required")
+	}
+
+	// Validate all requests before proceeding
+	keys := make([]string, len(requests))
+	values := make([]string, len(requests))
+	for i, req := range requests {
+		if req.Key == "" || req.Value == "" {
+			return apperror.NewBadRequest("setting %d: key and value are required", i+1)
+		}
+		keys[i] = req.Key
+		values[i] = req.Value
+	}
+
+	// Call repository method which handles transaction internally
+	err := s.repo.UpdateMultipleSettings(ctx, userID, keys, values)
+	if err != nil {
+		s.logger.Error("failed to update multiple settings", "error", err, "user_id", userID, "count", len(requests))
+		return apperror.NewInternal("failed to update settings: %v", err)
+	}
+
+	s.logger.Info("batch settings updated successfully", "user_id", userID, "count", len(requests))
+	return nil
+}
+
 // DeleteSetting deletes a setting
 func (s *serviceImpl) DeleteSetting(ctx context.Context, userID, key string) error {
 	if userID == "" || key == "" {

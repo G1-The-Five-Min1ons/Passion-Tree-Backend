@@ -21,7 +21,6 @@ func NewHandler(svc service.Service, logger *slog.Logger) *Handler {
 	}
 }
 
-// handleError provides centralized error handling similar to Learning-Path
 func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 	ctx := c.UserContext()
 
@@ -30,28 +29,36 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 		"path", c.Path(),
 		"ip", c.IP(),
 		"user_agent", c.Get("User-Agent"),
-		"request_id", c.GetRespHeader("X-Request-ID"),
+		"request_id", c.GetRespHeader("X-Request-ID"), 
 	}
 
-	// Handle business/known errors
 	if appErr, ok := err.(*apperror.AppError); ok {
-		h.logger.WarnContext(ctx, appErr.Message, logAttrs...)
+		if appErr.Log != nil {
+			h.logger.WarnContext(ctx, "application handled error",
+				append(logAttrs,
+					"code", appErr.Code,
+					"message", appErr.Message,
+					"cause", appErr.Log,
+				)...,
+			)
+		}
+
 		return c.Status(appErr.Code).JSON(fiber.Map{
-			"error":      appErr.Message,
-			"error_code": appErr.Code,
-			"request_id": c.GetRespHeader("X-Request-ID"),
+			"success": false,
+			"error":   appErr.Message,
 		})
 	}
 
-	// Handle unexpected errors
-	h.logger.ErrorContext(ctx, "internal_server_error", append(logAttrs, "error", err.Error())...)
+	h.logger.ErrorContext(ctx, "unhandled system error",
+		append(logAttrs, "error", err.Error())...,
+	)
+
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		"error":      "Internal server error",
-		"request_id": c.GetRespHeader("X-Request-ID"),
+		"success": false,
+		"error":   "internal server error",
 	})
 }
 
-// successResponse returns a JSON success response
 func (h *Handler) successResponse(message string) fiber.Map {
 	return fiber.Map{"message": message}
 }

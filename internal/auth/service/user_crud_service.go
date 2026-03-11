@@ -126,7 +126,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 	if user.Email == "" {
 		s.logger.WarnContext(ctx, "user email is empty, skipping verification email", "user_id", userID)
 	} else {
-		if err := s.emailService.SendVerificationEmail(user.Email, verificationToken); err != nil {
+		if err := s.emailService.SendVerificationEmail(ctx, user.Email, verificationToken); err != nil {
 			s.logger.WarnContext(ctx, "failed to send verification email", "error", err.Error(), "email", user.Email)
 			// Print full error details if available
 			s.logger.ErrorContext(ctx, "MailerSend error details", "user_id", userID, "email", user.Email, "error", err)
@@ -168,6 +168,24 @@ func (s *userServiceImpl) GetUserByEmail(ctx context.Context, email string) (*mo
 	}
 	if user == nil {
 		return nil, apperror.NewNotFound("user with email '%s' not found", email)
+	}
+
+	return user, nil
+}
+
+// GetUserByUsername retrieves user by username
+func (s *userServiceImpl) GetUserByUsername(ctx context.Context, username string) (*model.User, error) {
+	if username == "" {
+		return nil, apperror.NewBadRequest("username is required")
+	}
+
+	user, err := s.repo.GetUserByUsername(ctx, username)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "get user by username failed", "error", err, "username", username)
+		return nil, apperror.NewInternal("failed to get user by username: %w", err)
+	}
+	if user == nil {
+		return nil, apperror.NewNotFound("user with username '%s' not found", username)
 	}
 
 	return user, nil

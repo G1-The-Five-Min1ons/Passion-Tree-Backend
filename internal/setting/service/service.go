@@ -13,6 +13,7 @@ type SettingService interface {
 	GetSetting(ctx context.Context, userID, key string) (*model.Setting, error)
 	CreateSetting(ctx context.Context, userID string, req *model.SettingRequest) (*model.Setting, error)
 	UpdateSetting(ctx context.Context, userID string, req *model.SettingRequest) error
+	UpdateMultipleSettings(ctx context.Context, userID string, requests []model.SettingRequest) error
 	DeleteSetting(ctx context.Context, userID, key string) error
 }
 
