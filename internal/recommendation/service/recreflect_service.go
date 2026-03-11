@@ -98,7 +98,7 @@ func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, 
 			continue
 		}
 
-		fullPath, exists := pathMap[resultPathID]
+		fullPath, exists := pathMap[strings.ToUpper(resultPathID)]
 		if !exists {
 			s.logger.WarnContext(ctx, "path from AI not found in DB", "path_id", resultPathID)
 			continue
