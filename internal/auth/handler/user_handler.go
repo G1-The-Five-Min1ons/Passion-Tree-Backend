@@ -204,7 +204,7 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	if err := h.userSvc.UpdateUser(ctx, userID, req.Username, req.FirstName, req.LastName, string(req.Role)); err != nil {
+	if err := h.userSvc.UpdateUser(ctx, userID, "", req.FirstName, req.LastName, string(req.Role)); err != nil {
 		return h.handleError(c, err)
 	}
 
