@@ -94,12 +94,6 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 		return "", apperror.NewInternal("database error during path creation: %w", err)
 	}
 
-	_, err = s.SyncLearningPath(ctx, id)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to sync learning path after creation", "error", err, "path_id", id)
-		return "", apperror.NewInternal("failed to sync learning path: %w", err)
-	}
-
 	s.logger.InfoContext(ctx, "learning path created successfully", "path_id", id)
 	return id, nil
 }
@@ -146,6 +140,13 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 
 		s.logger.ErrorContext(ctx, "failed to update learning path", "error", err, "path_id", path_id)
 		return apperror.NewInternal("failed to update learning path: %w", err)
+	}
+	if req.Publish_status == "Published" {
+		_, err = s.SyncLearningPath(ctx, path_id)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to sync learning path after creation", "error", err, "path_id", path_id)
+			return apperror.NewInternal("failed to sync learning path: %w", err)
+		}
 	}
 
 	s.logger.InfoContext(ctx, "learning path updated successfully", "path_id", path_id)
