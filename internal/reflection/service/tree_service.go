@@ -51,17 +51,18 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 	s.logger.InfoContext(ctx, "tree created successfully", "tree_id", treeID, "nodes_count", len(nodes))
 
 	return &model.TreeResponse{
-		TreeID:       tree.TreeID,
-		Title:        tree.Title,
-		Difficulties: tree.Difficulties,
-		Status:       tree.Status,
-		IsPause:      tree.IsPause,
-		NodeCount:    tree.NodeCount,
-		CreatedAt:    tree.CreatedAt,
-		LastUpdate:   tree.LastUpdate,
-		AlbumID:      tree.AlbumID,
-		PathID:       tree.PathID,
-		Nodes:        nodes,
+		TreeID:        tree.TreeID,
+		Title:         tree.Title,
+		Difficulties:  tree.Difficulties,
+		Status:        computeTreeStatus(tree.Difficulties, tree.LastReflectAt, tree.IsPause, tree.PausedAt),
+		IsPause:       tree.IsPause,
+		NodeCount:     tree.NodeCount,
+		CreatedAt:     tree.CreatedAt,
+		LastUpdate:    tree.LastUpdate,
+		AlbumID:       tree.AlbumID,
+		PathID:        tree.PathID,
+		LastReflectAt: tree.LastReflectAt,
+		Nodes:         nodes,
 	}, nil
 }
 
@@ -83,6 +84,9 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 		return nil, apperror.NewInternal("database error fetching tree: %w", err)
 	}
 
+	// Compute live status based on last reflection time and difficulty level.
+	tree.Status = computeTreeStatus(tree.Difficulties, tree.LastReflectAt, tree.IsPause, tree.PausedAt)
+
 	s.logger.InfoContext(ctx, "successfully retrieved tree", "tree_id", treeID)
 	return tree, nil
 }
@@ -100,7 +104,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 		if err != nil {
 			if err == sql.ErrNoRows {
 				s.logger.WarnContext(ctx, "no trees found for album", "album_id", albumID)
-				return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+				return []model.TreeResponse{}, nil
 			}
 			s.logger.ErrorContext(ctx, "database error fetching album trees with nodes", "error", err, "album_id", albumID)
 			return nil, apperror.NewInternal("database error fetching album trees: %w", err)
@@ -108,7 +112,17 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 
 		if len(treesWithNodes) == 0 {
 			s.logger.InfoContext(ctx, "album has an empty tree list", "album_id", albumID)
-			return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+			return []model.TreeResponse{}, nil
+		}
+
+		// Compute live status for each tree.
+		for i := range treesWithNodes {
+			treesWithNodes[i].Status = computeTreeStatus(
+				treesWithNodes[i].Difficulties,
+				treesWithNodes[i].LastReflectAt,
+				treesWithNodes[i].IsPause,
+				nil, // paused_at not fetched in this query; growing-only safe default
+			)
 		}
 
 		s.logger.InfoContext(ctx, "successfully retrieved album trees with nodes", "album_id", albumID, "count", len(treesWithNodes))
@@ -120,7 +134,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "no trees found for album", "album_id", albumID)
-			return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+			return []model.Tree{}, nil
 		}
 		s.logger.ErrorContext(ctx, "database error fetching album trees", "error", err, "album_id", albumID)
 		return nil, apperror.NewInternal("database error fetching album trees: %w", err)
@@ -128,7 +142,17 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 
 	if len(trees) == 0 {
 		s.logger.InfoContext(ctx, "album has an empty tree list", "album_id", albumID)
-		return nil, apperror.NewNotFound("trees for album with id '%s' not found", albumID)
+		return []model.Tree{}, nil
+	}
+
+	// Compute live status for each tree.
+	for i := range trees {
+		trees[i].Status = computeTreeStatus(
+			trees[i].Difficulties,
+			trees[i].LastReflectAt,
+			trees[i].IsPause,
+			trees[i].PausedAt,
+		)
 	}
 
 	s.logger.InfoContext(ctx, "successfully retrieved album trees", "album_id", albumID, "count", len(trees))

@@ -24,11 +24,11 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 
 	protected := r.Group("/", middleware.JWTMiddleware(jwtService, logger))
 
-	paths := protected.Group("/reflect/recomendation")
+	paths := protected.Group("/reflect/recommendation")
 	{
 		paths.Get("", h.GetRecommendations)
 	}
-	homePaths := protected.Group("/home/recomendation")
+	homePaths := protected.Group("/home/recommendation")
 	{
 		homePaths.Get("", h.GetHomeRecommendations)
 	}

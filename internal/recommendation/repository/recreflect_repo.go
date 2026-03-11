@@ -17,7 +17,7 @@ func (r *repositoryImpl) GetUserReflectionsByTree(ctx context.Context, userID st
 			r.struggle_point,
 			r.weighted_reflection_score as weighted_score
 		FROM dbo.Tree t
-		JOIN dbo.Tree_Album ta ON t.tree_id = ta.tree_id
+		JOIN dbo.Tree_Album ta ON t.album_id = ta.album_id
 		LEFT JOIN dbo.Tree_Node tn ON t.tree_id = tn.tree_id
 		LEFT JOIN dbo.Reflect r ON tn.tree_node_id = r.tree_node_id
 		WHERE t.tree_id = @p1 AND ta.user_id = @p2

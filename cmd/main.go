@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"time"
@@ -12,8 +13,9 @@ import (
 
 	"passiontree/internal/config"
 	"passiontree/internal/connection"
-	"passiontree/internal/pkg/storage"
 	"passiontree/internal/pkg/logger"
+	"passiontree/internal/pkg/migration"
+	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/routes"
 	"passiontree/internal/worker"
@@ -27,23 +29,31 @@ const (
 )
 
 func main() {
-	isDev := os.Getenv("APP_ENV") != "production" 
+	// Setup logging
+	isDev := os.Getenv("APP_ENV") != "production"
 	myLogger := logger.SetupLogger(isDev)
 
 	// Load configuration
 	cfg, err := config.LoadDBConfig()
-    if err != nil {
-        myLogger.Error("Failed to load config", "error", err)
-        os.Exit(1)
-    }
+	if err != nil {
+		myLogger.Error("Failed to load config", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize database connection
 	db, err := initializeDatabase(cfg.DBConnString, myLogger)
-    if err != nil {
-        myLogger.Error("Failed to initialize database", "error", err)
-        os.Exit(1)
-    }
-    defer db.Close()
+	if err != nil {
+		myLogger.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	// Run database migrations
+	if err := runMigrations(db, myLogger); err != nil {
+		myLogger.Error("Failed to run migrations", "error", err)
+		// Don't exit - migrations might have already been applied
+		myLogger.Warn("Continuing despite migration error - tables may already exist")
+	}
 
 	// Initialize AI client
 	aiClient := initializeAIClient(cfg.AIServiceURL, myLogger)
@@ -53,19 +63,19 @@ func main() {
 
 	// Setup Fiber with custom Logger
 	app := createFiberApp(myLogger)
-    routes.Setup(app, db, aiClient, storageClient, myLogger)
+	routes.Setup(app, db, aiClient, storageClient, myLogger)
 
 	cronJob := initializeBackgroundJobs(db, storageClient, myLogger)
-    defer cronJob.Stop()
+	defer cronJob.Stop()
 
 	// Start server
 	port := getPort()
 	myLogger.Info("starting server", "port", port, "app_name", AppName)
 
 	if err := app.Listen(":" + port); err != nil {
-        myLogger.Error("server crashed", "error", err)
-        os.Exit(1)
-    }
+		myLogger.Error("server crashed", "error", err)
+		os.Exit(1)
+	}
 }
 
 // initializeDatabase connects to the database with retry logic
@@ -76,6 +86,23 @@ func initializeDatabase(connString string, logger *slog.Logger) (connection.Data
 	}
 	logger.Info("database connected successfully")
 	return db, nil
+}
+
+// runMigrations runs database migrations for social auth
+func runMigrations(db connection.Database, logger *slog.Logger) error {
+	migrator := migration.NewMigrator(db.GetDB(), logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	if err := migrator.RunSocialAuthMigration(ctx); err != nil {
+		return err
+	}
+
+	if err := migrator.RunTeacherVerificationAndSettingsMigration(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // initializeAIClient creates and configures the AI service client
@@ -108,32 +135,32 @@ func initializeStorageClient(cfg *config.Config, logger *slog.Logger) *storage.B
 
 // createFiberApp creates and configures the Fiber application with middleware
 func createFiberApp(logger *slog.Logger) *fiber.App {
-    app := fiber.New(fiber.Config{
-        AppName:     AppName,
-        ProxyHeader: "X-Forwarded-For",
-        ErrorHandler: func(c *fiber.Ctx, err error) error {
-            logger.ErrorContext(c.UserContext(), "unhandled_framework_error",
-                "err",    err.Error(),
-                "method", c.Method(),
-                "path",   c.Path(),
-                "ip",     c.IP(),
-            )
-            
-            return fiber.DefaultErrorHandler(c, err)
-        },
-    })
+	app := fiber.New(fiber.Config{
+		AppName:     AppName,
+		ProxyHeader: "X-Forwarded-For",
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			logger.ErrorContext(c.UserContext(), "unhandled_framework_error",
+				"err", err.Error(),
+				"method", c.Method(),
+				"path", c.Path(),
+				"ip", c.IP(),
+			)
 
-    // Apply middleware
-    app.Use(flogger.New()) // บันทึก HTTP Request ทั่วไป
-    app.Use(cors.New(cors.Config{
-        AllowOrigins: "*",
-        AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+			return fiber.DefaultErrorHandler(c, err)
+		},
+	})
+
+	app.Use(flogger.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "https://passion-tree.org, http://localhost:3000",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
-    }))
+		AllowCredentials: true,
+	}))
 
-    logger.Info("fiber_application_initialized", "app_name", AppName)
+	logger.Info("fiber_application_initialized", "app_name", AppName)
 
-    return app
+	return app
 }
 
 // getPort returns the server port from environment or default
@@ -145,20 +172,20 @@ func getPort() string {
 }
 
 func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, logger *slog.Logger) *cron.Cron {
-    cleanupWorker := worker.NewCleanupWorker(db, storage)
-    c := cron.New()
-    
-    // Run every midnight
-    _, err := c.AddFunc("0 0 * * *", func() {
-        cleanupWorker.RunCleanup()
-    })
+	cleanupWorker := worker.NewCleanupWorker(db, storage)
+	c := cron.New()
 
-    if err != nil {
-        logger.Error("error initializing background jobs", "error", err)
-        return c
-    }
+	// Run every midnight
+	_, err := c.AddFunc("0 0 * * *", func() {
+		cleanupWorker.RunCleanup()
+	})
 
-    c.Start()
-    logger.Info("background jobs started")
-    return c
+	if err != nil {
+		logger.Error("error initializing background jobs", "error", err)
+		return c
+	}
+
+	c.Start()
+	logger.Info("background jobs started")
+	return c
 }

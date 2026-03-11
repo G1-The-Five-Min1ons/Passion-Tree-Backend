@@ -65,7 +65,7 @@ func (s *serviceImpl) RecommendHomePathsForUser(ctx context.Context, userID stri
 	var pathIDsToFetch []string
 	for _, aiResult := range aiResp.Results {
 		resultPathID, ok := s.extractPathID(aiResult.ID)
-		if !ok || enrolledMap[resultPathID] {
+		if !ok || enrolledMap[strings.ToUpper(resultPathID)] {
 			continue
 		}
 		pathIDsToFetch = append(pathIDsToFetch, resultPathID)
@@ -89,11 +89,11 @@ func (s *serviceImpl) RecommendHomePathsForUser(ctx context.Context, userID stri
 	var finalRecommendations []recmodel.RecommendedPath
 	for _, aiResult := range aiResp.Results {
 		resultPathID, ok := s.extractPathID(aiResult.ID)
-		if !ok || enrolledMap[resultPathID] {
+		if !ok || enrolledMap[strings.ToUpper(resultPathID)] {
 			continue
 		}
 
-		fullPath, exists := pathMap[resultPathID]
+		fullPath, exists := pathMap[strings.ToUpper(resultPathID)]
 		if !exists {
 			s.logger.WarnContext(ctx, "path from AI not found in DB", "path_id", resultPathID)
 			continue

@@ -18,8 +18,8 @@ CREATE TABLE social_auth_providers (
     token_expires_at DATETIME2 NULL, -- When the access token expires
     provider_data NVARCHAR(MAX) NULL, -- JSON string of additional provider data
     is_active BIT NOT NULL DEFAULT 1, -- Whether this connection is active
-    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    updated_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    create_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    update_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     
     -- Foreign key to users table
     CONSTRAINT FK_social_auth_providers_users FOREIGN KEY (user_id) REFERENCES dbo.Users(user_id) ON DELETE CASCADE,
@@ -41,7 +41,7 @@ CREATE TABLE social_auth_states (
     state_token VARCHAR(255) PRIMARY KEY,
     provider VARCHAR(50) NOT NULL,
     redirect_uri VARCHAR(500) NULL,
-    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    create_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     expires_at DATETIME2 NOT NULL,
     used BIT NOT NULL DEFAULT 0,
     
@@ -60,7 +60,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE social_auth_providers
-    SET updated_at = GETUTCDATE()
+    SET update_at = GETUTCDATE()
     FROM social_auth_providers sap
     INNER JOIN inserted i ON sap.id = i.id;
 END;
@@ -74,7 +74,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     DELETE FROM social_auth_states
-    WHERE expires_at < GETUTCDATE() OR (used = 1 AND created_at < DATEADD(HOUR, -1, GETUTCDATE()));
+    WHERE expires_at < GETUTCDATE() OR (used = 1 AND create_at < DATEADD(HOUR, -1, GETUTCDATE()));
 END;
 GO
 

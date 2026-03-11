@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"strings"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
@@ -72,13 +71,14 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	userAgent := c.Get("User-Agent", "Unknown")
 
 	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Identifier, req.Password, deviceInfo, ipAddress, userAgent)
+
 	if err != nil {
-		// OTP verification was triggered successfully — return as success with message
-		if appErr, ok := err.(*apperror.AppError); ok && appErr.Code == fiber.StatusForbidden {
-			if strings.HasPrefix(appErr.Message, "verification_required:") || strings.HasPrefix(appErr.Message, "security verification required.") {
+		if appErr, ok := err.(*apperror.AppError); ok {
+			if appErr.Code == fiber.StatusForbidden && appErr.Type == "OTP_REQUIRED" {
 				return c.Status(fiber.StatusOK).JSON(fiber.Map{
-					"success": true,
-					"message": appErr.Message,
+					"success":      true,
+					"requires_otp": true,
+					"message":      appErr.Message,
 				})
 			}
 		}
@@ -122,8 +122,8 @@ func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 // UpdateUser updates user information from JWT token (first_name, last_name, and optionally role)
 func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("please login again"))
 	}
 
 	var req model.UpdateUserRequest
@@ -155,8 +155,8 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 // DeleteUser deletes a user from JWT token with password confirmation
 func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	var req struct {
@@ -175,7 +175,7 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "User deleted successfully",
+		"message": "User account has been permanently deleted",
 		"data": fiber.Map{
 			"user_id": userID,
 		},
@@ -219,8 +219,8 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 // Logout revokes all refresh tokens for the authenticated user
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -239,8 +239,8 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 // GetActiveSessions retrieves all active sessions/devices for the authenticated user
 func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	// Try to get current refresh token from request body (optional)
@@ -267,8 +267,8 @@ func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 // LogoutSession revokes a specific session by session ID
 func (h *Handler) LogoutSession(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	sessionID := c.Params("session_id")

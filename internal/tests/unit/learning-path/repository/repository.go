@@ -20,6 +20,7 @@ type Repopository struct {
 	UpdateLearningPathImageFunc         func(ctx context.Context, pathID string, coverImgURL string) error
 	GetUserEnrolledPathsFunc            func(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
 	UpdatePathEnrollmentCompletionFunc  func(ctx context.Context, pathID string, userID string) error
+	GetPathCreatorVerificationFunc      func(ctx context.Context, userID string) (string, bool, error)
 
 	// Mock hooks for Node
 	GetNodeByIDFunc                  func(ctx context.Context, nodeID string, userID string) (*model.Node, error)
@@ -125,6 +126,13 @@ func (m *Repopository) UpdatePathEnrollmentCompletion(ctx context.Context, pathI
 		return m.UpdatePathEnrollmentCompletionFunc(ctx, pathID, userID)
 	}
 	return nil
+}
+
+func (m *Repopository) GetPathCreatorVerification(ctx context.Context, userID string) (string, bool, error) {
+	if m.GetPathCreatorVerificationFunc != nil {
+		return m.GetPathCreatorVerificationFunc(ctx, userID)
+	}
+	return "", false, nil
 }
 
 // Implement Database interface

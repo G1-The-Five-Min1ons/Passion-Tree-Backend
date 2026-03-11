@@ -80,12 +80,19 @@ func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
 
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreatePathRequest
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
 
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
+
+	req.CreatorID = userID
 
 	id, err := h.pathSvc.CreatePath(ctx, req)
 	if err != nil {

@@ -10,6 +10,9 @@ type Profile struct {
 	LearningCount  int       `json:"learning_count"`
 	Location       string    `json:"location"`
 	Bio            string    `json:"bio"`
+	PhoneNumber    string    `json:"phone_number"`
+	TimeZone       string    `json:"time_zone"`
+	DateFormat     string    `json:"date_format"`
 	Level          *int      `json:"level"`
 	XP             *int64    `json:"xp"`
 	HourLearned    int       `json:"hour_learned"`
@@ -19,7 +22,10 @@ type Profile struct {
 }
 
 type UpdateProfileRequest struct {
-    AvatarURL string `json:"avatar_url"`
-    Location  string `json:"location"`
-    Bio       string `json:"bio"`
+	AvatarURL   string `json:"avatar_url"`
+	Location    string `json:"location"`
+	Bio         string `json:"bio"`
+	PhoneNumber string `json:"phone_number"`
+	TimeZone    string `json:"time_zone"`
+	DateFormat  string `json:"date_format"`
 }
