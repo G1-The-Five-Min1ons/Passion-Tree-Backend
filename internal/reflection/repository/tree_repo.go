@@ -403,11 +403,13 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			tn.create_at as node_create_at,
 			CASE WHEN @p2 IS NULL THEN NULL ELSE np.status END as node_status,
 			CASE WHEN @p2 IS NULL THEN NULL ELSE np.complete END as node_complete,
-			ISNULL(n.sequence, 0) as sequence
+			ISNULL(n.sequence, 0) as sequence,
+			CONVERT(VARCHAR(36), r.reflect_id) as reflection_id
 		FROM tree t
 		LEFT JOIN Tree_Node tn ON t.tree_id = tn.tree_id
 		LEFT JOIN node n ON tn.node_id = n.node_id
 		LEFT JOIN node_progress np ON tn.node_id = np.node_id AND np.user_id = @p2
+		LEFT JOIN Reflect r ON tn.tree_node_id = r.tree_node_id
 		WHERE t.album_id = @p1
 		ORDER BY t.last_update DESC, n.sequence ASC
 	`
@@ -432,6 +434,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		var treeNodeID, nodeTitle, nodeID sql.NullString
 		var nodeCreatedAt sql.NullTime
 		var nodeStatus, nodeComplete sql.NullString
+		var reflectionID sql.NullString
 		var sequence int
 
 		err := rows.Scan(
@@ -440,6 +443,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			&treeNodeID, &nodeTitle, &nodeID, &nodeCreatedAt,
 			&nodeStatus, &nodeComplete,
 			&sequence,
+			&reflectionID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tree with nodes: %w", err)
@@ -486,6 +490,11 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			if nodeComplete.Valid {
 				complete := nodeComplete.String
 				node.Complete = &complete
+			}
+
+			if reflectionID.Valid {
+				reflectID := reflectionID.String
+				node.ReflectionID = &reflectID
 			}
 
 			treeMap[treeID].Nodes = append(treeMap[treeID].Nodes, node)
