@@ -52,7 +52,7 @@ func (s *userServiceImpl) ForgotPassword(ctx context.Context, email string) erro
 
 	// Send password reset email
 	if s.emailService != nil {
-		if err := s.emailService.SendPasswordResetEmail(user.Email, resetCode); err != nil {
+		if err := s.emailService.SendPasswordResetEmail(ctx, user.Email, resetCode); err != nil {
 			_ = s.repo.RevokeTokenByValue(ctx, tokenModel.Token, tokenModel.TokenType) // Rollback
 			s.logger.ErrorContext(ctx, "forgot pwd email failed", "user_id", user.UserID, "error", err)
 			return apperror.NewInternal("failed to send reset email")
