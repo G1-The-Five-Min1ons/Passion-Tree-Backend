@@ -115,7 +115,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 	}
 
 	// Send verification email with JWT token
-	if err := s.emailService.SendVerificationEmail(user.Email, otpCode); err != nil {
+	if err := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); err != nil {
 		s.logger.ErrorContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
 		return apperror.NewInternal("failed to send email")
 	}

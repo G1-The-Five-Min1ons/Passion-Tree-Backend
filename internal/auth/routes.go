@@ -61,8 +61,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	{
 		// Authentication
 		protected.Post("/logout", h.Logout) // Logout and revoke tokens
+		protected.Post("/deactivate", h.DeactivateAccount)
+		protected.Post("/reactivate", h.ReactivateAccount)
 
-		// Multi-device Session Management
 		protected.Get("/sessions", h.GetActiveSessions)            // List all active sessions/devices
 		protected.Delete("/sessions/:session_id", h.LogoutSession) // Logout from a specific device
 
@@ -83,6 +84,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 			})
 			adminOnly.Get("/dashboard/stats", h.GetDashboardStats)
 			adminOnly.Get("/users", h.GetAllUsers)
+			adminOnly.Post("/users", h.CreateUserByAdmin)
+			adminOnly.Put("/users/:user_id", h.UpdateUserByAdmin)
+			adminOnly.Delete("/users/:user_id", h.DeleteUserByAdmin)
 			adminOnly.Get("/teacher-applications", h.ListTeacherApplications)
 			adminOnly.Put("/teacher-applications/:request_id", h.ReviewTeacherApplication)
 		}
