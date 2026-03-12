@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 	"strings"
+	"time"
 
 	"passiontree/internal/learning-path/model"
 
@@ -145,21 +145,20 @@ func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string
 
 func (r *repositoryImpl) GetPathCreatorVerification(ctx context.Context, userID string) (string, bool, error) {
 	query := `
-		SELECT
-			u.role,
-			CASE
-				WHEN ISNULL(p.Phone_Number, '') <> ''
-					AND EXISTS (
-						SELECT 1
-						FROM teacher_verification_requests tvr
-						WHERE tvr.user_id = u.user_id
-						AND tvr.status = 'approved'
-					)
-				THEN 1
-				ELSE 0
-			END AS is_teacher_verified
+		SELECT 
+    		u.role,
+    		CASE 
+        		WHEN EXISTS (
+            		SELECT 1 
+            		FROM teacher_verification_requests tvr 
+            		WHERE tvr.user_id = u.user_id 
+            		AND tvr.status = 'approved'
+            		AND ISNULL(tvr.phone_number, '') <> '' 
+        		) 
+        		THEN 1 
+        		ELSE 0 
+    		END AS is_teacher_verified
 		FROM users u
-		LEFT JOIN profile p ON u.user_id = p.user_id
 		WHERE u.user_id = @p1`
 
 	var (

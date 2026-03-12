@@ -30,14 +30,17 @@ var (
 
 type UserService interface {
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
+	CreateUserByAdmin(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
 	GetAllUsers(ctx context.Context) ([]*model.UserWithProfile, error)
 	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
 	UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
+	UpdateUserByAdmin(ctx context.Context, id string, firstName string, lastName string, role string) error
 	UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error
 	DeleteUser(ctx context.Context, id string, password string) error
+	DeleteUserByAdmin(ctx context.Context, id string) error
 	Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (accessToken, refreshToken string, err error)
 	RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (newAccessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, userID string) error
