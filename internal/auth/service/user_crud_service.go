@@ -49,10 +49,10 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 
 	// Validate role
 	if user.Role == "" {
-		return "", apperror.NewBadRequest("role is required (student, teacher, or pending)")
+		return "", apperror.NewBadRequest("role is required")
 	}
-	if user.Role != model.RoleStudent && user.Role != model.RoleTeacher && user.Role != model.RolePending {
-		return "", apperror.NewBadRequest("role must be either 'student', 'teacher', or 'pending'")
+	if user.Role != model.RoleStudent && user.Role != model.RoleTeacher && user.Role != model.RoleAdmin && user.Role != model.RolePending && user.Role != model.UserRole("user") && user.Role != model.UserRole("moderator") {
+		return "", apperror.NewBadRequest("role must be one of 'student', 'teacher', 'admin', 'pending', 'user', or 'moderator'")
 	}
 
 	// Set default values

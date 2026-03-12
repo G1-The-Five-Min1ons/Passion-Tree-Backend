@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -152,9 +153,19 @@ func createFiberApp(logger *slog.Logger) *fiber.App {
 
 	app.Use(flogger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://passion-tree.org, http://localhost:3000",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
+		AllowOriginsFunc: func(origin string) bool {
+			if origin == "https://passion-tree.org" || origin == "http://localhost:3000" {
+				return true
+			}
+
+			if strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") {
+				return true
+			}
+
+			return false
+		},
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
 		AllowCredentials: true,
 	}))
 
