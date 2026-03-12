@@ -43,6 +43,7 @@ func (h *Handler) GetSetting(c *fiber.Ctx) error {
 	key := c.Params("key")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+	
 	setting, err := h.svc.GetSetting(ctx, userID, key)
 	if err != nil {
 		return h.handleError(c, err)
@@ -66,9 +67,7 @@ func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 
 	var requests []model.SettingRequest
 	if err := c.BodyParser(&requests); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
+		return h.handleError(c, err)
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -99,9 +98,7 @@ func (h *Handler) UpdateSetting(c *fiber.Ctx) error {
 
 	var req model.SettingRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
+		return h.handleError(c, err)
 	}
 
 	req.Key = key

@@ -17,3 +17,9 @@ type SettingRequest struct {
 	Key   string `json:"key" validate:"required"`
 	Value string `json:"value" validate:"required"`
 }
+
+type SettingItem struct {
+        ID    string `json:"id"`
+        Key   string `json:"key"`
+        Value string `json:"value"`
+}

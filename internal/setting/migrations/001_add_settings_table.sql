@@ -15,19 +15,6 @@ BEGIN
 END
 GO
 
--- Add indexes for common query patterns
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_settings_user_id' AND object_id = OBJECT_ID('settings'))
-BEGIN
-    CREATE INDEX idx_settings_user_id ON settings(user_id);
-END
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_settings_user_key' AND object_id = OBJECT_ID('settings'))
-BEGIN
-    CREATE INDEX idx_settings_user_key ON settings(user_id, [key]);
-END
-GO
-
 -- Trigger to auto-update updated_at on row updates
 IF OBJECT_ID('trg_settings_updated_at', 'TR') IS NULL
 BEGIN

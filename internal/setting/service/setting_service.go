@@ -17,7 +17,7 @@ func (s *serviceImpl) GetSettings(ctx context.Context, userID string) ([]model.S
 
 	settings, err := s.repo.GetSettings(ctx, userID)
 	if err != nil {
-		s.logger.Error("failed to get settings", "error", err, "user_id", userID)
+		s.logger.ErrorContext(ctx, "failed to get settings", "error", err, "user_id", userID)
 		return nil, apperror.NewInternal("failed to retrieve settings: %v", err)
 	}
 
@@ -36,7 +36,7 @@ func (s *serviceImpl) GetSetting(ctx context.Context, userID, key string) (*mode
 
 	setting, err := s.repo.GetSetting(ctx, userID, key)
 	if err != nil {
-		s.logger.Error("failed to get setting", "error", err, "user_id", userID, "key", key)
+		s.logger.ErrorContext(ctx, "failed to get setting", "error", err, "user_id", userID, "key", key)
 		return nil, apperror.NewNotFound("setting with key '%s' not found", key)
 	}
 
@@ -68,7 +68,7 @@ func (s *serviceImpl) CreateSetting(ctx context.Context, userID string, req *mod
 
 	err := s.repo.CreateSetting(ctx, setting)
 	if err != nil {
-		s.logger.Error("failed to create setting", "error", err, "user_id", userID, "key", req.Key)
+		s.logger.ErrorContext(ctx, "failed to create setting", "error", err, "user_id", userID, "key", req.Key)
 		return nil, apperror.NewInternal("failed to create setting: %v", err)
 	}
 
@@ -87,11 +87,11 @@ func (s *serviceImpl) UpdateSetting(ctx context.Context, userID string, req *mod
 
 	err := s.repo.UpdateSetting(ctx, userID, req.Key, req.Value)
 	if err != nil {
-		s.logger.Error("failed to update setting", "error", err, "user_id", userID, "key", req.Key)
+		s.logger.ErrorContext(ctx, "failed to update setting", "error", err, "user_id", userID, "key", req.Key)
 		return apperror.NewInternal("failed to update setting: %v", err)
 	}
 
-	s.logger.Info("setting updated successfully", "user_id", userID, "key", req.Key)
+	s.logger.InfoContext(ctx, "setting updated successfully", "user_id", userID, "key", req.Key)
 	return nil
 }
 
@@ -119,11 +119,11 @@ func (s *serviceImpl) UpdateMultipleSettings(ctx context.Context, userID string,
 	// Call repository method which handles transaction internally
 	err := s.repo.UpdateMultipleSettings(ctx, userID, keys, values)
 	if err != nil {
-		s.logger.Error("failed to update multiple settings", "error", err, "user_id", userID, "count", len(requests))
+		s.logger.ErrorContext(ctx, "failed to update multiple settings", "error", err, "user_id", userID, "count", len(requests))
 		return apperror.NewInternal("failed to update settings: %v", err)
 	}
 
-	s.logger.Info("batch settings updated successfully", "user_id", userID, "count", len(requests))
+	s.logger.InfoContext(ctx, "batch settings updated successfully", "user_id", userID, "count", len(requests))
 	return nil
 }
 
@@ -135,10 +135,10 @@ func (s *serviceImpl) DeleteSetting(ctx context.Context, userID, key string) err
 
 	err := s.repo.DeleteSetting(ctx, userID, key)
 	if err != nil {
-		s.logger.Error("failed to delete setting", "error", err, "user_id", userID, "key", key)
+		s.logger.ErrorContext(ctx, "failed to delete setting", "error", err, "user_id", userID, "key", key)
 		return apperror.NewInternal("failed to delete setting: %v", err)
 	}
 
-	s.logger.Info("setting deleted successfully", "user_id", userID, "key", key)
+	s.logger.InfoContext(ctx, "setting deleted successfully", "user_id", userID, "key", key)
 	return nil
 }
