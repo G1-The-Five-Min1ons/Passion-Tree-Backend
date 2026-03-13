@@ -31,6 +31,7 @@ type Repository struct {
 	PauseTreeFunc                  func(ctx context.Context, treeID string, isPause bool) error
 
 	// Tree Node methods
+	CreateStandaloneNodeFunc func(ctx context.Context, title string, sequence int) (string, error)
 	AddSingleTreeNodeFunc    func(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
 	GetTreeNodesByTreeIDFunc func(ctx context.Context, treeID string) ([]model.TreeNode, error)
 	GetTreeNodeByIDFunc      func(ctx context.Context, treeNodeID string) (*model.TreeNode, error)
@@ -148,6 +149,12 @@ func (m *Repository) PauseTree(ctx context.Context, treeID string, isPause bool)
 }
 
 // Tree Node methods
+func (m *Repository) CreateStandaloneNode(ctx context.Context, title string, sequence int) (string, error) {
+	if m.CreateStandaloneNodeFunc != nil {
+		return m.CreateStandaloneNodeFunc(ctx, title, sequence)
+	}
+	return "", nil
+}
 func (m *Repository) AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
 	if m.AddSingleTreeNodeFunc != nil {
 		return m.AddSingleTreeNodeFunc(ctx, req)

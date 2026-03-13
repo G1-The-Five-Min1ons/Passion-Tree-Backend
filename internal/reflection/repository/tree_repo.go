@@ -404,7 +404,8 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			CASE WHEN @p2 IS NULL THEN NULL ELSE np.status END as node_status,
 			CASE WHEN @p2 IS NULL THEN NULL ELSE np.complete END as node_complete,
 			ISNULL(n.sequence, 0) as sequence,
-			CONVERT(VARCHAR(36), r.reflect_id) as reflection_id
+			CONVERT(VARCHAR(36), r.reflect_id) as reflection_id,
+			CASE WHEN n.path_id IS NULL THEN 1 ELSE 0 END as is_standalone
 		FROM tree t
 		LEFT JOIN Tree_Node tn ON t.tree_id = tn.tree_id
 		LEFT JOIN node n ON tn.node_id = n.node_id
@@ -436,6 +437,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		var nodeStatus, nodeComplete sql.NullString
 		var reflectionID sql.NullString
 		var sequence int
+		var isStandalone sql.NullInt64
 
 		err := rows.Scan(
 			&treeID, &title, &difficulties, &pathID, &status, &isPause, &nodeCount,
@@ -444,6 +446,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			&nodeStatus, &nodeComplete,
 			&sequence,
 			&reflectionID,
+			&isStandalone,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tree with nodes: %w", err)
@@ -471,11 +474,12 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		// Add node if it exists (LEFT JOIN might have NULL nodes)
 		if treeNodeID.Valid {
 			node := model.TreeNode{
-				TreeNodeID: treeNodeID.String,
-				NodeTitle:  nodeTitle.String,
-				NodeID:     nodeID.String,
-				TreeID:     treeID,
-				Sequence:   sequence,
+				TreeNodeID:   treeNodeID.String,
+				NodeTitle:    nodeTitle.String,
+				NodeID:       nodeID.String,
+				TreeID:       treeID,
+				Sequence:     sequence,
+				IsStandalone: isStandalone.Valid && isStandalone.Int64 == 1,
 			}
 
 			if nodeCreatedAt.Valid {

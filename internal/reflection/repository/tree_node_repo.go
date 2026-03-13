@@ -10,6 +10,21 @@ import (
 	"github.com/google/uuid"
 )
 
+func (r *repositoryImpl) CreateStandaloneNode(ctx context.Context, title string, sequence int) (string, error) {
+	nodeID := uuid.New().String()
+	query := `
+		INSERT INTO Node (node_id, title, description, path_id, sequence, link_vdo)
+		VALUES (@p1, @p2, @p3, @p4, @p5, @p6)
+	`
+
+	_, err := r.db.ExecContext(ctx, query, nodeID, title, "Created from reflection tree", sql.NullString{}, sequence, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create standalone node: %w", err)
+	}
+
+	return nodeID, nil
+}
+
 // AddSingleTreeNode creates a single tree node record (use when adding one custom node)
 func (r *repositoryImpl) AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
 	treeNodeID := uuid.New().String()
@@ -37,7 +52,8 @@ func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string
 		       tn.create_at,
 		       CONVERT(VARCHAR(36), tn.tree_id) as tree_id,
 		       CASE WHEN tn.child_node IS NOT NULL THEN CONVERT(VARCHAR(36), tn.child_node) ELSE NULL END as child_node,
-		       ISNULL(n.sequence, 0) as sequence
+		       ISNULL(n.sequence, 0) as sequence,
+		       CASE WHEN n.path_id IS NULL THEN 1 ELSE 0 END as is_standalone
 		FROM Tree_Node tn
 		LEFT JOIN node n ON tn.node_id = n.node_id
 		WHERE tn.tree_id = @p1
@@ -53,6 +69,7 @@ func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string
 	var nodes []model.TreeNode
 	for rows.Next() {
 		var node model.TreeNode
+		var isStandalone int
 		err := rows.Scan(
 			&node.TreeNodeID,
 			&node.NodeTitle,
@@ -62,10 +79,12 @@ func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string
 			&node.TreeID,
 			&node.ChildNode,
 			&node.Sequence,
+			&isStandalone,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tree node: %w", err)
 		}
+		node.IsStandalone = isStandalone == 1
 		nodes = append(nodes, node)
 	}
 
@@ -86,13 +105,15 @@ func (r *repositoryImpl) GetTreeNodeByID(ctx context.Context, treeNodeID string)
 		       tn.create_at,
 		       CONVERT(VARCHAR(36), tn.tree_id) as tree_id,
 		       CASE WHEN tn.child_node IS NOT NULL THEN CONVERT(VARCHAR(36), tn.child_node) ELSE NULL END as child_node,
-		       ISNULL(n.sequence, 0) as sequence
+		       ISNULL(n.sequence, 0) as sequence,
+		       CASE WHEN n.path_id IS NULL THEN 1 ELSE 0 END as is_standalone
 		FROM Tree_Node tn
 		LEFT JOIN node n ON tn.node_id = n.node_id
 		WHERE tn.tree_node_id = @p1
 	`
 	
 	var node model.TreeNode
+	var isStandalone int
 	err := r.db.QueryRowContext(ctx, query, treeNodeID).Scan(
 		&node.TreeNodeID,
 		&node.NodeTitle,
@@ -102,7 +123,9 @@ func (r *repositoryImpl) GetTreeNodeByID(ctx context.Context, treeNodeID string)
 		&node.TreeID,
 		&node.ChildNode,
 		&node.Sequence,
+		&isStandalone,
 	)
+	node.IsStandalone = isStandalone == 1
 	
 	if err != nil {
 		if err == sql.ErrNoRows {
