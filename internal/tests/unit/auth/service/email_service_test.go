@@ -65,7 +65,7 @@ func TestEmailServiceFallbackToSMTP(t *testing.T) {
 	emailSvc := service.NewEmailService(cfg, logger)
 
 	t.Run("SendVerificationEmail", func(t *testing.T) {
-		err := emailSvc.SendVerificationEmail("user@example.com", "123456")
+		err := emailSvc.SendVerificationEmail(context.Background(), "user@example.com", "123456")
 		if err == nil {
 			t.Fatal("Expected an error due to mock SMTP simulated error, got nil")
 		}
@@ -86,7 +86,7 @@ func TestEmailServiceFallbackToSMTP(t *testing.T) {
 	})
 
 	t.Run("SendSecurityAlertEmail", func(t *testing.T) {
-		err := emailSvc.SendSecurityAlertEmail("user@example.com", "u-1")
+		err := emailSvc.SendSecurityAlertEmail(context.Background(), "user@example.com", "u-1")
 		if err == nil {
 			t.Fatal("Expected an error due to mock SMTP simulated error, got nil")
 		}
@@ -120,7 +120,7 @@ func TestEmailServiceMailerSend(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	emailSvc := service.NewEmailService(cfg, logger)
 
-	err := emailSvc.SendVerificationEmail("user@example.com", "123456")
+	err := emailSvc.SendVerificationEmail(context.Background(), "user@example.com", "123456")
 
 	// Either Mailersend fails due to network and triggers SMTP, or it passes (unlikely with dummy key)
 	// Our main goal is no panics!
