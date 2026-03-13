@@ -106,7 +106,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		Token:     otpCode,
 		TokenType: model.TokenTypeEmailVerification,
 		IsRevoked: false,
-		ExpireAt:  time.Now().Add(15 * time.Minute), 
+		ExpireAt:  GetVerificationTokenExpiry(),
 	}
 
 	if err := s.repo.CreateToken(ctx, otpToken); err != nil {

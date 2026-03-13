@@ -34,7 +34,7 @@ func TestGenerateVerificationToken(t *testing.T) {
 
 func TestGetVerificationTokenExpiry(t *testing.T) {
 	expiry := service.GetVerificationTokenExpiry()
-	expectedTime := time.Now().Add(15 * time.Minute)
+	expectedTime := time.Now().Add(5 * time.Minute)
 
 	// Since they might not occur exactly simultaneously, let's allow a delta of a second
 	diff := expiry.Sub(expectedTime)
