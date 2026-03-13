@@ -32,7 +32,7 @@ func sanitizeHeaderValue(value string) string {
 
 func (s *emailServiceImpl) SendVerificationEmail(ctx context.Context, to, token string) error {
 	subject := "รหัสยืนยันตัวตน - Passion-Tree"
-	text := fmt.Sprintf("ยินดีต้อนรับสู่ Passion-Tree!\n\nรหัสยืนยันตัวตนของคุณคือ: %s\n\nรหัสนี้จะหมดอายุใน 15 นาที", token)
+	text := fmt.Sprintf("ยินดีต้อนรับสู่ Passion-Tree!\n\nรหัสยืนยันตัวตนของคุณคือ: %s\n\nรหัสนี้จะหมดอายุใน 5 นาที", token)
 
 	// Execute template with token data
 	var htmlBuf bytes.Buffer
@@ -46,7 +46,7 @@ func (s *emailServiceImpl) SendVerificationEmail(ctx context.Context, to, token 
 
 func (s *emailServiceImpl) SendPasswordResetEmail(ctx context.Context, to, token string) error {
 	subject := "รีเซ็ตรหัสผ่าน - Passiontree"
-	text := fmt.Sprintf("รหัสรีเซ็ตรหัสผ่าน: %s\n\nรหัสนี้จะหมดอายุใน 15 นาที", token)
+	text := fmt.Sprintf("รหัสรีเซ็ตรหัสผ่าน: %s\n\nรหัสนี้จะหมดอายุใน 5 นาที", token)
 
 	// Execute template with token data
 	var htmlBuf bytes.Buffer
@@ -208,5 +208,5 @@ func GenerateVerificationToken() (string, error) {
 }
 
 func GetVerificationTokenExpiry() time.Time {
-	return time.Now().Add(15 * time.Minute)
+	return time.Now().Add(5 * time.Minute)
 }
