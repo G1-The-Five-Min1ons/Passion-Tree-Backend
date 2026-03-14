@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
+	"time"
 
 	"passiontree/internal/dashboards/model"
 )
@@ -69,18 +71,22 @@ func (r *repositoryImpl) GetCurrentPaths(ctx context.Context, userID string) ([]
 		SELECT 
 			CONVERT(VARCHAR(36), lp.path_id), lp.title, ISNULL(lp.cover_img_url, ''),
 			CASE 
-				WHEN ISNULL(n_count.total_nodes, 0) = 0 THEN 0.0
-				ELSE ROUND((CAST(ISNULL(progress_count.completed, 0) AS FLOAT) / CAST(n_count.total_nodes AS FLOAT)) * 100, 2)
+				WHEN ISNULL(TotalNodes.cnt, 0) = 0 THEN 0.0
+				ELSE ROUND((CAST(ISNULL(CompletedNodes.cnt, 0) AS FLOAT) / CAST(TotalNodes.cnt.cnt AS FLOAT)) * 100, 2)
 			END as progress_percent
 		FROM Path_Enroll pe
 		JOIN Learning_Path lp ON pe.path_id = lp.path_id
-		LEFT JOIN (SELECT path_id, COUNT(node_id) as total_nodes FROM Node GROUP BY path_id) AS n_count ON lp.path_id = n_count.path_id
-		LEFT JOIN (
-			SELECT n.path_id, COUNT(DISTINCT np.node_id) as completed
-			FROM Node_progress np JOIN Node n ON np.node_id = n.node_id
-			WHERE np.user_id = @p1 AND np.complete = 'true'
-			GROUP BY n.path_id
-		) AS progress_count ON lp.path_id = progress_count.path_id
+		OUTER APPLY (
+			SELECT COUNT(node_id) as cnt 
+			FROM Node n 
+			WHERE n.path_id = lp.path_id
+		) AS TotalNodes
+		OUTER APPLY (
+			SELECT COUNT(DISTINCT np.node_id) as cnt
+			FROM Node_progress np 
+			JOIN Node n ON np.node_id = n.node_id
+			WHERE n.path_id = lp.path_id AND np.user_id = pe.user_id AND np.complete = 'true'
+		) AS CompletedNodes
 		WHERE pe.user_id = @p1 AND pe.enrollment_status = 'active'
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -143,9 +149,8 @@ func (r *repositoryImpl) GetUserActivity(ctx context.Context, userID string) ([]
 }
 
 func (r *repositoryImpl) GetActivityHeatmap(ctx context.Context, userID string) ([]model.ActivityHeatmap, error) {
-	// นับจำนวน Activity รายวันใน 365 วันย้อนหลัง สำหรับ GitHub Graph
 	query := `
-		SELECT FORMAT(timestamp, 'yyyy-MM-dd') as date, COUNT(*) as count
+		SELECT timestamp
 		FROM (
 			SELECT pe.enroll_at as timestamp FROM Path_Enroll pe WHERE pe.user_id = @p1
 			UNION ALL
@@ -154,8 +159,6 @@ func (r *repositoryImpl) GetActivityHeatmap(ctx context.Context, userID string) 
 			SELECT um.complete_at FROM User_Mission um WHERE um.user_id = @p1 AND um.status = 'completed'
 		) as combined
 		WHERE timestamp >= DATEADD(day, -365, GETDATE())
-		GROUP BY FORMAT(timestamp, 'yyyy-MM-dd')
-		ORDER BY date ASC
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -163,18 +166,32 @@ func (r *repositoryImpl) GetActivityHeatmap(ctx context.Context, userID string) 
 	}
 	defer rows.Close()
 
-	var heatmap []model.ActivityHeatmap
+	counts := make(map[string]int)
 	for rows.Next() {
-		var h model.ActivityHeatmap
-		if err := rows.Scan(&h.Date, &h.Count); err != nil {
+		var t time.Time
+		if err := rows.Scan(&t); err != nil {
 			return nil, fmt.Errorf("repo.GetActivityHeatmap scan failed: %w", err)
 		}
-		heatmap = append(heatmap, h)
+		
+		dateStr := t.Format("2006-01-02")
+		counts[dateStr]++
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("repo.GetActivityHeatmap row iteration failed: %w", err)
 	}
+
+	var heatmap []model.ActivityHeatmap
+	for date, count := range counts {
+		heatmap = append(heatmap, model.ActivityHeatmap{
+			Date:  date,
+			Count: count,
+		})
+	}
+
+	sort.Slice(heatmap, func(i, j int) bool {
+		return heatmap[i].Date < heatmap[j].Date
+	})
 
 	return heatmap, nil
 }
