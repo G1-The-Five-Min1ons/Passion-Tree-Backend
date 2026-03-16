@@ -328,6 +328,18 @@ func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
 		return fmt.Errorf("repo.DeleteTree scan failed: %w", err)
 	}
 
+	// Delete reflections linked to this tree's nodes first to satisfy FK_reflect_tree_node
+	deleteReflectionsQuery := `
+		DELETE r
+		FROM Reflect r
+		INNER JOIN tree_node tn ON r.tree_node_id = tn.tree_node_id
+		WHERE tn.tree_id = @p1
+	`
+	_, err = tx.ExecContext(ctx, deleteReflectionsQuery, treeID)
+	if err != nil {
+		return fmt.Errorf("failed to delete reflections for tree nodes: %w", err)
+	}
+
 	// Delete all tree nodes first (cascade delete)
 	deleteNodesQuery := `DELETE FROM tree_node WHERE tree_id = @p1`
 	_, err = tx.ExecContext(ctx, deleteNodesQuery, treeID)
