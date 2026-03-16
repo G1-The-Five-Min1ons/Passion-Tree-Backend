@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"strings"
+
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 )
@@ -12,29 +14,24 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, userID string, prof
 		return apperror.NewBadRequest("user_id is required")
 	}
 
-	// Validate that at least one profile field is being updated
-	if profile.AvatarURL == "" && profile.RankName == "" && profile.Location == "" &&
-		profile.Bio == "" && profile.Level == nil && profile.XP == nil &&
-		profile.LearningStreak == 0 && profile.LearningCount == 0 && profile.HourLearned == 0 {
-		return apperror.NewBadRequest("no profile fields to update")
-	}
-
-	// Check if user exists
-	user, _, err := s.repo.GetUserByID(ctx, userID)
+	err := s.repo.UpdateProfile(ctx, userID, profile)
+	
 	if err != nil {
-		return apperror.NewInternal("failed to get user by ID: %w", err)
-	}
-	if user == nil {
-		return apperror.NewNotFound("user with id '%s' not found", userID)
-	}
+		// Check if error indicates user not found
+		if strings.Contains(err.Error(), "not found") {
+			s.logger.WarnContext(ctx, "update profile failed - user not found",
+				"user_id", userID,
+				"error", err)
+			return apperror.NewNotFound("user with id '%s' not found", userID)
+		}
 
-	// Update profile in repository
-	if err := s.repo.UpdateProfile(ctx, userID, profile); err != nil {
-		s.logger.ErrorContext(ctx, "update profile failed", "error", err, "user_id", userID)
-		return apperror.NewInternal("failed to update profile: %w", err)
+		// Propagate other errors without wrapping to preserve original error type
+		s.logger.ErrorContext(ctx, "update profile failed",
+			"error", err,
+			"user_id", userID)
+		return err
 	}
 
 	s.logger.InfoContext(ctx, "profile updated successfully", "user_id", userID)
 	return nil
 }
-

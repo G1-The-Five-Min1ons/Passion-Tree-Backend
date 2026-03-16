@@ -5,32 +5,41 @@ import (
 	"time"
 
 	"passiontree/internal/auth/model"
-	"passiontree/internal/auth/repository"
 )
 
 // MockRepository implements repository.Repository
 type Repository struct {
-	GetUserByEmailFunc            func(ctx context.Context, email string) (*model.User, error)
-	DeleteTokensByUserAndTypeFunc func(ctx context.Context, userID string, tokenType string) error
-	CreateTokenFunc               func(ctx context.Context, token *model.Token) error
-	RevokeTokenByValueFunc        func(ctx context.Context, tokenValue string, tokenType string) error
-	GetTokenByValueFunc           func(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error)
-	GetUserByIDFunc               func(ctx context.Context, id string) (*model.User, *model.Profile, error)
-	ResetPasswordWithTokenFunc    func(ctx context.Context, userID string, hashedPassword string, tokenID string) error
-	CreateUserFunc                func(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
-	UpdateUserFunc                func(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
-	DeleteUserFunc                func(ctx context.Context, id string) error
-	UpdateProfileFunc             func(ctx context.Context, userID string, profile *model.Profile) error
-	UpdatePasswordFunc            func(ctx context.Context, userID string, hashedPassword string) error
-	VerifyEmailWithTokenFunc      func(ctx context.Context, userID string, tokenValue string, tokenType string) error
-	GetActiveUserSessionsFunc     func(ctx context.Context, userID string, tokenType string) ([]*model.Token, error)
-	RevokeTokenByIDForUserFunc    func(ctx context.Context, tokenID string, userID string) error
-	ReplaceVerificationTokenFunc  func(ctx context.Context, userID string, newToken *model.Token) error
-	RevokeAllUserTokensFunc       func(ctx context.Context, userID string, tokenType string) error
-	GetUserByUsernameFunc         func(ctx context.Context, username string) (*model.User, error)
-	ResetFailedLoginFunc          func(ctx context.Context, userID string) error
-	MarkTokenAsRotatedFunc        func(ctx context.Context, tokenValue string, tokenType string) error
-	SetRequire2FANextLoginFunc	  func(ctx context.Context, userID string, require2FA bool) error
+	GetUserByEmailFunc                   func(ctx context.Context, email string) (*model.User, error)
+	DeleteTokensByUserAndTypeFunc        func(ctx context.Context, userID string, tokenType string) error
+	CreateTokenFunc                      func(ctx context.Context, token *model.Token) error
+	RevokeTokenByValueFunc               func(ctx context.Context, tokenValue string, tokenType string) error
+	GetTokenByValueFunc                  func(ctx context.Context, tokenValue string, tokenType string) (*model.Token, error)
+	GetUserByIDFunc                      func(ctx context.Context, id string) (*model.User, *model.Profile, error)
+	ResetPasswordWithTokenFunc           func(ctx context.Context, userID string, hashedPassword string, tokenID string) error
+	CreateUserFunc                       func(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
+	UpdateUserFunc                       func(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
+	DeleteUserFunc                       func(ctx context.Context, id string) error
+	UpdateProfileFunc                    func(ctx context.Context, userID string, profile *model.Profile) error
+	UpdatePasswordFunc                   func(ctx context.Context, userID string, hashedPassword string) error
+	VerifyEmailWithTokenFunc             func(ctx context.Context, userID string, tokenValue string, tokenType string) error
+	GetActiveUserSessionsFunc            func(ctx context.Context, userID string, tokenType string) ([]*model.Token, error)
+	RevokeTokenByIDForUserFunc           func(ctx context.Context, tokenID string, userID string) error
+	ReplaceVerificationTokenFunc         func(ctx context.Context, userID string, newToken *model.Token) error
+	RevokeAllUserTokensFunc              func(ctx context.Context, userID string, tokenType string) error
+	GetUserByUsernameFunc                func(ctx context.Context, username string) (*model.User, error)
+	ResetFailedLoginFunc                 func(ctx context.Context, userID string) error
+	MarkTokenAsRotatedFunc               func(ctx context.Context, tokenValue string, tokenType string) error
+	SetRequire2FANextLoginFunc           func(ctx context.Context, userID string, require2FA bool) error
+	GetTeacherVerificationStatusFunc     func(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error)
+	UpsertTeacherApplicationFunc         func(ctx context.Context, userID, phoneNumber, reason, teachingHistory string) error
+	ListTeacherApplicationsFunc          func(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error)
+	ReviewTeacherApplicationFunc         func(ctx context.Context, requestID, status, reviewedBy string) error
+	GetAllUsersFunc                      func(ctx context.Context) ([]*model.UserWithProfile, error)
+	GetDashboardStatsFunc                func(ctx context.Context) (*model.DashboardStats, error)
+	SetAccountDeactivatedUntilFunc       func(ctx context.Context, userID string, until time.Time) error
+	GetAccountDeactivatedUntilFunc       func(ctx context.Context, userID string) (*time.Time, error)
+	ClearAccountDeactivatedUntilFunc     func(ctx context.Context, userID string) error
+	DeactivateAccountWithTokenRevokeFunc func(ctx context.Context, userID string, until time.Time) error
 }
 
 // Implement RepositoryUser methods
@@ -101,7 +110,7 @@ func (m *Repository) VerifyEmailWithToken(ctx context.Context, userID string, to
 	return nil
 }
 func (m *Repository) UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error) {
-    return 0, nil
+	return 0, nil
 }
 func (m *Repository) ResetFailedLogin(ctx context.Context, userID string) error {
 	if m.ResetFailedLoginFunc != nil {
@@ -110,10 +119,80 @@ func (m *Repository) ResetFailedLogin(ctx context.Context, userID string) error 
 	return nil
 }
 func (m *Repository) SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error {
-    if m.SetRequire2FANextLoginFunc != nil {
-        return m.SetRequire2FANextLoginFunc(ctx, userID, require2FA)
-    }
-    return nil
+	if m.SetRequire2FANextLoginFunc != nil {
+		return m.SetRequire2FANextLoginFunc(ctx, userID, require2FA)
+	}
+	return nil
+}
+
+func (m *Repository) GetTeacherVerificationStatus(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error) {
+	if m.GetTeacherVerificationStatusFunc != nil {
+		return m.GetTeacherVerificationStatusFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *Repository) UpsertTeacherApplication(ctx context.Context, userID, phoneNumber, reason, teachingHistory string) error {
+	if m.UpsertTeacherApplicationFunc != nil {
+		return m.UpsertTeacherApplicationFunc(ctx, userID, phoneNumber, reason, teachingHistory)
+	}
+	return nil
+}
+
+func (m *Repository) ListTeacherApplications(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error) {
+	if m.ListTeacherApplicationsFunc != nil {
+		return m.ListTeacherApplicationsFunc(ctx, status)
+	}
+	return nil, nil
+}
+
+func (m *Repository) ReviewTeacherApplication(ctx context.Context, requestID, status, reviewedBy string) error {
+	if m.ReviewTeacherApplicationFunc != nil {
+		return m.ReviewTeacherApplicationFunc(ctx, requestID, status, reviewedBy)
+	}
+	return nil
+}
+
+func (m *Repository) GetAllUsers(ctx context.Context) ([]*model.UserWithProfile, error) {
+	if m.GetAllUsersFunc != nil {
+		return m.GetAllUsersFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *Repository) GetDashboardStats(ctx context.Context) (*model.DashboardStats, error) {
+	if m.GetDashboardStatsFunc != nil {
+		return m.GetDashboardStatsFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *Repository) SetAccountDeactivatedUntil(ctx context.Context, userID string, until time.Time) error {
+	if m.SetAccountDeactivatedUntilFunc != nil {
+		return m.SetAccountDeactivatedUntilFunc(ctx, userID, until)
+	}
+	return nil
+}
+
+func (m *Repository) GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error) {
+	if m.GetAccountDeactivatedUntilFunc != nil {
+		return m.GetAccountDeactivatedUntilFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *Repository) ClearAccountDeactivatedUntil(ctx context.Context, userID string) error {
+	if m.ClearAccountDeactivatedUntilFunc != nil {
+		return m.ClearAccountDeactivatedUntilFunc(ctx, userID)
+	}
+	return nil
+}
+
+func (m *Repository) DeactivateAccountWithTokenRevoke(ctx context.Context, userID string, until time.Time) error {
+	if m.DeactivateAccountWithTokenRevokeFunc != nil {
+		return m.DeactivateAccountWithTokenRevokeFunc(ctx, userID, until)
+	}
+	return nil
 }
 
 // Implement RepositoryToken methods
@@ -149,10 +228,10 @@ func (m *Repository) RevokeAllUserTokens(ctx context.Context, userID string, tok
 }
 func (m *Repository) DeleteExpiredTokens(ctx context.Context) error { return nil }
 func (m *Repository) MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error {
-    if m.MarkTokenAsRotatedFunc != nil {
-        return m.MarkTokenAsRotatedFunc(ctx, tokenValue, tokenType)
-    }
-    return nil
+	if m.MarkTokenAsRotatedFunc != nil {
+		return m.MarkTokenAsRotatedFunc(ctx, tokenValue, tokenType)
+	}
+	return nil
 }
 func (m *Repository) GetActiveUserSessions(ctx context.Context, userID string, tokenType string) ([]*model.Token, error) {
 	if m.GetActiveUserSessionsFunc != nil {
@@ -189,6 +268,3 @@ func (m *Repository) UpdateSocialUserInfo(ctx context.Context, userID string, us
 func (m *Repository) UpsertSocialUserProfile(ctx context.Context, userID string, profile *model.Profile) error {
 	return nil
 }
-
-// Implement GetDB
-func (m *Repository) GetDB() repository.Database { return nil }

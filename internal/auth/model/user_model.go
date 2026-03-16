@@ -66,7 +66,6 @@ type LoginRequest struct {
 }
 
 type UpdateUserRequest struct {
-	Username  string   `json:"username"`
 	FirstName string   `json:"first_name"`
 	LastName  string   `json:"last_name"`
 	Role      UserRole `json:"role"`
@@ -96,12 +95,29 @@ type SocialAuthCallbackRequest struct {
 }
 
 type OAuthUserInfo struct {
-	ProviderUserID string
-	Email          string
-	FirstName      string
-	LastName       string
-	AvatarURL      string
-	Provider       string
+	ProviderUserID   string
+	Email            string
+	FirstName        string
+	LastName         string
+	AvatarURL        string
+	Provider         string
+	ProviderUsername string
+}
+
+// NativeGoogleSignInRequest is the request body for native Google Sign-In
+type NativeGoogleSignInRequest struct {
+	IDToken string `json:"id_token"`
+}
+
+// NativeDiscordSignInRequest is the request body for native Discord Sign-In
+type NativeDiscordSignInRequest struct {
+	Code string `json:"code"`
+}
+
+// ConfirmAccountLinkRequest is the request body for confirming account linking
+type ConfirmAccountLinkRequest struct {
+	LinkToken string `json:"link_token"`
+	Confirm   bool   `json:"confirm"`
 }
 
 type ChangePasswordRequest struct {
@@ -111,4 +127,27 @@ type ChangePasswordRequest struct {
 
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+type UserWithProfile struct {
+	User
+	Profile *Profile `json:"profile,omitempty"`
+}
+
+type DashboardStats struct {
+	TotalUsers       int                `json:"total_users"`
+	TotalPaths       int                `json:"total_paths"`
+	TotalEnrollments int                `json:"total_enrollments"`
+	TotalReflections int                `json:"total_reflections"`
+	RecentUsers      []*UserWithProfile `json:"recent_users"`
+	UserGrowth       []int              `json:"user_growth"`
+	RecentActivities []Activity         `json:"recent_activities"`
+}
+
+type Activity struct {
+	Type      string    `json:"type"`
+	UserID    string    `json:"user_id"`
+	Username  string    `json:"username"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
 }

@@ -1,18 +1,22 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type Tree struct {
-	TreeID       string    `json:"tree_id"`
-	Title        string    `json:"title"`
-	Difficulties string    `json:"difficulties"`
-	Status       string    `json:"status"`
-	IsPause      bool      `json:"is_pause"`
-	NodeCount    int       `json:"node_count"`
-	CreatedAt    time.Time `json:"created_at"`
-	LastUpdate   time.Time `json:"last_update"`
-	AlbumID      string    `json:"album_id"`
-	PathID       string    `json:"path_id"`
+	TreeID        string     `json:"tree_id"`
+	Title         string     `json:"title"`
+	Difficulties  string     `json:"difficulties"`
+	Status        string     `json:"status"`
+	IsPause       bool       `json:"is_pause"`
+	NodeCount     int        `json:"node_count"`
+	CreatedAt     time.Time  `json:"created_at"`
+	LastUpdate    time.Time  `json:"last_update"`
+	AlbumID       string     `json:"album_id"`
+	PathID        string     `json:"path_id"`
+	LastReflectAt *time.Time `json:"last_reflect_at"`
+	PausedAt      *time.Time `json:"paused_at,omitempty"`
 }
 
 // CreateTreeRequest
@@ -27,22 +31,22 @@ type CreateTreeRequest struct {
 type UpdateTreeRequest struct {
 	Title   string `json:"title"`
 	AlbumID string `json:"album_id,omitempty"`
-	// Note: Use PATCH /trees/:tree_id/pause to toggle pause status
 }
 
 // TreeResponse
 type TreeResponse struct {
-	TreeID       string                   `json:"tree_id"`
-	Title        string                   `json:"title"`
-	Difficulties string                   `json:"difficulties"`
-	Status       string                   `json:"status"`
-	IsPause      bool                     `json:"is_pause"`
-	NodeCount    int                      `json:"node_count"`
-	CreatedAt    time.Time                `json:"created_at"`
-	LastUpdate   time.Time                `json:"last_update"`
-	AlbumID      string                   `json:"album_id"`
-	PathID       string                   `json:"path_id"`
-	Nodes        []TreeNode               `json:"nodes,omitempty"`
+	TreeID        string     `json:"tree_id"`
+	Title         string     `json:"title"`
+	Difficulties  string     `json:"difficulties"`
+	Status        string     `json:"status"`
+	IsPause       bool       `json:"is_pause"`
+	NodeCount     int        `json:"node_count"`
+	CreatedAt     time.Time  `json:"created_at"`
+	LastUpdate    time.Time  `json:"last_update"`
+	AlbumID       string     `json:"album_id"`
+	PathID        string     `json:"path_id"`
+	LastReflectAt *time.Time `json:"last_reflect_at"`
+	Nodes         []TreeNode `json:"nodes,omitempty"`
 }
 
 // PauseTreeRequest - body is optional, pause status will be toggled automatically

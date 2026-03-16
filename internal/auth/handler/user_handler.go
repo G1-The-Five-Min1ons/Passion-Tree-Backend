@@ -2,12 +2,13 @@ package handler
 
 import (
 	"context"
+	"strconv"
 	"strings"
+	"time"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -47,6 +48,8 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "user registered successfully", "user_id", userID)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
 		"message": "User registered successfully",
@@ -71,19 +74,69 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	ipAddress := c.IP()
 	userAgent := c.Get("User-Agent", "Unknown")
 
+	// Check if user is confirming reactivation
+	confirmReactivate := c.Query("confirm_reactivate", "false") == "true"
+
 	accessToken, refreshToken, err := h.userSvc.Login(ctx, req.Identifier, req.Password, deviceInfo, ipAddress, userAgent)
+
 	if err != nil {
-		// OTP verification was triggered successfully — return as success with message
-		if appErr, ok := err.(*apperror.AppError); ok && appErr.Code == fiber.StatusForbidden {
-			if strings.HasPrefix(appErr.Message, "verification_required:") || strings.HasPrefix(appErr.Message, "security verification required.") {
+		if appErr, ok := err.(*apperror.AppError); ok {
+			if appErr.Code == fiber.StatusForbidden && appErr.Type == "OTP_REQUIRED" {
+				return c.Status(fiber.StatusOK).JSON(fiber.Map{
+					"success":      true,
+					"requires_otp": true,
+					"message":      appErr.Message,
+				})
+			}
+			if appErr.Code == fiber.StatusForbidden && appErr.Type == "ACCOUNT_DEACTIVATED" {
+				// User's account is deactivated
+				if !confirmReactivate {
+					// Ask for confirmation
+					return c.Status(fiber.StatusOK).JSON(fiber.Map{
+						"success":               true,
+						"requires_reactivation": true,
+						"message":               appErr.Message,
+						"grace_period_days":     model.DefaultDeactivationGracePeriod,
+					})
+				}
+
+				// User confirmed reactivation, clear deactivation and try login again
+				// Get user ID to reactivate
+				var user *model.User
+				if strings.Contains(req.Identifier, "@") {
+					user, err = h.userSvc.GetUserByEmail(ctx, req.Identifier)
+				} else {
+					user, err = h.userSvc.GetUserByUsername(ctx, req.Identifier)
+				}
+				if err != nil || user == nil {
+					return h.handleError(c, apperror.NewUnauthorized("user not found"))
+				}
+
+				// Reactivate account
+				if err := h.userSvc.ReactivateAccount(ctx, user.UserID); err != nil {
+					return h.handleError(c, err)
+				}
+
+				// Try login again
+				accessToken, refreshToken, err = h.userSvc.Login(ctx, req.Identifier, req.Password, deviceInfo, ipAddress, userAgent)
+				if err != nil {
+					return h.handleError(c, err)
+				}
+
+				h.logger.InfoContext(ctx, "user_login_after_reactivation", "user_id", user.UserID, "ip", ipAddress)
 				return c.Status(fiber.StatusOK).JSON(fiber.Map{
 					"success": true,
-					"message": appErr.Message,
+					"data": fiber.Map{
+						"access_token":  accessToken,
+						"refresh_token": refreshToken,
+					},
 				})
 			}
 		}
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "user_login_success", "ip", ipAddress)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -104,6 +157,18 @@ func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
+	// Check if account is deactivated
+	deactivatedUntil, err := h.userSvc.GetAccountDeactivatedUntil(ctx, userID)
+	if err != nil {
+		h.logger.ErrorContext(ctx, "failed to check account deactivation status", "error", err, "user_id", userID)
+		return h.handleError(c, apperror.NewInternal("failed to verify account status: %w", err))
+	}
+
+	// Account is deactivated and grace period not expired
+	if deactivatedUntil != nil && deactivatedUntil.After(time.Now().UTC()) {
+		return h.handleError(c, apperror.NewForbidden("account is deactivated. reactivate within the grace period to access your profile"))
+	}
+
 	user, profile, err := h.userSvc.GetUserByID(ctx, userID)
 	if err != nil {
 		return h.handleError(c, err)
@@ -122,8 +187,8 @@ func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 // UpdateUser updates user information from JWT token (first_name, last_name, and optionally role)
 func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("please login again"))
 	}
 
 	var req model.UpdateUserRequest
@@ -139,9 +204,11 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	if err := h.userSvc.UpdateUser(ctx, userID, req.Username, req.FirstName, req.LastName, string(req.Role)); err != nil {
+	if err := h.userSvc.UpdateUser(ctx, userID, "", req.FirstName, req.LastName, string(req.Role)); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "user updated successfully", "user_id", userID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -155,8 +222,8 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 // DeleteUser deletes a user from JWT token with password confirmation
 func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	var req struct {
@@ -173,9 +240,11 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "user_deleted", "user_id", userID, "ip", c.IP())
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "User deleted successfully",
+		"message": "User account has been permanently deleted",
 		"data": fiber.Map{
 			"user_id": userID,
 		},
@@ -219,8 +288,8 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 // Logout revokes all refresh tokens for the authenticated user
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -230,17 +299,72 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
+	h.logger.InfoContext(ctx, "user logged out successfully", "user_id", userID)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "Logged out successfully",
 	})
 }
 
+// DeactivateAccount deactivates account temporarily and revokes active refresh sessions
+func (h *Handler) DeactivateAccount(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.userSvc.DeactivateAccount(ctx, userID, model.DefaultDeactivationGracePeriod); err != nil {
+		h.logger.InfoContext(ctx, "account deactivation failed", "user_id", userID, "error", err)
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "account deactivated successfully", "user_id", userID)
+
+	message := "User account deactivated for " + strconv.Itoa(model.DefaultDeactivationGracePeriod) + " days"
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": message,
+		"data": fiber.Map{
+			"user_id": userID,
+		},
+	})
+}
+
+// ReactivateAccount reactivates a temporary deactivated account
+func (h *Handler) ReactivateAccount(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.userSvc.ReactivateAccount(ctx, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "account reactivated successfully", "user_id", userID)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Account reactivated successfully",
+		"data": fiber.Map{
+			"user_id": userID,
+		},
+	})
+}
+
 // GetActiveSessions retrieves all active sessions/devices for the authenticated user
 func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	// Try to get current refresh token from request body (optional)
@@ -267,8 +391,8 @@ func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 // LogoutSession revokes a specific session by session ID
 func (h *Handler) LogoutSession(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
-	if err != nil {
-		return h.handleError(c, err)
+	if err != nil || userID == "" {
+		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
 	sessionID := c.Params("session_id")
@@ -282,6 +406,8 @@ func (h *Handler) LogoutSession(c *fiber.Ctx) error {
 	if err := h.userSvc.LogoutSession(ctx, userID, sessionID); err != nil {
 		return h.handleError(c, err)
 	}
+
+	h.logger.InfoContext(ctx, "session logged out successfully", "user_id", userID, "session_id", sessionID)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

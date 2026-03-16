@@ -93,7 +93,7 @@ func (h *Handler) GetByID(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
 		"message": "reflection retrieved successfully",
-		"data": res,
+		"data":    res,
 	})
 }
 
@@ -103,7 +103,7 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 
 	// Parse query parameters for filtering
 	filter := model.GetReflectionsFilter{
-		Limit:  c.QueryInt("limit", 50),  // Default limit 50
+		Limit:  c.QueryInt("limit", 50), // Default limit 50
 		Offset: c.QueryInt("offset", 0),
 	}
 

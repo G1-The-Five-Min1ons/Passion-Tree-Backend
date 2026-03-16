@@ -10,9 +10,9 @@ import (
 )
 
 func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchPathRequest) (*model.SearchPathResponse, error) {
-	s.logger.InfoContext(ctx, "searching learning paths", 
-		"query", req.Query, 
-		"top_k", req.TopK, 
+	s.logger.InfoContext(ctx, "searching learning paths",
+		"query", req.Query,
+		"top_k", req.TopK,
 		"filters", req.Filters,
 	)
 
@@ -123,8 +123,8 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		results = append(results, result)
 	}
 
-	s.logger.InfoContext(ctx, "search completed", "query", aiResp.Query,  "total_found", len(results))
-	
+	s.logger.InfoContext(ctx, "search completed", "query", aiResp.Query, "total_found", len(results))
+
 	return &model.SearchPathResponse{
 		Query:   aiResp.Query,
 		Total:   len(results),
@@ -152,8 +152,8 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 
 // SyncLearningPath syncs a single learning path from Azure DB to Qdrant vector database
 func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*model.SyncPathResponse, error) {
-	s.logger.DebugContext(ctx, "SyncLearningPath called", 
-		"path_id", pathID, 
+	s.logger.DebugContext(ctx, "SyncLearningPath called",
+		"path_id", pathID,
 		"ai_client_nil", s.aiClient == nil,
 	)
 
@@ -177,13 +177,18 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 
 	// Prepare metadata for filtering
 	metadata := map[string]interface{}{
-		"title":           path.Title,
-		"description":     path.Description,
-		"cover_img_url":   path.CoverImgURL,
-		"objective":       path.Objective,
-		"avg_rating":      path.Rating,
-		"Publish_status ": path.Publish_status,
-		"creator_id":      path.CreatorID,
+		"title":            path.Title,
+		"description":      path.Description,
+		"cover_img_url":    path.CoverImgURL,
+		"objective":        path.Objective,
+		"avg_rating":       path.Rating,
+		"publish_status ":  path.Publish_status,
+		"creator_id":       path.CreatorID,
+		"creator_name":     path.CreatorName,
+		"creator_username": path.CreatorUsername,
+		"instructor":       path.Instructor,
+		"modules":          path.Modules,
+		"student":          path.Students,
 	}
 
 	// Handle nullable time fields

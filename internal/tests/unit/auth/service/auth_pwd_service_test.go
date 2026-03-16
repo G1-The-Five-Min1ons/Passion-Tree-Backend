@@ -17,24 +17,30 @@ import (
 
 // mockEmailService
 type EmailService struct {
-	SendPasswordResetEmailFunc func(to, token string) error
-	SendVerificationEmailFunc  func(to, token string) error
+	SendPasswordResetEmailFunc func(ctx context.Context, to, token string) error
+	SendVerificationEmailFunc  func(ctx context.Context, to, token string) error
 }
 
-func (m *EmailService) SendPasswordResetEmail(to, token string) error {
+func (m *EmailService) SendPasswordResetEmail(ctx context.Context, to, token string) error {
 	if m.SendPasswordResetEmailFunc != nil {
-		return m.SendPasswordResetEmailFunc(to, token)
+		return m.SendPasswordResetEmailFunc(ctx, to, token)
 	}
 	return nil
 }
-func (m *EmailService) SendVerificationEmail(to, token string) error {
+func (m *EmailService) SendVerificationEmail(ctx context.Context, to, token string) error {
 	if m.SendVerificationEmailFunc != nil {
-		return m.SendVerificationEmailFunc(to, token)
+		return m.SendVerificationEmailFunc(ctx, to, token)
 	}
 	return nil
 }
 
-func (m *EmailService) SendSecurityAlertEmail(to, userID string) error { return nil }
+func (m *EmailService) SendSecurityAlertEmail(ctx context.Context, to, userID string) error {
+	return nil
+}
+
+func (m *EmailService) SendNotificationEmail(ctx context.Context, to, subject, headline, message string) error {
+	return nil
+}
 
 func TestForgotPassword(t *testing.T) {
 	tests := []struct {
@@ -62,7 +68,7 @@ func TestForgotPassword(t *testing.T) {
 					}
 					return nil
 				}
-				e.SendPasswordResetEmailFunc = func(to, token string) error {
+				e.SendPasswordResetEmailFunc = func(ctx context.Context, to, token string) error {
 					if to != "test@example.com" {
 						t.Errorf("Expected email test@example.com, got %s", to)
 					}

@@ -44,6 +44,22 @@ func (s *serviceImpl) GetPathDetails(ctx context.Context, path_id string) (*mode
 }
 
 func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathRequest) (string, error) {
+	if req.CreatorID == "" {
+		return "", apperror.NewBadRequest("creator_id is required")
+	}
+
+	creatorRole, isTeacherVerified, err := s.pathRepo.GetPathCreatorVerification(ctx, req.CreatorID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", apperror.NewBadRequest("invalid creator_id: user does not exist")
+		}
+		return "", apperror.NewInternal("failed to validate creator verification status: %w", err)
+	}
+
+	if creatorRole == "teacher" && !isTeacherVerified {
+		return "", apperror.NewForbidden("teacher account must be approved before creating learning paths (bind phone number, submit application, and wait for admin approval)")
+	}
+
 	if req.Title == "" {
 		return "", apperror.NewBadRequest("title cannot be empty")
 	}
@@ -124,6 +140,13 @@ func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.
 
 		s.logger.ErrorContext(ctx, "failed to update learning path", "error", err, "path_id", path_id)
 		return apperror.NewInternal("failed to update learning path: %w", err)
+	}
+	if req.Publish_status == "published" {
+		_, err = s.SyncLearningPath(ctx, path_id)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to sync learning path after creation", "error", err, "path_id", path_id)
+			return apperror.NewInternal("failed to sync learning path: %w", err)
+		}
 	}
 
 	s.logger.InfoContext(ctx, "learning path updated successfully", "path_id", path_id)

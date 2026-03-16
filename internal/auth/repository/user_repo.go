@@ -57,24 +57,25 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 	query := `
 		SELECT 
 			CONVERT(VARCHAR(36), u.user_id) as user_id, u.username, u.email, u.password, u.first_name, u.last_name, u.role, u.heart_count,
-			u.is_email_verified, u.require_2fa_next_login,
+			u.is_email_verified, u.require_2fa_next_login, u.create_at, u.update_at,
 			CONVERT(VARCHAR(36), p.Profile_ID) as Profile_ID, p.Avatar_URL, p.Rank_Name, p.Learning_streak, p.Learning_count, 
-			p.Location, p.Bio, p.Level, p.XP, p.Hour_learned
+			p.Location, p.Bio, p.Phone_Number, p.Time_Zone, p.Date_Format, p.Level, p.XP, p.Hour_learned
 		FROM users AS u
 		LEFT JOIN profile p ON u.user_id = p.user_id
 		WHERE u.user_id = @p1`
 
 	var u model.User
 	var p *model.Profile
-	var profileID, avatarURL, rankName, location, bio sql.NullString
+	var profileID, avatarURL, rankName, location, bio, phoneNumber, timeZone, dateFormat sql.NullString
 	var learningStreak, learningCount, level, hourLearned sql.NullInt32
 	var xp sql.NullInt64
+	var createdAt, updatedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&u.UserID, &u.Username, &u.Email, &u.Password, &u.FirstName, &u.LastName, &u.Role, &u.HeartCount,
-		&u.IsEmailVerified, &u.Require2FANextLogin,
+		&u.IsEmailVerified, &u.Require2FANextLogin, &createdAt, &updatedAt,
 		&profileID, &avatarURL, &rankName, &learningStreak, &learningCount,
-		&location, &bio, &level, &xp, &hourLearned,
+		&location, &bio, &phoneNumber, &timeZone, &dateFormat, &level, &xp, &hourLearned,
 	)
 
 	if err != nil {
@@ -82,6 +83,13 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 			return nil, nil, nil
 		}
 		return nil, nil, fmt.Errorf("get user by id failed: %w", err)
+	}
+
+	if createdAt.Valid {
+		u.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		u.UpdatedAt = updatedAt.Time
 	}
 
 	if profileID.Valid {
@@ -93,6 +101,9 @@ func (r *repositoryImpl) GetUserByID(ctx context.Context, id string) (*model.Use
 		p.LearningCount = int(learningCount.Int32)
 		p.Location = location.String
 		p.Bio = bio.String
+		p.PhoneNumber = phoneNumber.String
+		p.TimeZone = timeZone.String
+		p.DateFormat = dateFormat.String
 		if level.Valid {
 			levelValue := int(level.Int32)
 			p.Level = &levelValue
@@ -221,6 +232,21 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 		args = append(args, profile.Bio)
 		paramID++
 	}
+	if profile.PhoneNumber != "" {
+		updates = append(updates, fmt.Sprintf("Phone_Number=@p%d", paramID))
+		args = append(args, profile.PhoneNumber)
+		paramID++
+	}
+	if profile.TimeZone != "" {
+		updates = append(updates, fmt.Sprintf("Time_Zone=@p%d", paramID))
+		args = append(args, profile.TimeZone)
+		paramID++
+	}
+	if profile.DateFormat != "" {
+		updates = append(updates, fmt.Sprintf("Date_Format=@p%d", paramID))
+		args = append(args, profile.DateFormat)
+		paramID++
+	}
 	if profile.Level != nil {
 		updates = append(updates, fmt.Sprintf("Level=@p%d", paramID))
 		args = append(args, *profile.Level)
@@ -237,11 +263,25 @@ func (r *repositoryImpl) UpdateProfile(ctx context.Context, userID string, profi
 		return nil
 	}
 
-	query := "UPDATE profile SET " + strings.Join(updates, ", ") + fmt.Sprintf(", update_at=GETDATE() WHERE user_id=@p%d", paramID)
+	query := "UPDATE profile SET " + strings.Join(updates, ", ") + fmt.Sprintf(" WHERE user_id=@p%d", paramID)
 	args = append(args, userID)
 
-	_, err := r.db.ExecContext(ctx, query, args...)
-	return err
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+
+	// Check if user exists
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user with id '%s' not found", userID)
+	}
+
+	return nil
 }
 
 func (r *repositoryImpl) DeleteUser(ctx context.Context, id string) error {
@@ -258,6 +298,48 @@ func (r *repositoryImpl) DeleteUser(ctx context.Context, id string) error {
 	}
 
 	return tx.Commit()
+}
+
+func (r *repositoryImpl) SetAccountDeactivatedUntil(ctx context.Context, userID string, until time.Time) error {
+	query := `
+        MERGE INTO settings AS target
+        USING (SELECT @p1 AS user_id, @p2 AS [key]) AS source
+        ON (target.user_id = source.user_id AND target.[key] = source.[key])
+        WHEN MATCHED THEN
+            UPDATE SET [value] = @p3, updated_at = GETDATE()
+        WHEN NOT MATCHED THEN
+            INSERT (id, user_id, [key], [value], created_at, updated_at)
+            VALUES (NEWID(), @p1, @p2, @p3, GETDATE(), GETDATE());
+    `
+
+	value := until.UTC().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, query, userID, "account_deactivated_until", value)
+	return err
+}
+
+func (r *repositoryImpl) GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error) {
+	query := `SELECT [value] FROM settings WHERE user_id = @p1 AND [key] = @p2`
+
+	var raw string
+	err := r.db.QueryRowContext(ctx, query, userID, "account_deactivated_until").Scan(&raw)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return &parsed, nil
+}
+
+func (r *repositoryImpl) ClearAccountDeactivatedUntil(ctx context.Context, userID string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM settings WHERE user_id = @p1 AND [key] = @p2", userID, "account_deactivated_until")
+	return err
 }
 
 // --- Password & Security ---
@@ -412,6 +494,47 @@ func (r *repositoryImpl) UpdateEmailVerified(ctx context.Context, userID string,
 
 	if rows == 0 {
 		return fmt.Errorf("user not found: %s", userID)
+	}
+
+	return nil
+}
+
+// DeactivateAccountWithTokenRevoke deactivates account and revokes all refresh tokens atomically
+func (r *repositoryImpl) DeactivateAccountWithTokenRevoke(ctx context.Context, userID string, until time.Time) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Set account deactivated until
+	deactivateQuery := `
+		IF EXISTS (SELECT 1 FROM settings WHERE user_id = @p1 AND [key] = @p2)
+		BEGIN
+			UPDATE settings
+			SET [value] = @p3, updated_at = GETDATE()
+			WHERE user_id = @p1 AND [key] = @p2
+		END
+		ELSE
+		BEGIN
+			INSERT INTO settings (id, user_id, [key], [value], created_at, updated_at)
+			VALUES (NEWID(), @p1, @p2, @p3, GETDATE(), GETDATE())
+		END
+	`
+
+	value := until.UTC().Format(time.RFC3339)
+	if _, err := tx.ExecContext(ctx, deactivateQuery, userID, "account_deactivated_until", value); err != nil {
+		return fmt.Errorf("set account deactivated until failed: %w", err)
+	}
+
+	// Revoke all refresh tokens
+	revokeQuery := `UPDATE Token SET is_revoke = 1 WHERE user_id = @p1 AND token_type = @p2 AND is_revoke = 0`
+	if _, err := tx.ExecContext(ctx, revokeQuery, userID, model.TokenTypeRefresh); err != nil {
+		return fmt.Errorf("revoke all user tokens failed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction failed: %w", err)
 	}
 
 	return nil

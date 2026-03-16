@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"html/template"
 	"log/slog"
+	"time"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
@@ -23,15 +24,23 @@ var (
 	passwordResetTemplate string
 	//go:embed templates/security_alert.html
 	securityAlertTemplate string
+	//go:embed templates/notification.html
+	notificationTemplate string
 )
 
 type UserService interface {
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
+	CreateUserByAdmin(ctx context.Context, user *model.User, profile *model.Profile) (string, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
+	GetAllUsers(ctx context.Context) ([]*model.UserWithProfile, error)
+	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
 	UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
+	UpdateUserByAdmin(ctx context.Context, id string, firstName string, lastName string, role string) error
 	UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error
 	DeleteUser(ctx context.Context, id string, password string) error
+	DeleteUserByAdmin(ctx context.Context, id string) error
 	Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (accessToken, refreshToken string, err error)
 	RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (newAccessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, userID string) error
@@ -41,16 +50,24 @@ type UserService interface {
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, code string, newPassword string) error
 	ChangePassword(ctx context.Context, userID string, oldPassword string, newPassword string) error
+	DeactivateAccount(ctx context.Context, userID string, days int) error
+	ReactivateAccount(ctx context.Context, userID string) error
+	GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error)
 
 	// Multi-device Session Management
 	GetActiveSessions(ctx context.Context, userID string, currentRefreshToken string) (*model.GetActiveSessionsResponse, error)
 	LogoutSession(ctx context.Context, userID string, sessionID string) error
+	GetTeacherVerificationStatus(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error)
+	ApplyForTeacher(ctx context.Context, userID string, req model.ApplyTeacherRequest) error
+	GetTeacherApplications(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error)
+	ReviewTeacherApplication(ctx context.Context, requestID, reviewedBy string, req model.ReviewTeacherApplicationRequest) error
 }
 
 type EmailService interface {
-	SendVerificationEmail(to, token string) error
-	SendPasswordResetEmail(to, token string) error
-	SendSecurityAlertEmail(to, userID string) error
+	SendVerificationEmail(ctx context.Context, to, token string) error
+	SendPasswordResetEmail(ctx context.Context, to, token string) error
+	SendSecurityAlertEmail(ctx context.Context, to, userID string) error
+	SendNotificationEmail(ctx context.Context, to, subject, headline, message string) error
 }
 
 type SocialAuthService interface {
@@ -59,6 +76,7 @@ type SocialAuthService interface {
 	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
+	HandleNativeDiscordSignIn(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 
@@ -79,6 +97,7 @@ type emailTemplates struct {
 	verification  *template.Template
 	passwordReset *template.Template
 	securityAlert *template.Template
+	notification  *template.Template
 }
 type emailServiceImpl struct {
 	mailersendClient *mailersend.Mailersend
@@ -103,6 +122,7 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 	verificationTmpl := template.Must(template.New("verification").Parse(verificationTemplate))
 	passwordResetTmpl := template.Must(template.New("passwordReset").Parse(passwordResetTemplate))
 	securityAlertTmpl := template.Must(template.New("securityAlert").Parse(securityAlertTemplate))
+	notificationTmpl := template.Must(template.New("notification").Parse(notificationTemplate))
 
 	return &emailServiceImpl{
 		mailersendClient: mailersend.NewMailersend(cfg.MailerSendAPIKey),
@@ -110,6 +130,7 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 			verification:  verificationTmpl,
 			passwordReset: passwordResetTmpl,
 			securityAlert: securityAlertTmpl,
+			notification:  notificationTmpl,
 		},
 		config: cfg,
 		logger: logger,

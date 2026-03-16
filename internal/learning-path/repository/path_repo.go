@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 	"strings"
+	"time"
 
 	"passiontree/internal/learning-path/model"
 
@@ -19,6 +19,8 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
     		lp.title, 
     		ISNULL(lp.description, 'null') as description,
     		u.first_name as instructor,
+    		u.first_name as creator_name,
+    		u.username as creator_username,
     		ISNULL(pe_count.total_students, 0) as student,
 			ISNULL(n_count.total_nodes, 0) as modules,
 			ISNULL(lp.avg_rating, 0) as avg_rating,
@@ -56,6 +58,8 @@ func (r *repositoryImpl) GetAllLearningPath(ctx context.Context) ([]model.Learni
 			&p.Title,
 			&p.Description,
 			&p.Instructor,
+			&p.CreatorName,
+			&p.CreatorUsername,
 			&p.Students,
 			&p.Modules,
 			&p.Rating,
@@ -91,6 +95,8 @@ func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string
             lp.create_at, 
             lp.update_at, 
             u.first_name as instructor,
+            u.first_name as creator_name,
+            u.username as creator_username,
             CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
             ISNULL(n_count.total_nodes, 0) as modules,
             ISNULL(pe_count.total_students, 0) as student
@@ -121,6 +127,8 @@ func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string
 		&p.CreatedAt,
 		&p.UpdatedAt,
 		&p.Instructor,
+		&p.CreatorName,
+		&p.CreatorUsername,
 		&p.CreatorID,
 		&p.Modules,
 		&p.Students,
@@ -133,6 +141,39 @@ func (r *repositoryImpl) GetLearningPathByID(ctx context.Context, path_id string
 		return nil, fmt.Errorf("repo.GetLearningPathByID scan failed: %w", err)
 	}
 	return &p, nil
+}
+
+func (r *repositoryImpl) GetPathCreatorVerification(ctx context.Context, userID string) (string, bool, error) {
+	query := `
+		SELECT 
+    		u.role,
+    		CASE 
+        		WHEN EXISTS (
+            		SELECT 1 
+            		FROM teacher_verification_requests tvr 
+            		WHERE tvr.user_id = u.user_id 
+            		AND tvr.status = 'approved'
+            		AND ISNULL(tvr.phone_number, '') <> '' 
+        		) 
+        		THEN 1 
+        		ELSE 0 
+    		END AS is_teacher_verified
+		FROM users u
+		WHERE u.user_id = @p1`
+
+	var (
+		role            string
+		isVerifiedAsInt int
+	)
+
+	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&role, &isVerifiedAsInt); err != nil {
+		if err == sql.ErrNoRows {
+			return "", false, err
+		}
+		return "", false, fmt.Errorf("repo.GetPathCreatorVerification failed: %w", err)
+	}
+
+	return role, isVerifiedAsInt == 1, nil
 }
 
 func (r *repositoryImpl) CreateLearningPath(ctx context.Context, req model.CreatePathRequest) (string, error) {
@@ -174,6 +215,18 @@ func (r *repositoryImpl) DeleteLearningPath(ctx context.Context, path_id string)
 }
 
 func (r *repositoryImpl) EnrollLearningPathUser(ctx context.Context, pathID string, userID string) error {
+	// Check if user already enrolled in this learning path
+	checkQuery := `SELECT COUNT(*) FROM path_enroll WHERE user_id = @p1 AND path_id = @p2`
+	var count int
+	err := r.db.QueryRowContext(ctx, checkQuery, userID, pathID).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("repo.EnrollLearningPathUser check enrollment failed: %w", err)
+	}
+
+	if count > 0 {
+		return fmt.Errorf("user already enrolled in this learning path")
+	}
+
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("repo.EnrollLearningPathUser begin tx failed: %w", err)

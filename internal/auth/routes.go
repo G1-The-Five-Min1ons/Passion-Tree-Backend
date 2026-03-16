@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"passiontree/internal/auth/handler"
+	"passiontree/internal/auth/model"
 	"passiontree/internal/auth/repository"
 	"passiontree/internal/auth/service"
 	"passiontree/internal/config"
@@ -27,7 +28,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	emailSvc := service.NewEmailService(cfg, logger)
 	userSvc := service.NewUserService(repo, emailSvc, cfg, jwtService, logger)
 	socialAuthSvc := service.NewSocialAuthService(repo, cfg, jwtService, logger)
-	h := handler.NewHandler(userSvc, socialAuthSvc, logger)
+	h := handler.NewHandler(userSvc, socialAuthSvc, cfg, logger)
 
 	auth := r.Group("/auth")
 	{
@@ -51,6 +52,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 
 		// Native SSO route (for Android/mobile apps)
 		auth.Post("/native/google", h.NativeGoogleSignIn)
+		auth.Post("/native/discord", h.NativeDiscordSignIn)
+		auth.Get("/discord/native/callback", h.DiscordNativeCallback)
 	}
 
 	// --- Protected Routes (Require JWT) ---
@@ -58,8 +61,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	{
 		// Authentication
 		protected.Post("/logout", h.Logout) // Logout and revoke tokens
+		protected.Post("/deactivate", h.DeactivateAccount)
+		protected.Post("/reactivate", h.ReactivateAccount)
 
-		// Multi-device Session Management
 		protected.Get("/sessions", h.GetActiveSessions)            // List all active sessions/devices
 		protected.Delete("/sessions/:session_id", h.LogoutSession) // Logout from a specific device
 
@@ -69,14 +73,22 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 		protected.Put("/user", h.UpdateUser)
 		protected.Put("/change-password", h.ChangePassword)
 		protected.Delete("/user", h.DeleteUser)
+		protected.Get("/teacher/verification-status", h.GetTeacherVerificationStatus)
+		protected.Post("/teacher/apply", h.ApplyForTeacher)
 
 		// Admin Routes (JWT + RBAC)
-		adminOnly := protected.Group("/admin", middleware.RbacMiddleware(logger, "admin"))
+		adminOnly := protected.Group("/admin", middleware.RbacMiddleware(logger, string(model.RoleAdmin)))
 		{
 			adminOnly.Get("/dashboard", func(c *fiber.Ctx) error {
 				return c.JSON(fiber.Map{"message": "Welcome to Admin Dashboard"})
 			})
-			// สามารถเพิ่ม Route สำหรับจัดการ User ในนี้ได้
+			adminOnly.Get("/dashboard/stats", h.GetDashboardStats)
+			adminOnly.Get("/users", h.GetAllUsers)
+			adminOnly.Post("/users", h.CreateUserByAdmin)
+			adminOnly.Put("/users/:user_id", h.UpdateUserByAdmin)
+			adminOnly.Delete("/users/:user_id", h.DeleteUserByAdmin)
+			adminOnly.Get("/teacher-applications", h.ListTeacherApplications)
+			adminOnly.Put("/teacher-applications/:request_id", h.ReviewTeacherApplication)
 		}
 
 		// Teacher Routes

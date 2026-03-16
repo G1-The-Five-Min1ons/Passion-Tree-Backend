@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	
 	"passiontree/internal/connection"
 	"passiontree/internal/learning-path/model"
 )
@@ -20,6 +21,7 @@ type RepositoryLearningPath interface {
 	UpdateLearningPathImage(ctx context.Context, pathID string, coverImgURL string) error
 	GetUserEnrolledPaths(ctx context.Context, userID string) ([]model.EnrolledPathResponse, error)
 	UpdatePathEnrollmentCompletion(ctx context.Context, pathID string, userID string) error
+	GetPathCreatorVerification(ctx context.Context, userID string) (string, bool, error)
 }
 
 type RepositoryNode interface {
@@ -47,7 +49,6 @@ type RepositoryComment interface {
 	GetReactionsByCommentID(ctx context.Context, commentID string) ([]model.CommentReaction, error)
 	CreateMention(ctx context.Context, req model.CreateMentionRequest) (string, error)
 	UpdateComment(ctx context.Context, userID, messageID, message string) (bool, error)
-	// GetCommentOwner returns the user_id of the comment author — used for auto-mention on reply
 	GetCommentOwner(ctx context.Context, commentID string) (string, error)
 }
 

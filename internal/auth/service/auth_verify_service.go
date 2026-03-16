@@ -15,10 +15,10 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, otpCode string, devic
 		return "", "", apperror.NewBadRequest("verification code is required")
 	}
 
-	storedToken, err := s.repo.GetTokenByValue(ctx, otpCode, "email_verification")
+	storedToken, err := s.repo.GetTokenByValue(ctx, otpCode, model.TokenTypeEmailVerification)
 	s.logger.InfoContext(ctx, "[DEBUG] GetTokenByValue result",
 		"code", otpCode,
-		"token_type", "email_verification",
+		"token_type", model.TokenTypeEmailVerification,
 		"found", storedToken != nil,
 		"db_error", err,
 	)
@@ -65,8 +65,15 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, otpCode string, devic
 		UserAgent:  &ua,
 	}
 
-	s.repo.CreateToken(ctx, tokenModel)
-	_ = s.repo.RevokeTokenByValue(ctx, otpCode, "email_verification")
+	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
+		s.logger.ErrorContext(ctx, "failed to store refresh token", "error", err, "user_id", user.UserID)
+		return "", "", apperror.NewInternal("failed to create session")
+	}
+
+	if err := s.repo.RevokeTokenByValue(ctx, otpCode, model.TokenTypeEmailVerification); err != nil {
+		s.logger.WarnContext(ctx, "failed to revoke verification token", "error", err, "user_id", user.UserID)
+		// Non-critical: token will expire naturally, continue
+	}
 
 	s.logger.InfoContext(ctx, "otp verified and tokens generated", "user_id", user.UserID)
 	return accessToken, refreshToken, nil
@@ -85,18 +92,19 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		return apperror.NewBadRequest("user with this email does not exist")
 	}
 
+	// Check if email is already verified
 	if user.IsEmailVerified {
-		s.logger.WarnContext(ctx, "resend verification email failed: email already verified", "email", email)
-		return apperror.NewBadRequest("email already verified")
+		s.logger.WarnContext(ctx, "resend verification attempted for already verified user", "user_id", user.UserID, "email", email)
+		return apperror.NewBadRequest("email is already verified")
 	}
 
-	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, "email_verification")
+	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypeEmailVerification)
 	otpCode, _ := GenerateVerificationToken()
 
 	otpToken := &model.Token{
 		UserID:    user.UserID,
 		Token:     otpCode,
-		TokenType: "email_verification",
+		TokenType: model.TokenTypeEmailVerification,
 		IsRevoked: false,
 		ExpireAt:  time.Now().Add(15 * time.Minute), // รหัสมีอายุ 15 นาที
 	}
@@ -107,7 +115,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 	}
 
 	// Send verification email with JWT token
-	if err := s.emailService.SendVerificationEmail(user.Email, otpCode); err != nil {
+	if err := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); err != nil {
 		s.logger.ErrorContext(ctx, "failed to send verification email", "error", err, "email", user.Email)
 		return apperror.NewInternal("failed to send email")
 	}

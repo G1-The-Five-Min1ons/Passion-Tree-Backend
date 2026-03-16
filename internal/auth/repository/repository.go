@@ -25,17 +25,27 @@ type RepositoryUser interface {
 	GetUserByID(ctx context.Context, id string) (*model.User, *model.Profile, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	GetUserByUsername(ctx context.Context, username string) (*model.User, error)
+	GetAllUsers(ctx context.Context) ([]*model.UserWithProfile, error)
+	GetDashboardStats(ctx context.Context) (*model.DashboardStats, error)
 	UpdateUser(ctx context.Context, id string, username string, firstName string, lastName string, role string) error
 	UpdateProfile(ctx context.Context, userID string, profile *model.Profile) error
 	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
 	ChangePasswordAndRevokeSessions(ctx context.Context, userID string, hashedPassword string) error
 	ResetPasswordWithToken(ctx context.Context, userID string, hashedPassword string, tokenID string) error
 	DeleteUser(ctx context.Context, id string) error
+	SetAccountDeactivatedUntil(ctx context.Context, userID string, until time.Time) error
+	GetAccountDeactivatedUntil(ctx context.Context, userID string) (*time.Time, error)
+	DeactivateAccountWithTokenRevoke(ctx context.Context, userID string, until time.Time) error
+	ClearAccountDeactivatedUntil(ctx context.Context, userID string) error
 	UpdateEmailVerified(ctx context.Context, userID string, isVerified bool) error
 	VerifyEmailWithToken(ctx context.Context, userID string, tokenValue string, tokenType string) error
 	UpdateFailedLogin(ctx context.Context, userID string, lockDuration time.Duration) (int, error)
 	ResetFailedLogin(ctx context.Context, userID string) error
 	SetRequire2FANextLogin(ctx context.Context, userID string, require2FA bool) error
+	GetTeacherVerificationStatus(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error)
+	UpsertTeacherApplication(ctx context.Context, userID, phoneNumber, reason, teachingHistory string) error
+	ListTeacherApplications(ctx context.Context, status string) ([]model.TeacherVerificationRequest, error)
+	ReviewTeacherApplication(ctx context.Context, requestID, status, reviewedBy string) error
 }
 
 type RepositoryToken interface {
@@ -63,7 +73,6 @@ type Repository interface {
 	RepositoryUser
 	RepositoryToken
 	RepositorySocial
-	GetDB() Database
 }
 
 type repositoryImpl struct {
@@ -74,8 +83,4 @@ func NewRepository(ds connection.Database) Repository {
 	return &repositoryImpl{
 		db: ds.GetDB(),
 	}
-}
-
-func (r *repositoryImpl) GetDB() Database {
-	return r.db
 }

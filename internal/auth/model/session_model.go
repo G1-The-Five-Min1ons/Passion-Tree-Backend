@@ -2,6 +2,8 @@ package model
 
 import "time"
 
+const DefaultDeactivationGracePeriod = 14
+
 // SessionInfo represents an active user session/device
 type SessionInfo struct {
 	SessionID    string     `json:"session_id"`     // Same as TokenID

@@ -25,6 +25,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	reflections := protected.Group("/reflections")
 	{
 		reflections.Get("", h.GetAll)
+		reflections.Get("/stats", h.GetStats)
 		reflections.Post("", h.Create)
 		reflections.Get("/:reflect_id", h.GetByID)
 		reflections.Put("/:reflect_id", h.Update)

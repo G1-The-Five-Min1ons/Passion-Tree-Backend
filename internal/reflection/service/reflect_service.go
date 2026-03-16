@@ -9,7 +9,7 @@ import (
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
-	
+
 	if req.LearningReflect == "" {
 		return nil, apperror.NewBadRequest("learning_reflect is required")
 	}
@@ -42,8 +42,8 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewInternal("failed to analyze reflection: %v", err)
 	}
 
-	s.logger.InfoContext(ctx, "AI analysis successful", 
-		"sentiment", sentimentResp.SentimentAnalysis, 
+	s.logger.InfoContext(ctx, "AI analysis successful",
+		"sentiment", sentimentResp.SentimentAnalysis,
 		"reflection_score", sentimentResp.ReflectionScore,
 		"weighted_reflection_score", sentimentResp.WeightedReflectionScore,
 	)
@@ -101,7 +101,7 @@ func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (
 
 func (s *serviceImpl) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
 	s.logger.InfoContext(ctx, "fetching reflections with filters", "tree_node_id", filter.TreeNodeID, "tree_id", filter.TreeID, "album_id", filter.AlbumID, "user_id", filter.UserID, "limit", filter.Limit, "offset", filter.Offset)
-	
+
 	reflections, err := s.refRepo.GetAllReflections(ctx, filter)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to fetch reflections", "error", err)
@@ -109,11 +109,11 @@ func (s *serviceImpl) GetAllReflections(ctx context.Context, filter model.GetRef
 	}
 	s.logger.InfoContext(ctx, "successfully fetched reflections", "count", len(reflections))
 	return reflections, nil
- }
+}
 
 func (s *serviceImpl) UpdateReflection(ctx context.Context, reflectID string, req model.UpdateReflectionRequest) error {
 	s.logger.InfoContext(ctx, "updating reflection", "reflect_id", reflectID)
-	
+
 	if reflectID == "" {
 		return apperror.NewBadRequest("reflect_id is required")
 	}

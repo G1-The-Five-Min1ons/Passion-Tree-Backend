@@ -39,6 +39,7 @@ type Repository struct {
 	DeleteTreeNodeFunc       func(ctx context.Context, treeNodeID string) error
 	CreateTreeNodesFunc      func(ctx context.Context, treeID string, pathID string) error
 	GetNodesByPathIDFunc     func(ctx context.Context, pathID string) ([]model.TreeNode, error)
+	GetReflectionStatsFunc   func(ctx context.Context) (*model.ReflectionStats, error)
 }
 
 func (m *Repository) GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error) {
@@ -194,6 +195,13 @@ func (m *Repository) CreateTreeNodes(ctx context.Context, treeID string, pathID 
 func (m *Repository) GetNodesByPathID(ctx context.Context, pathID string) ([]model.TreeNode, error) {
 	if m.GetNodesByPathIDFunc != nil {
 		return m.GetNodesByPathIDFunc(ctx, pathID)
+	}
+	return nil, nil
+}
+
+func (m *Repository) GetReflectionStats(ctx context.Context) (*model.ReflectionStats, error) {
+	if m.GetReflectionStatsFunc != nil {
+		return m.GetReflectionStatsFunc(ctx)
 	}
 	return nil, nil
 }
