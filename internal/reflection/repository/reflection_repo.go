@@ -56,10 +56,10 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 	//   dying => step back to just inside fading zone
 	//   fading / growing => reset to NOW (becomes growing)
 	//
-	// Thresholds in seconds (must match ComputeTreeStatus in model/tree.go):
+	// Thresholds in seconds (must match service/tree_status.go):
 	//   easy:   fading=2592000(30d) dying=5184000(60d) died=7776000(90d)
 	//   medium: fading=604800(7d)   dying=1209600(14d) died=1814400(21d)
-	//   hard:   fading=300(5min)    dying=600(10min)   died=900(15min)  ← TEST VALUES
+	//   hard:   fading=300(5m)      dying=600(10m)     died=900(15m)
 	//
 	// Only update when the tree is NOT paused — paused trees freeze their timer.
 	syncQuery := `
@@ -83,10 +83,27 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 
 		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'hard'
 		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
-		         THEN DATEADD(SECOND, -301, GETDATE())       -- 5min+1s ago (TEST VALUE)
+		         THEN DATEADD(SECOND, -301, GETDATE())       -- 5m+1s ago
 
 		    -- FADING or GROWING: reset to NOW → becomes growing
 		    ELSE GETDATE()
+		END,
+		status = CASE
+		    WHEN last_reflect_at IS NOT NULL AND (
+		             (LOWER(difficulties) = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
+		          OR (LOWER(difficulties) = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
+		          OR (LOWER(difficulties) = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
+		         ) THEN 'died'
+		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'easy'
+		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 5184000
+		         THEN 'fading'
+		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'medium'
+		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1209600
+		         THEN 'fading'
+		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'hard'
+		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
+		         THEN 'fading'
+		    ELSE 'growing'
 		END,
 		last_update = GETDATE()
 		WHERE tree_id = (

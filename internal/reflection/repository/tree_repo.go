@@ -226,6 +226,22 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 	return trees, nil
 }
 
+// UpdateTreeStatus persists the computed status without changing last_update,
+// so read-driven status refreshes do not reorder trees unexpectedly.
+func (r *repositoryImpl) UpdateTreeStatus(ctx context.Context, treeID string, status string) error {
+	query := `
+		UPDATE tree
+		SET status = @p1
+		WHERE tree_id = @p2
+	`
+
+	if _, err := r.db.ExecContext(ctx, query, status, treeID); err != nil {
+		return fmt.Errorf("failed to update tree status: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateTree updates an existing tree
 func (r *repositoryImpl) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -453,6 +469,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			t.last_update,
 			CONVERT(VARCHAR(36), t.album_id) as album_id,
 			t.last_reflect_at,
+			t.paused_at,
 			CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
 			tn.node_title,
 			CONVERT(VARCHAR(36), tn.node_id) as node_id,
@@ -486,7 +503,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		var isPause bool
 		var nodeCount int
 		var createdAt, lastUpdate time.Time
-		var lastReflectAt sql.NullTime
+		var lastReflectAt, pausedAt sql.NullTime
 
 		// Nullable node fields
 		var treeNodeID, nodeTitle, nodeID sql.NullString
@@ -500,6 +517,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			&treeID, &title, &difficulties, &pathID, &status, &isPause, &nodeCount,
 			&createdAt, &lastUpdate, &treeAlbumID,
 			&lastReflectAt,
+			&pausedAt,
 			&treeNodeID, &nodeTitle, &nodeID, &nodeCreatedAt,
 			&nodeStatus, &nodeComplete,
 			&sequence,
@@ -527,6 +545,9 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			}
 			if lastReflectAt.Valid {
 				tr.LastReflectAt = &lastReflectAt.Time
+			}
+			if pausedAt.Valid {
+				tr.PausedAt = &pausedAt.Time
 			}
 			treeMap[treeID] = tr
 			treeOrder = append(treeOrder, treeID)

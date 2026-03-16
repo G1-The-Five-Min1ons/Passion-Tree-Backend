@@ -46,6 +46,7 @@ type TreeResponse struct {
 	AlbumID       string     `json:"album_id"`
 	PathID        string     `json:"path_id"`
 	LastReflectAt *time.Time `json:"last_reflect_at"`
+	PausedAt      *time.Time `json:"-"`
 	Nodes         []TreeNode `json:"nodes,omitempty"`
 }
 
