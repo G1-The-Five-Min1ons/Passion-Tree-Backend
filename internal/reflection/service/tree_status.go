@@ -34,7 +34,7 @@ func normalizeTreeStatus(status string) string {
 //
 //	easy   => fading after 30 d, dying after 60 d, died after 90 d
 //	medium => fading after  7 d, dying after 14 d, died after 21 d
-//	hard   => fading after  5 m, dying after 10 m, died after 15 m
+//	hard   => fading after  1 d, dying after  2 d, died after  3 d
 //
 // When is_pause = true, time is frozen at the moment pause started (pausedAt),
 // so the tree does not decay further until it is unpaused.

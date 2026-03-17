@@ -59,57 +59,64 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 	// Thresholds in seconds (must match service/tree_status.go):
 	//   easy:   fading=2592000(30d) dying=5184000(60d) died=7776000(90d)
 	//   medium: fading=604800(7d)   dying=1209600(14d) died=1814400(21d)
-	//   hard:   fading=300(5m)      dying=600(10m)     died=900(15m)
+	//   hard:   fading=86400(1d)    dying=172800(2d)   died=259200(3d)
 	//
 	// Only update when the tree is NOT paused — paused trees freeze their timer.
 	syncQuery := `
-		UPDATE tree
-		SET last_reflect_at = CASE
+		UPDATE t
+		SET t.last_reflect_at = CASE
 		    -- DIED: no recovery
-		    WHEN last_reflect_at IS NOT NULL AND (
-		             (difficulties = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
-		          OR (difficulties = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
-		          OR (difficulties = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
-		         ) THEN last_reflect_at
+		    WHEN calc.elapsed_sec IS NOT NULL AND (
+		             (t.difficulties = 'easy'   AND calc.elapsed_sec >= 7776000)
+		          OR (t.difficulties = 'medium' AND calc.elapsed_sec >= 1814400)
+		          OR (t.difficulties = 'hard'   AND calc.elapsed_sec >= 259200)
+		         ) THEN t.last_reflect_at
 
 		    -- DYING → FADING: set last_reflect_at to fading_threshold + 1 sec ago
-		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'easy'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 5184000
-		         THEN DATEADD(SECOND, -2592001, GETDATE())   -- 30d+1s ago
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'easy'
+		         AND calc.elapsed_sec >= 5184000
+		         THEN DATEADD(SECOND, -2592001, dt.now_ts)   -- 30d+1s ago
 
-		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'medium'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1209600
-		         THEN DATEADD(SECOND, -604801, GETDATE())    -- 7d+1s ago
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'medium'
+		         AND calc.elapsed_sec >= 1209600
+		         THEN DATEADD(SECOND, -604801, dt.now_ts)    -- 7d+1s ago
 
-		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'hard'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
-		         THEN DATEADD(SECOND, -301, GETDATE())       -- 5m+1s ago
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'hard'
+		         AND calc.elapsed_sec >= 172800
+		         THEN DATEADD(SECOND, -86401, dt.now_ts)     -- 1d+1s ago
 
 		    -- FADING or GROWING: reset to NOW → becomes growing
-		    ELSE GETDATE()
+		    ELSE dt.now_ts
 		END,
-		status = CASE
-		    WHEN last_reflect_at IS NOT NULL AND (
-		             (difficulties = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
-		          OR (difficulties = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
-		          OR (difficulties = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
+		t.status = CASE
+		    WHEN calc.elapsed_sec IS NOT NULL AND (
+		             (t.difficulties = 'easy'   AND calc.elapsed_sec >= 7776000)
+		          OR (t.difficulties = 'medium' AND calc.elapsed_sec >= 1814400)
+		          OR (t.difficulties = 'hard'   AND calc.elapsed_sec >= 259200)
 		         ) THEN 'died'
-		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'easy'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 5184000
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'easy'
+		         AND calc.elapsed_sec >= 5184000
 		         THEN 'fading'
-		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'medium'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1209600
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'medium'
+		         AND calc.elapsed_sec >= 1209600
 		         THEN 'fading'
-		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'hard'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'hard'
+		         AND calc.elapsed_sec >= 172800
 		         THEN 'fading'
 		    ELSE 'growing'
 		END,
-		last_update = GETDATE()
-		WHERE tree_id = (
-		    SELECT tree_id FROM tree_node WHERE tree_node_id = @p1
-		)
-		AND is_pause = 0
+		t.last_update = dt.now_ts
+		FROM tree t
+		INNER JOIN tree_node tn ON tn.tree_id = t.tree_id
+		CROSS APPLY (SELECT GETDATE() AS now_ts) dt
+		CROSS APPLY (
+			SELECT CASE
+				WHEN t.last_reflect_at IS NULL THEN NULL
+				ELSE DATEDIFF(SECOND, t.last_reflect_at, dt.now_ts)
+			END AS elapsed_sec
+		) calc
+		WHERE tn.tree_node_id = @p1
+		  AND t.is_pause = 0
 	`
 	if _, err = tx.ExecContext(ctx, syncQuery, req.TreeNodeID); err != nil {
 		return "", fmt.Errorf("repo.CreateReflection sync last_reflect_at failed: %w", err)
