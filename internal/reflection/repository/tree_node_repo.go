@@ -10,16 +10,37 @@ import (
 	"github.com/google/uuid"
 )
 
-func (r *repositoryImpl) CreateStandaloneNode(ctx context.Context, title string, sequence int) (string, error) {
+func (r *repositoryImpl) CreateStandaloneNode(ctx context.Context, title string) (string, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	var nextSequence int
+	sequenceQuery := `
+		SELECT ISNULL(MAX(sequence), 0) + 1
+		FROM Node WITH (UPDLOCK, HOLDLOCK)
+		WHERE path_id IS NULL
+	`
+
+	if err := tx.QueryRowContext(ctx, sequenceQuery).Scan(&nextSequence); err != nil {
+		return "", fmt.Errorf("failed to allocate next standalone sequence: %w", err)
+	}
+
 	nodeID := uuid.New().String()
-	query := `
+	insertQuery := `
 		INSERT INTO Node (node_id, title, description, path_id, sequence, link_vdo)
 		VALUES (@p1, @p2, @p3, @p4, @p5, @p6)
 	`
 
-	_, err := r.db.ExecContext(ctx, query, nodeID, title, "Created from reflection tree", sql.NullString{}, sequence, "")
+	_, err = tx.ExecContext(ctx, insertQuery, nodeID, title, "Created from reflection tree", sql.NullString{}, nextSequence, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to create standalone node: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit transaction failed: %w", err)
 	}
 
 	return nodeID, nil

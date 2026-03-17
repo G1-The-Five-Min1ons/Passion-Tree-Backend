@@ -37,7 +37,7 @@ type RepositoryReflection interface {
 	CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error)
 
 	// Tree Node methods
-	CreateStandaloneNode(ctx context.Context, title string, sequence int) (string, error)
+	CreateStandaloneNode(ctx context.Context, title string) (string, error)
 	AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
 	GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error)
 	GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error)

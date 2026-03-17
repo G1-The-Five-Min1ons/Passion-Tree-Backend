@@ -498,7 +498,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		LEFT JOIN node_progress np ON tn.node_id = np.node_id AND np.user_id = @p2
 		LEFT JOIN Reflect r ON tn.tree_node_id = r.tree_node_id
 		WHERE t.album_id = @p1
-		ORDER BY t.last_update DESC, n.sequence ASC
+		ORDER BY t.last_update DESC, n.sequence ASC, tn.create_at ASC
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, albumID, dbUserID)

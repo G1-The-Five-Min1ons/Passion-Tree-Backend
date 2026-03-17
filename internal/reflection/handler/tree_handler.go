@@ -70,8 +70,7 @@ func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 	// Get user_id from auth middleware
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		// If no user is authenticated, pass empty string
-		userID = ""
+		return h.handleError(c, err)
 	}
 
 	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID, includeNodes, userID)

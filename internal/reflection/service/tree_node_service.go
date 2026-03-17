@@ -20,13 +20,7 @@ func (s *serviceImpl) CreateTreeNode(ctx context.Context, req model.CreateTreeNo
 	}
 
 	if req.NodeID == "" {
-		existingNodes, err := s.refRepo.GetTreeNodesByTreeID(ctx, req.TreeID)
-		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to get existing tree nodes for standalone node creation", "error", err, "tree_id", req.TreeID)
-			return nil, apperror.NewInternal("%s", err.Error())
-		}
-
-		nodeID, err := s.refRepo.CreateStandaloneNode(ctx, req.NodeTitle, len(existingNodes)+1)
+		nodeID, err := s.refRepo.CreateStandaloneNode(ctx, req.NodeTitle)
 		if err != nil {
 			s.logger.ErrorContext(ctx, "failed to create standalone node for tree node", "error", err, "tree_id", req.TreeID)
 			if apperror.IsForeignKeyError(err) {
