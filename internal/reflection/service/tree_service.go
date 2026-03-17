@@ -62,6 +62,7 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 		AlbumID:       tree.AlbumID,
 		PathID:        tree.PathID,
 		LastReflectAt: tree.LastReflectAt,
+		TreeScore:     tree.TreeScore,
 		Nodes:         nodes,
 	}, nil
 }
@@ -269,4 +270,24 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 	}
 	s.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID, "previous_status", tree.IsPause, "new_status", newPauseStatus)
 	return newPauseStatus, nil
+}
+
+// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
+// across all reflected nodes in the tree on a 0-10 scale,
+// and persists it to tree.tree_score.
+func (s *serviceImpl) CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error) {
+	s.logger.InfoContext(ctx, "calculating tree score", "tree_id", treeID)
+
+	if treeID == "" {
+		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+
+	score, err := s.refRepo.CalculateAndUpdateTreeScore(ctx, treeID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to calculate tree score", "tree_id", treeID, "error", err)
+		return nil, apperror.NewInternal("failed to calculate tree score: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "tree score calculated and saved", "tree_id", treeID, "score", score)
+	return score, nil
 }

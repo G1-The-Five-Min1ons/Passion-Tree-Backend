@@ -65,6 +65,14 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)
 
+	// Recalculate tree score (best-effort: a failure here must not reject the reflection).
+	if node, getErr := s.refRepo.GetTreeNodeByID(ctx, req.TreeNodeID); getErr == nil && node != nil {
+		if _, scoreErr := s.refRepo.CalculateAndUpdateTreeScore(ctx, node.TreeID); scoreErr != nil {
+			s.logger.WarnContext(ctx, "failed to recalculate tree score after reflection",
+				"tree_id", node.TreeID, "error", scoreErr)
+		}
+	}
+
 	return &model.ReflectionResponse{
 		ReflectID:               id,
 		Summary:                 sentimentResp.Summary,

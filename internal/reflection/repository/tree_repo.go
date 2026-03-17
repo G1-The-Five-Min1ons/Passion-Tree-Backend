@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"passiontree/internal/reflection/model"
 	"strings"
 	"time"
@@ -133,13 +134,14 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause,
 		       ISNULL(node_count, 0) as node_count,
 		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id,
-		       last_reflect_at, paused_at
+		       last_reflect_at, paused_at, tree_score
 		FROM tree
 		WHERE tree_id = @p1
 	`
 
 	var tree model.Tree
 	var lastReflectAt, pausedAt sql.NullTime
+	var treeScore sql.NullFloat64
 	err := r.db.QueryRowContext(ctx, query, treeID).Scan(
 		&tree.TreeID,
 		&tree.Title,
@@ -153,6 +155,7 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 		&tree.AlbumID,
 		&lastReflectAt,
 		&pausedAt,
+		&treeScore,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -166,6 +169,9 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 	if pausedAt.Valid {
 		tree.PausedAt = &pausedAt.Time
 	}
+	if treeScore.Valid {
+		tree.TreeScore = &treeScore.Float64
+	}
 
 	return &tree, nil
 }
@@ -177,7 +183,7 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause,
 		       ISNULL(node_count, 0) as node_count,
 		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id,
-		       last_reflect_at, paused_at
+		       last_reflect_at, paused_at, tree_score
 		FROM tree
 		WHERE album_id = @p1
 		ORDER BY last_update DESC
@@ -193,6 +199,7 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 	for rows.Next() {
 		var tree model.Tree
 		var lastReflectAt, pausedAt sql.NullTime
+		var treeScore sql.NullFloat64
 		err := rows.Scan(
 			&tree.TreeID,
 			&tree.Title,
@@ -206,6 +213,7 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 			&tree.AlbumID,
 			&lastReflectAt,
 			&pausedAt,
+			&treeScore,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tree: %w", err)
@@ -215,6 +223,9 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 		}
 		if pausedAt.Valid {
 			tree.PausedAt = &pausedAt.Time
+		}
+		if treeScore.Valid {
+			tree.TreeScore = &treeScore.Float64
 		}
 		trees = append(trees, tree)
 	}
@@ -478,7 +489,8 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			CASE WHEN @p2 IS NULL THEN NULL ELSE np.complete END as node_complete,
 			ISNULL(n.sequence, 0) as sequence,
 			CONVERT(VARCHAR(36), r.reflect_id) as reflection_id,
-			CASE WHEN n.path_id IS NULL THEN 1 ELSE 0 END as is_standalone
+			CASE WHEN n.path_id IS NULL THEN 1 ELSE 0 END as is_standalone,
+			t.tree_score
 		FROM tree t
 		LEFT JOIN Tree_Node tn ON t.tree_id = tn.tree_id
 		LEFT JOIN node n ON tn.node_id = n.node_id
@@ -512,6 +524,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		var reflectionID sql.NullString
 		var sequence int
 		var isStandalone sql.NullInt64
+		var treeScore sql.NullFloat64
 
 		err := rows.Scan(
 			&treeID, &title, &difficulties, &pathID, &status, &isPause, &nodeCount,
@@ -523,6 +536,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			&sequence,
 			&reflectionID,
 			&isStandalone,
+			&treeScore,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tree with nodes: %w", err)
@@ -548,6 +562,9 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			}
 			if pausedAt.Valid {
 				tr.PausedAt = &pausedAt.Time
+			}
+			if treeScore.Valid {
+				tr.TreeScore = &treeScore.Float64
 			}
 			treeMap[treeID] = tr
 			treeOrder = append(treeOrder, treeID)
@@ -598,4 +615,77 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 	}
 
 	return trees, nil
+}
+
+func (r *repositoryImpl) CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error) {
+
+	query := `
+		SELECT r.weighted_reflection_score
+		FROM tree_node tn
+		INNER JOIN (
+			SELECT tree_node_id, MAX(create_at) AS latest_at
+			FROM Reflect
+			GROUP BY tree_node_id
+		) latest ON latest.tree_node_id = tn.tree_node_id
+		INNER JOIN Reflect r
+			ON  r.tree_node_id = latest.tree_node_id
+			AND r.create_at    = latest.latest_at
+		WHERE tn.tree_id = @p1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, treeID)
+	if err != nil {
+		return nil, fmt.Errorf("repo.CalculateAndUpdateTreeScore query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var scores []float64
+	for rows.Next() {
+		var score float64
+		if err := rows.Scan(&score); err != nil {
+			return nil, fmt.Errorf("repo.CalculateAndUpdateTreeScore scan failed: %w", err)
+		}
+		scores = append(scores, score)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.CalculateAndUpdateTreeScore row iteration failed: %w", err)
+	}
+
+	if len(scores) == 0 {
+		// No reflected nodes yet — clear tree_score
+		_, err = r.db.ExecContext(ctx,
+			`UPDATE tree SET tree_score = NULL, last_update = GETDATE() WHERE tree_id = @p1`,
+			treeID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("repo.CalculateAndUpdateTreeScore clear score failed: %w", err)
+		}
+		return nil, nil
+	}
+
+	treeScore := computeTreeScore(scores)
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE tree SET tree_score = @p1, last_update = GETDATE() WHERE tree_id = @p2`,
+		treeScore, treeID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("repo.CalculateAndUpdateTreeScore update failed: %w", err)
+	}
+
+	return &treeScore, nil
+}
+
+func computeTreeScore(scores []float64) float64 {
+	var total float64
+	for _, score := range scores {
+		total += score
+	}
+	average := total / float64(len(scores))
+	if average < 0 {
+		average = 0
+	}
+	if average > 10 {
+		average = 10
+	}
+	return math.Round(average*100) / 100
 }

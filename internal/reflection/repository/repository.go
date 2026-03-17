@@ -31,6 +31,10 @@ type RepositoryReflection interface {
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTree(ctx context.Context, treeID string) error
 	PauseTree(ctx context.Context, treeID string, isPause bool) error
+	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
+	// across all reflected nodes in the tree on a 0-10 scale,
+	// and persists it to tree.tree_score.
+	CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error)
 
 	// Tree Node methods
 	CreateStandaloneNode(ctx context.Context, title string, sequence int) (string, error)

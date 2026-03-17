@@ -30,6 +30,10 @@ type ReflectionService interface {
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTree(ctx context.Context, treeID string) error
 	PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) (bool, error)
+	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
+	// for all reflected nodes in the tree on a 0-10 scale,
+	// and persists it to tree.tree_score.
+	CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error)
 
 	// Tree Node methods
 	CreateTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (*model.TreeNodeResponse, error)
