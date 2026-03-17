@@ -21,13 +21,14 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 	defer tx.Rollback()
 
 	treeID := uuid.New().String()
+	normalizedDifficulties := strings.ToLower(strings.TrimSpace(req.Difficulties))
 
 	query := `
 		INSERT INTO tree (tree_id, title, difficulties, path_id, status, is_pause, node_count, create_at, last_update, album_id)
 		VALUES (@p1, @p2, @p3, @p4, 'growing', 0, 0, GETDATE(), GETDATE(), @p5)
 	`
 
-	_, err = tx.ExecContext(ctx, query, treeID, req.Title, req.Difficulties, req.PathID, req.AlbumID)
+	_, err = tx.ExecContext(ctx, query, treeID, req.Title, normalizedDifficulties, req.PathID, req.AlbumID)
 	if err != nil {
 		return "", fmt.Errorf("insert tree failed: %w", err)
 	}

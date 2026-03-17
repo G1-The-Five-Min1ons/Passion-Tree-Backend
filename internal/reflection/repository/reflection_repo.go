@@ -67,21 +67,21 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 		SET last_reflect_at = CASE
 		    -- DIED: no recovery
 		    WHEN last_reflect_at IS NOT NULL AND (
-		             (LOWER(difficulties) = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
-		          OR (LOWER(difficulties) = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
-		          OR (LOWER(difficulties) = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
+		             (difficulties = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
+		          OR (difficulties = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
+		          OR (difficulties = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
 		         ) THEN last_reflect_at
 
 		    -- DYING → FADING: set last_reflect_at to fading_threshold + 1 sec ago
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'easy'
+		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'easy'
 		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 5184000
 		         THEN DATEADD(SECOND, -2592001, GETDATE())   -- 30d+1s ago
 
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'medium'
+		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'medium'
 		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1209600
 		         THEN DATEADD(SECOND, -604801, GETDATE())    -- 7d+1s ago
 
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'hard'
+		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'hard'
 		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
 		         THEN DATEADD(SECOND, -301, GETDATE())       -- 5m+1s ago
 
@@ -90,17 +90,17 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 		END,
 		status = CASE
 		    WHEN last_reflect_at IS NOT NULL AND (
-		             (LOWER(difficulties) = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
-		          OR (LOWER(difficulties) = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
-		          OR (LOWER(difficulties) = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
+		             (difficulties = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
+		          OR (difficulties = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
+		          OR (difficulties = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
 		         ) THEN 'died'
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'easy'
+		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'easy'
 		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 5184000
 		         THEN 'fading'
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'medium'
+		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'medium'
 		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1209600
 		         THEN 'fading'
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'hard'
+		    WHEN last_reflect_at IS NOT NULL AND difficulties = 'hard'
 		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
 		         THEN 'fading'
 		    ELSE 'growing'
