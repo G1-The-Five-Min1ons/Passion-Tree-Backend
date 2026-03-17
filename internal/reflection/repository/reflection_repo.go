@@ -252,6 +252,18 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context, filter model.Get
 		paramCount++
 	}
 
+	// Keyset (seek) pagination cursor on (create_at, reflect_id).
+	if (filter.BeforeCreatedAt == nil) != (filter.BeforeReflectID == nil) {
+		return nil, fmt.Errorf("both before_created_at and before_reflect_id are required for keyset pagination")
+	}
+	if filter.BeforeCreatedAt != nil && filter.BeforeReflectID != nil {
+		whereClauses = append(whereClauses,
+			fmt.Sprintf("(r.create_at < @p%d OR (r.create_at = @p%d AND r.reflect_id < CAST(@p%d AS UNIQUEIDENTIFIER)))", paramCount, paramCount+1, paramCount+2),
+		)
+		args = append(args, *filter.BeforeCreatedAt, *filter.BeforeCreatedAt, *filter.BeforeReflectID)
+		paramCount += 3
+	}
+
 	// Add WHERE clause if any filters exist
 	if len(whereClauses) > 0 {
 		query += " WHERE " + whereClauses[0]
@@ -260,13 +272,13 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context, filter model.Get
 		}
 	}
 
-	// Add ORDER BY
-	query += ` ORDER BY r.create_at DESC`
+	// Add ORDER BY with tie-breaker for stable keyset pagination.
+	query += ` ORDER BY r.create_at DESC, r.reflect_id DESC`
 
-	// Add pagination
+	// Add page size; seek cursor is handled by WHERE clause above.
 	if filter.Limit > 0 {
-		query += fmt.Sprintf(" OFFSET @p%d ROWS FETCH NEXT @p%d ROWS ONLY", paramCount, paramCount+1)
-		args = append(args, filter.Offset, filter.Limit)
+		query += fmt.Sprintf(" OFFSET 0 ROWS FETCH NEXT @p%d ROWS ONLY", paramCount)
+		args = append(args, filter.Limit)
 	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)

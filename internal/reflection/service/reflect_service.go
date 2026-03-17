@@ -108,7 +108,15 @@ func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (
 }
 
 func (s *serviceImpl) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
-	s.logger.InfoContext(ctx, "fetching reflections with filters", "tree_node_id", filter.TreeNodeID, "tree_id", filter.TreeID, "album_id", filter.AlbumID, "user_id", filter.UserID, "limit", filter.Limit, "offset", filter.Offset)
+	s.logger.InfoContext(ctx, "fetching reflections with filters",
+		"tree_node_id", filter.TreeNodeID,
+		"tree_id", filter.TreeID,
+		"album_id", filter.AlbumID,
+		"user_id", filter.UserID,
+		"before_created_at", filter.BeforeCreatedAt,
+		"before_reflect_id", filter.BeforeReflectID,
+		"limit", filter.Limit,
+	)
 
 	reflections, err := s.refRepo.GetAllReflections(ctx, filter)
 	if err != nil {
