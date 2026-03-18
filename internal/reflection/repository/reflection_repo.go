@@ -56,43 +56,67 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 	//   dying => step back to just inside fading zone
 	//   fading / growing => reset to NOW (becomes growing)
 	//
-	// Thresholds in seconds (must match ComputeTreeStatus in model/tree.go):
+	// Thresholds in seconds (must match service/tree_status.go):
 	//   easy:   fading=2592000(30d) dying=5184000(60d) died=7776000(90d)
 	//   medium: fading=604800(7d)   dying=1209600(14d) died=1814400(21d)
-	//   hard:   fading=300(5min)    dying=600(10min)   died=900(15min)  ← TEST VALUES
+	//   hard:   fading=86400(1d)    dying=172800(2d)   died=259200(3d)
 	//
 	// Only update when the tree is NOT paused — paused trees freeze their timer.
 	syncQuery := `
-		UPDATE tree
-		SET last_reflect_at = CASE
+		UPDATE t
+		SET t.last_reflect_at = CASE
 		    -- DIED: no recovery
-		    WHEN last_reflect_at IS NOT NULL AND (
-		             (LOWER(difficulties) = 'easy'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 7776000)
-		          OR (LOWER(difficulties) = 'medium' AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1814400)
-		          OR (LOWER(difficulties) = 'hard'   AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 900)
-		         ) THEN last_reflect_at
+		    WHEN calc.elapsed_sec IS NOT NULL AND (
+		             (t.difficulties = 'easy'   AND calc.elapsed_sec >= 7776000)
+		          OR (t.difficulties = 'medium' AND calc.elapsed_sec >= 1814400)
+		          OR (t.difficulties = 'hard'   AND calc.elapsed_sec >= 259200)
+		         ) THEN t.last_reflect_at
 
 		    -- DYING → FADING: set last_reflect_at to fading_threshold + 1 sec ago
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'easy'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 5184000
-		         THEN DATEADD(SECOND, -2592001, GETDATE())   -- 30d+1s ago
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'easy'
+		         AND calc.elapsed_sec >= 5184000
+		         THEN DATEADD(SECOND, -2592001, dt.now_ts)   -- 30d+1s ago
 
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'medium'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 1209600
-		         THEN DATEADD(SECOND, -604801, GETDATE())    -- 7d+1s ago
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'medium'
+		         AND calc.elapsed_sec >= 1209600
+		         THEN DATEADD(SECOND, -604801, dt.now_ts)    -- 7d+1s ago
 
-		    WHEN last_reflect_at IS NOT NULL AND LOWER(difficulties) = 'hard'
-		         AND DATEDIFF(SECOND, last_reflect_at, GETDATE()) >= 600
-		         THEN DATEADD(SECOND, -301, GETDATE())       -- 5min+1s ago (TEST VALUE)
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'hard'
+		         AND calc.elapsed_sec >= 172800
+		         THEN DATEADD(SECOND, -86401, dt.now_ts)     -- 1d+1s ago
 
 		    -- FADING or GROWING: reset to NOW → becomes growing
-		    ELSE GETDATE()
+		    ELSE dt.now_ts
 		END,
-		last_update = GETDATE()
-		WHERE tree_id = (
-		    SELECT tree_id FROM tree_node WHERE tree_node_id = @p1
-		)
-		AND is_pause = 0
+		t.status = CASE
+		    WHEN calc.elapsed_sec IS NOT NULL AND (
+		             (t.difficulties = 'easy'   AND calc.elapsed_sec >= 7776000)
+		          OR (t.difficulties = 'medium' AND calc.elapsed_sec >= 1814400)
+		          OR (t.difficulties = 'hard'   AND calc.elapsed_sec >= 259200)
+		         ) THEN 'died'
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'easy'
+		         AND calc.elapsed_sec >= 5184000
+		         THEN 'fading'
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'medium'
+		         AND calc.elapsed_sec >= 1209600
+		         THEN 'fading'
+		    WHEN calc.elapsed_sec IS NOT NULL AND t.difficulties = 'hard'
+		         AND calc.elapsed_sec >= 172800
+		         THEN 'fading'
+		    ELSE 'growing'
+		END,
+		t.last_update = dt.now_ts
+		FROM tree t
+		INNER JOIN tree_node tn ON tn.tree_id = t.tree_id
+		CROSS APPLY (SELECT GETDATE() AS now_ts) dt
+		CROSS APPLY (
+			SELECT CASE
+				WHEN t.last_reflect_at IS NULL THEN NULL
+				ELSE DATEDIFF(SECOND, t.last_reflect_at, dt.now_ts)
+			END AS elapsed_sec
+		) calc
+		WHERE tn.tree_node_id = @p1
+		  AND t.is_pause = 0
 	`
 	if _, err = tx.ExecContext(ctx, syncQuery, req.TreeNodeID); err != nil {
 		return "", fmt.Errorf("repo.CreateReflection sync last_reflect_at failed: %w", err)
@@ -228,6 +252,18 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context, filter model.Get
 		paramCount++
 	}
 
+	// Keyset (seek) pagination cursor on (create_at, reflect_id).
+	if (filter.BeforeCreatedAt == nil) != (filter.BeforeReflectID == nil) {
+		return nil, fmt.Errorf("both before_created_at and before_reflect_id are required for keyset pagination")
+	}
+	if filter.BeforeCreatedAt != nil && filter.BeforeReflectID != nil {
+		whereClauses = append(whereClauses,
+			fmt.Sprintf("(r.create_at < @p%d OR (r.create_at = @p%d AND r.reflect_id < CAST(@p%d AS UNIQUEIDENTIFIER)))", paramCount, paramCount+1, paramCount+2),
+		)
+		args = append(args, *filter.BeforeCreatedAt, *filter.BeforeCreatedAt, *filter.BeforeReflectID)
+		paramCount += 3
+	}
+
 	// Add WHERE clause if any filters exist
 	if len(whereClauses) > 0 {
 		query += " WHERE " + whereClauses[0]
@@ -236,13 +272,13 @@ func (r *repositoryImpl) GetAllReflections(ctx context.Context, filter model.Get
 		}
 	}
 
-	// Add ORDER BY
-	query += ` ORDER BY r.create_at DESC`
+	// Add ORDER BY with tie-breaker for stable keyset pagination.
+	query += ` ORDER BY r.create_at DESC, r.reflect_id DESC`
 
-	// Add pagination
+	// Add page size; seek cursor is handled by WHERE clause above.
 	if filter.Limit > 0 {
-		query += fmt.Sprintf(" OFFSET @p%d ROWS FETCH NEXT @p%d ROWS ONLY", paramCount, paramCount+1)
-		args = append(args, filter.Offset, filter.Limit)
+		query += fmt.Sprintf(" OFFSET 0 ROWS FETCH NEXT @p%d ROWS ONLY", paramCount)
+		args = append(args, filter.Limit)
 	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)

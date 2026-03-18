@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"passiontree/internal/reflection/model"
 	"passiontree/internal/reflection/service"
@@ -189,6 +190,41 @@ func TestGetTreeByID(t *testing.T) {
 		}
 	})
 
+	t.Run("SyncsComputedStatusToRepository", func(t *testing.T) {
+		lastReflectAt := time.Now().Add(-31 * 24 * time.Hour)
+		var syncedTreeID, syncedStatus string
+
+		mock := &repository_test.Repository{
+			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
+				return &model.Tree{
+					TreeID:        treeID,
+					Difficulties:  "easy",
+					Status:        "growing",
+					LastReflectAt: &lastReflectAt,
+				}, nil
+			},
+			UpdateTreeStatusFunc: func(ctx context.Context, treeID string, status string) error {
+				syncedTreeID = treeID
+				syncedStatus = status
+				return nil
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		tree, err := svc.GetTreeByID(context.Background(), "t-sync")
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+		if tree.Status != "fading" {
+			t.Fatalf("Expected computed status fading, got %s", tree.Status)
+		}
+		if syncedTreeID != "t-sync" || syncedStatus != "fading" {
+			t.Fatalf("Expected status sync for tree t-sync => fading, got tree=%s status=%s", syncedTreeID, syncedStatus)
+		}
+	})
+
 	t.Run("NotFound", func(t *testing.T) {
 		mock := &repository_test.Repository{
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
@@ -240,7 +276,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(mock, nil, logger)
 
-		res, err := svc.GetTreesByAlbumID(context.Background(), "a1", false)
+		res, err := svc.GetTreesByAlbumID(context.Background(), "a1", false, "user1")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -253,14 +289,14 @@ func TestGetTreesByAlbumID(t *testing.T) {
 
 	t.Run("WithNodes", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
 				return []model.TreeResponse{{TreeID: "t2"}}, nil
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(mock, nil, logger)
 
-		res, err := svc.GetTreesByAlbumID(context.Background(), "a2", true)
+		res, err := svc.GetTreesByAlbumID(context.Background(), "a2", true, "user1")
 		if err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
@@ -271,10 +307,53 @@ func TestGetTreesByAlbumID(t *testing.T) {
 		}
 	})
 
+	t.Run("WithNodesSyncsComputedStatusUsingPausedAt", func(t *testing.T) {
+		lastReflectAt := time.Now().Add(-10 * 24 * time.Hour)
+		pausedAt := time.Now().Add(-3 * 24 * time.Hour)
+		var syncedTreeID, syncedStatus string
+
+		mock := &repository_test.Repository{
+			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
+				return []model.TreeResponse{{
+					TreeID:        "t-paused",
+					Difficulties:  "medium",
+					Status:        "growing",
+					IsPause:       true,
+					LastReflectAt: &lastReflectAt,
+					PausedAt:      &pausedAt,
+				}}, nil
+			},
+			UpdateTreeStatusFunc: func(ctx context.Context, treeID string, status string) error {
+				syncedTreeID = treeID
+				syncedStatus = status
+				return nil
+			},
+		}
+
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		res, err := svc.GetTreesByAlbumID(context.Background(), "album-1", true, "user-1")
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		responses, ok := res.([]model.TreeResponse)
+		if !ok || len(responses) != 1 {
+			t.Fatalf("Expected one tree response, got %v", res)
+		}
+		if responses[0].Status != "fading" {
+			t.Fatalf("Expected paused tree status fading, got %s", responses[0].Status)
+		}
+		if syncedTreeID != "t-paused" || syncedStatus != "fading" {
+			t.Fatalf("Expected paused tree sync for t-paused => fading, got tree=%s status=%s", syncedTreeID, syncedStatus)
+		}
+	})
+
 	t.Run("MissingAlbumID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(&repository_test.Repository{}, nil, logger)
-		_, err := svc.GetTreesByAlbumID(context.Background(), "", false)
+		_, err := svc.GetTreesByAlbumID(context.Background(), "", false, "user1")
 		if err == nil || !strings.Contains(err.Error(), "album_id is required") {
 			t.Errorf("Expected validation error")
 		}
@@ -289,7 +368,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(mock, nil, logger)
 
-		_, err := svc.GetTreesByAlbumID(context.Background(), "a3", false)
+		_, err := svc.GetTreesByAlbumID(context.Background(), "a3", false, "user1")
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal server error, got %v", err)
 		}
@@ -304,52 +383,67 @@ func TestGetTreesByAlbumID(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(mock, nil, logger)
 
-		_, err := svc.GetTreesByAlbumID(context.Background(), "a1", false)
-		if err == nil || !strings.Contains(err.Error(), "not found") {
-			t.Errorf("Expected empty tree list error")
+		res, err := svc.GetTreesByAlbumID(context.Background(), "a1", false, "user1")
+		if err != nil {
+			t.Fatalf("Expected no error for empty tree list, got %v", err)
+		}
+
+		trees, ok := res.([]model.Tree)
+		if !ok || len(trees) != 0 {
+			t.Fatalf("Expected empty []model.Tree, got %v", res)
 		}
 	})
 
 	t.Run("WithNodesEmptyList", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
 				return []model.TreeResponse{}, nil
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(mock, nil, logger)
 
-		_, err := svc.GetTreesByAlbumID(context.Background(), "a2", true)
-		if err == nil || !strings.Contains(err.Error(), "not found") {
-			t.Errorf("Expected empty list error with nodes")
+		res, err := svc.GetTreesByAlbumID(context.Background(), "empty", true, "user1")
+		if err != nil {
+			t.Fatalf("Expected no error for empty tree list with nodes, got %v", err)
+		}
+
+		responses, ok := res.([]model.TreeResponse)
+		if !ok || len(responses) != 0 {
+			t.Fatalf("Expected empty []model.TreeResponse, got %v", res)
 		}
 	})
 
 	t.Run("WithNodesNotFound", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
 				return nil, sql.ErrNoRows
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(mock, nil, logger)
 
-		_, err := svc.GetTreesByAlbumID(context.Background(), "a2", true)
-		if err == nil || !strings.Contains(err.Error(), "not found") {
-			t.Errorf("Expected empty list error with nodes")
+		res, err := svc.GetTreesByAlbumID(context.Background(), "a-unknown", true, "user1")
+		if err != nil {
+			t.Fatalf("Expected no error for sql.ErrNoRows with nodes, got %v", err)
+		}
+
+		responses, ok := res.([]model.TreeResponse)
+		if !ok || len(responses) != 0 {
+			t.Fatalf("Expected empty []model.TreeResponse on not found, got %v", res)
 		}
 	})
 
 	t.Run("WithNodesDatabaseError", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
-				return nil, errors.New("db fail with nodes")
+			GetTreesWithNodesByAlbumIDFunc: func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
+				return nil, errors.New("db failed")
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		svc := service.NewService(mock, nil, logger)
 
-		_, err := svc.GetTreesByAlbumID(context.Background(), "a2", true)
+		_, err := svc.GetTreesByAlbumID(context.Background(), "err", true, "user1")
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal server error with nodes")
 		}
@@ -482,12 +576,24 @@ func TestDeleteTree(t *testing.T) {
 
 func TestPauseTree(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
+		getTreeCalls := 0
+		lastReflectAt := time.Now().Add(-31 * 24 * time.Hour)
+		var syncedStatus string
 		mock := &repository_test.Repository{
 			PauseTreeFunc: func(ctx context.Context, treeID string, isPause bool) error {
 				return nil
 			},
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
-				return &model.Tree{TreeID: treeID, IsPause: false}, nil
+				getTreeCalls++
+				if getTreeCalls == 1 {
+					return &model.Tree{TreeID: treeID, IsPause: false, Difficulties: "easy", Status: "growing", LastReflectAt: &lastReflectAt}, nil
+				}
+				pausedAt := time.Now()
+				return &model.Tree{TreeID: treeID, IsPause: true, Difficulties: "easy", Status: "growing", LastReflectAt: &lastReflectAt, PausedAt: &pausedAt}, nil
+			},
+			UpdateTreeStatusFunc: func(ctx context.Context, treeID string, status string) error {
+				syncedStatus = status
+				return nil
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -498,6 +604,9 @@ func TestPauseTree(t *testing.T) {
 		res, err := svc.PauseTree(context.Background(), "t1", req)
 		if err != nil || !res {
 			t.Errorf("Expected successful pause, got res=%v, err=%v", res, err)
+		}
+		if syncedStatus != "fading" {
+			t.Errorf("Expected paused tree status to sync as fading, got %s", syncedStatus)
 		}
 	})
 
