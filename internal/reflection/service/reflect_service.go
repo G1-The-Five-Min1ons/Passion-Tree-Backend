@@ -65,6 +65,14 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)
 
+	// Recalculate tree score (best-effort: a failure here must not reject the reflection).
+	if node, getErr := s.refRepo.GetTreeNodeByID(ctx, req.TreeNodeID); getErr == nil && node != nil {
+		if _, scoreErr := s.refRepo.CalculateAndUpdateTreeScore(ctx, node.TreeID); scoreErr != nil {
+			s.logger.WarnContext(ctx, "failed to recalculate tree score after reflection",
+				"tree_id", node.TreeID, "error", scoreErr)
+		}
+	}
+
 	return &model.ReflectionResponse{
 		ReflectID:               id,
 		Summary:                 sentimentResp.Summary,
@@ -100,7 +108,15 @@ func (s *serviceImpl) GetReflectionByID(ctx context.Context, reflectID string) (
 }
 
 func (s *serviceImpl) GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error) {
-	s.logger.InfoContext(ctx, "fetching reflections with filters", "tree_node_id", filter.TreeNodeID, "tree_id", filter.TreeID, "album_id", filter.AlbumID, "user_id", filter.UserID, "limit", filter.Limit, "offset", filter.Offset)
+	s.logger.InfoContext(ctx, "fetching reflections with filters",
+		"tree_node_id", filter.TreeNodeID,
+		"tree_id", filter.TreeID,
+		"album_id", filter.AlbumID,
+		"user_id", filter.UserID,
+		"before_created_at", filter.BeforeCreatedAt,
+		"before_reflect_id", filter.BeforeReflectID,
+		"limit", filter.Limit,
+	)
 
 	reflections, err := s.refRepo.GetAllReflections(ctx, filter)
 	if err != nil {

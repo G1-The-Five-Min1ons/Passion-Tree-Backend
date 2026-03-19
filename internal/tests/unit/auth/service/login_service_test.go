@@ -221,7 +221,7 @@ func TestLogin(t *testing.T) {
 				}
 				r.DeleteTokensByUserAndTypeFunc = func(ctx context.Context, uid, tType string) error { return nil }
 				r.CreateTokenFunc = func(ctx context.Context, token *model.Token) error { return nil }
-				e.SendVerificationEmailFunc = func(email, token string) error {
+				e.SendVerificationEmailFunc = func(ctx context.Context, email, token string) error {
                     return errors.New("smtp server down")
                 }
 			},

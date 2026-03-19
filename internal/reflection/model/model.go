@@ -57,7 +57,11 @@ type GetReflectionsFilter struct {
 	TreeID     *string `json:"tree_id,omitempty"`
 	AlbumID    *string `json:"album_id,omitempty"`
 	UserID     *string `json:"user_id,omitempty"`
+	// Keyset cursor: fetch rows strictly older than this (create_at, reflect_id) pair.
+	BeforeCreatedAt *time.Time `json:"before_created_at,omitempty"`
+	BeforeReflectID *string    `json:"before_reflect_id,omitempty"`
 	Limit      int     `json:"limit,omitempty"`
+	// Deprecated: Use keyset cursor fields (BeforeCreatedAt + BeforeReflectID) instead.
 	Offset     int     `json:"offset,omitempty"`
 }
 

@@ -17,6 +17,7 @@ type Tree struct {
 	PathID        string     `json:"path_id"`
 	LastReflectAt *time.Time `json:"last_reflect_at"`
 	PausedAt      *time.Time `json:"paused_at,omitempty"`
+	TreeScore     *float64   `json:"tree_score"`
 }
 
 // CreateTreeRequest
@@ -46,6 +47,8 @@ type TreeResponse struct {
 	AlbumID       string     `json:"album_id"`
 	PathID        string     `json:"path_id"`
 	LastReflectAt *time.Time `json:"last_reflect_at"`
+	PausedAt      *time.Time `json:"-"`
+	TreeScore     *float64   `json:"tree_score"`
 	Nodes         []TreeNode `json:"nodes,omitempty"`
 }
 

@@ -15,11 +15,22 @@ func (s *serviceImpl) CreateTreeNode(ctx context.Context, req model.CreateTreeNo
 	if req.NodeTitle == "" {
 		return nil, apperror.NewBadRequest("node_title is required")
 	}
-	if req.NodeID == "" {
-		return nil, apperror.NewBadRequest("node_id is required")
-	}
 	if req.TreeID == "" {
 		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+
+	if req.NodeID == "" {
+		nodeID, err := s.refRepo.CreateStandaloneNode(ctx, req.NodeTitle)
+		if err != nil {
+			s.logger.ErrorContext(ctx, "failed to create standalone node for tree node", "error", err, "tree_id", req.TreeID)
+			if apperror.IsForeignKeyError(err) {
+				return nil, apperror.NewBadRequest("failed to create standalone node for tree")
+			}
+			return nil, apperror.NewInternal("%s", err.Error())
+		}
+
+		req.NodeID = nodeID
+		s.logger.InfoContext(ctx, "standalone node created for tree node", "tree_id", req.TreeID, "node_id", req.NodeID)
 	}
 
 	// Create tree node
@@ -42,14 +53,15 @@ func (s *serviceImpl) CreateTreeNode(ctx context.Context, req model.CreateTreeNo
 	s.logger.InfoContext(ctx, "tree node created successfully", "tree_node_id", treeNodeID)
 
 	return &model.TreeNodeResponse{
-		TreeNodeID: treeNode.TreeNodeID,
-		NodeTitle:  treeNode.NodeTitle,
-		NodeID:     treeNode.NodeID,
-		NodeScore:  treeNode.NodeScore,
-		CreatedAt:  treeNode.CreatedAt,
-		TreeID:     treeNode.TreeID,
-		ChildNode:  treeNode.ChildNode,
-		Sequence:   treeNode.Sequence,
+		TreeNodeID:   treeNode.TreeNodeID,
+		NodeTitle:    treeNode.NodeTitle,
+		NodeID:       treeNode.NodeID,
+		NodeScore:    treeNode.NodeScore,
+		CreatedAt:    treeNode.CreatedAt,
+		TreeID:       treeNode.TreeID,
+		ChildNode:    treeNode.ChildNode,
+		Sequence:     treeNode.Sequence,
+		IsStandalone: treeNode.IsStandalone,
 	}, nil
 }
 

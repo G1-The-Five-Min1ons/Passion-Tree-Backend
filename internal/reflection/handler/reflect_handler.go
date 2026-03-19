@@ -101,10 +101,27 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	// Parse query parameters for filtering
+	// Parse query parameters for filtering.
+	// Pagination uses keyset/seek method via before_created_at + before_reflect_id.
 	filter := model.GetReflectionsFilter{
-		Limit:  c.QueryInt("limit", 50), // Default limit 50
-		Offset: c.QueryInt("offset", 0),
+		Limit: c.QueryInt("limit", 50), // Default limit 50
+	}
+	if filter.Limit <= 0 {
+		filter.Limit = 50
+	}
+
+	beforeCreatedAtRaw := c.Query("before_created_at")
+	beforeReflectID := c.Query("before_reflect_id")
+	if (beforeCreatedAtRaw == "") != (beforeReflectID == "") {
+		return h.handleError(c, apperror.NewBadRequest("before_created_at and before_reflect_id must be provided together"))
+	}
+	if beforeCreatedAtRaw != "" {
+		beforeCreatedAt, err := time.Parse(time.RFC3339Nano, beforeCreatedAtRaw)
+		if err != nil {
+			return h.handleError(c, apperror.NewBadRequest("before_created_at must be RFC3339 format"))
+		}
+		filter.BeforeCreatedAt = &beforeCreatedAt
+		filter.BeforeReflectID = &beforeReflectID
 	}
 
 	// Optional filters

@@ -26,12 +26,18 @@ type RepositoryReflection interface {
 	CreateTree(ctx context.Context, req model.CreateTreeRequest) (string, error)
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error)
-	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error)
+	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
+	UpdateTreeStatus(ctx context.Context, treeID string, status string) error
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTree(ctx context.Context, treeID string) error
 	PauseTree(ctx context.Context, treeID string, isPause bool) error
+	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
+	// across all reflected nodes in the tree on a 0-10 scale,
+	// and persists it to tree.tree_score.
+	CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error)
 
 	// Tree Node methods
+	CreateStandaloneNode(ctx context.Context, title string) (string, error)
 	AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
 	GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error)
 	GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error)
