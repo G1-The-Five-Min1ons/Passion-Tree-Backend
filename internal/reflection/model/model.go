@@ -25,9 +25,9 @@ type Reflection struct {
 type CreateReflectionRequest struct {
 	LearningReflect string `json:"learning_reflect"`
 	MoodReflect     string `json:"mood_reflect"`
-	FeelScore       int    `json:"feel_score"`
-	ProgressScore   int    `json:"progress_score"`
-	ChallengeScore  int    `json:"challenge_score"`
+	FeelScore       float64 `json:"feel_score"`
+	ProgressScore   float64 `json:"progress_score"`
+	ChallengeScore  float64 `json:"challenge_score"`
 	TreeNodeID      string `json:"tree_node_id"`
 }
 
@@ -46,9 +46,9 @@ type ReflectionResponse struct {
 type UpdateReflectionRequest struct {
 	LearningReflect string `json:"learning_reflect"`
 	MoodReflect     string `json:"mood_reflect"`
-	FeelScore       int    `json:"feel_score"`
-	ProgressScore   int    `json:"progress_score"`
-	ChallengeScore  int    `json:"challenge_score"`
+	FeelScore       float64 `json:"feel_score"`
+	ProgressScore   float64 `json:"progress_score"`
+	ChallengeScore  float64 `json:"challenge_score"`
 }
 
 // GetReflectionsFilter represents filter parameters for querying reflections

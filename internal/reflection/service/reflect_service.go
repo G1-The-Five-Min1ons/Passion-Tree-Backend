@@ -71,6 +71,9 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 			s.logger.WarnContext(ctx, "failed to recalculate tree score after reflection",
 				"tree_id", node.TreeID, "error", scoreErr)
 		}
+	} else if getErr != nil {
+		s.logger.WarnContext(ctx, "failed to resolve tree node after reflection; tree score recalculation skipped",
+			"tree_node_id", req.TreeNodeID, "error", getErr)
 	}
 
 	return &model.ReflectionResponse{
