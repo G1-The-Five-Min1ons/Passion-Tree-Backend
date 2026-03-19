@@ -63,9 +63,9 @@ func TestCreateTreeNode(t *testing.T) {
 			GetTreeNodesByTreeIDFunc: func(ctx context.Context, treeID string) ([]model.TreeNode, error) {
 				return []model.TreeNode{}, nil
 			},
-			CreateStandaloneNodeFunc: func(ctx context.Context, title string, sequence int) (string, error) {
-				if title != "Day 1" || sequence != 1 {
-					t.Fatalf("unexpected standalone node input: title=%s sequence=%d", title, sequence)
+			CreateStandaloneNodeFunc: func(ctx context.Context, title string) (string, error) {
+				if title != "Day 1" {
+					t.Fatalf("unexpected standalone node input: title=%s", title)
 				}
 				return "generated-node-1", nil
 			},

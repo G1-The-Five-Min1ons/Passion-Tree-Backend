@@ -30,9 +30,10 @@ type Repository struct {
 	UpdateTreeFunc                 func(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTreeFunc                 func(ctx context.Context, treeID string) error
 	PauseTreeFunc                  func(ctx context.Context, treeID string, isPause bool) error
+	CalculateAndUpdateTreeScoreFunc func(ctx context.Context, treeID string) (*float64, error)
 
 	// Tree Node methods
-	CreateStandaloneNodeFunc func(ctx context.Context, title string, sequence int) (string, error)
+	CreateStandaloneNodeFunc func(ctx context.Context, title string) (string, error)
 	AddSingleTreeNodeFunc    func(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
 	GetTreeNodesByTreeIDFunc func(ctx context.Context, treeID string) ([]model.TreeNode, error)
 	GetTreeNodeByIDFunc      func(ctx context.Context, treeNodeID string) (*model.TreeNode, error)
@@ -156,10 +157,17 @@ func (m *Repository) PauseTree(ctx context.Context, treeID string, isPause bool)
 	return nil
 }
 
+func (m *Repository) CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error) {
+	if m.CalculateAndUpdateTreeScoreFunc != nil {
+		return m.CalculateAndUpdateTreeScoreFunc(ctx, treeID)
+	}
+	return nil, nil
+}
+
 // Tree Node methods
-func (m *Repository) CreateStandaloneNode(ctx context.Context, title string, sequence int) (string, error) {
+func (m *Repository) CreateStandaloneNode(ctx context.Context, title string) (string, error) {
 	if m.CreateStandaloneNodeFunc != nil {
-		return m.CreateStandaloneNodeFunc(ctx, title, sequence)
+		return m.CreateStandaloneNodeFunc(ctx, title)
 	}
 	return "", nil
 }

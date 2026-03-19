@@ -146,7 +146,7 @@ func TestRecommendHomePathsForUser(t *testing.T) {
 					return []model.RecommendedPath{}, nil
 				}
 				rec.GetTopPopularPathsFunc = func(ctx context.Context) ([]model.RecommendedPath, error) {
-					return []model.RecommendedPath{{PathID: "pop-1"}, {PathID: "pop-2"}}, nil
+					return []model.RecommendedPath{{LearningPath: lpmodel.LearningPath{PathID: "pop-1"}}, {LearningPath: lpmodel.LearningPath{PathID: "pop-2"}}}, nil
 				}
 			},
 			expectedPaths: 2,
@@ -158,7 +158,7 @@ func TestRecommendHomePathsForUser(t *testing.T) {
 			aiStatus:   http.StatusOK,
 			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
 				rec.GetUserEnrolledPathsForRecFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
-					return []model.RecommendedPath{{PathID: "path-enrolled", Title: "Basic Go"}}, nil
+					return []model.RecommendedPath{{LearningPath: lpmodel.LearningPath{PathID: "path-enrolled", Title: "Basic Go"}}}, nil
 				}
 				path.GetLearningPathByIDFunc = func(ctx context.Context, pathID string) (*lpmodel.LearningPath, error) {
 					return &lpmodel.LearningPath{PathID: pathID, Title: "Found Path"}, nil
