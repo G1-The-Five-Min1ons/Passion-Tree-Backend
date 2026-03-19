@@ -65,6 +65,7 @@ func (r *repositoryImpl) GetTeacherVerificationStatus(ctx context.Context, userI
 	}, nil
 }
 
+
 func (r *repositoryImpl) UpsertTeacherApplication(ctx context.Context, userID, phoneNumber, reason, teachingHistory string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
