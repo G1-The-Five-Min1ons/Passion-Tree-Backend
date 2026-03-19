@@ -11,6 +11,7 @@ import (
 type Repopository struct {
 	GetAllLearningPathFunc              func(ctx context.Context) ([]model.LearningPath, error)
 	GetLearningPathByIDFunc             func(ctx context.Context, path_id string) (*model.LearningPath, error)
+	GetLearningPathsByIDsFunc           func(ctx context.Context, pathIDs []string) ([]model.LearningPath, error)
 	CreateLearningPathFunc              func(ctx context.Context, req model.CreatePathRequest) (string, error)
 	UpdateLearningPathFunc              func(ctx context.Context, path_id string, req model.UpdatePathRequest) error
 	DeleteLearningPathFunc              func(ctx context.Context, path_id string) error
@@ -70,6 +71,12 @@ func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.Learning
 func (m *Repopository) GetLearningPathByID(ctx context.Context, path_id string) (*model.LearningPath, error) {
 	if m.GetLearningPathByIDFunc != nil {
 		return m.GetLearningPathByIDFunc(ctx, path_id)
+	}
+	return nil, nil
+}
+func (m *Repopository) GetLearningPathsByIDs(ctx context.Context, pathIDs []string) ([]model.LearningPath, error) {
+	if m.GetLearningPathsByIDsFunc != nil {
+		return m.GetLearningPathsByIDsFunc(ctx, pathIDs)
 	}
 	return nil, nil
 }

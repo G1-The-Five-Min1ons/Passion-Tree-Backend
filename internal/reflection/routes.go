@@ -50,6 +50,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		trees.Get("/:tree_id", h.GetTreeByID)
 		trees.Put("/:tree_id", h.UpdateTree)
 		trees.Patch("/:tree_id/pause", h.PauseTree)
+		trees.Patch("/:tree_id/score", h.CalculateTreeScore)
 		trees.Delete("/:tree_id", h.DeleteTree)
 	}
 

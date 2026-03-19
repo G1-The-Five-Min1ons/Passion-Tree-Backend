@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/reflection/model"
 	"time"
 
@@ -66,7 +67,13 @@ func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("album_id is required as query parameter"))
 	}
 
-	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID, includeNodes)
+	// Get user_id from auth middleware
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	trees, err := h.reflectSvc.GetTreesByAlbumID(ctx, albumID, includeNodes, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -169,6 +176,30 @@ func (h *Handler) PauseTree(c *fiber.Ctx) error {
 		"data": fiber.Map{
 			"tree_id":  treeID,
 			"is_pause": isPause,
+		},
+	})
+}
+
+// CalculateTreeScore handles calculating the average weighted score for a tree,
+// keeping it on a 0-10 scale, and persisting it to the database.
+func (h *Handler) CalculateTreeScore(c *fiber.Ctx) error {
+	treeID := c.Params("tree_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	score, err := h.reflectSvc.CalculateAndUpdateTreeScore(ctx, treeID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "tree score calculated", "tree_id", treeID, "score", score)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "tree score calculated successfully",
+		"data": fiber.Map{
+			"tree_id":    treeID,
+			"tree_score": score,
 		},
 	})
 }

@@ -133,24 +133,36 @@ func TestResendVerificationEmail(t *testing.T) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{UserID: "user-1", Email: email, IsEmailVerified: false}, nil
 				}
-				r.ReplaceVerificationTokenFunc = func(ctx context.Context, userID string, newToken *model.Token) error {
+				r.DeleteTokensByUserAndTypeFunc = func(ctx context.Context, userID string, tokenType string) error {
 					return nil
 				}
-				e.SendVerificationEmailFunc = func(to, token string) error {
+				r.CreateTokenFunc = func(ctx context.Context, token *model.Token) error {
+					return nil
+				}
+				e.SendVerificationEmailFunc = func(ctx context.Context, to, token string) error {
 					return nil
 				}
 			},
 			expectedError: "",
 		},
 		{
-			name:  "AlreadyVerified",
+			name:  "Success_AlreadyVerified",
 			email: "verified@example.com",
 			setup: func(r *repository_test.Repository, e *EmailService) {
 				r.GetUserByEmailFunc = func(ctx context.Context, email string) (*model.User, error) {
 					return &model.User{UserID: "user-2", Email: email, IsEmailVerified: true}, nil
 				}
+				r.DeleteTokensByUserAndTypeFunc = func(ctx context.Context, userID string, tokenType string) error {
+					return nil
+				}
+				r.CreateTokenFunc = func(ctx context.Context, token *model.Token) error {
+					return nil
+				}
+				e.SendVerificationEmailFunc = func(ctx context.Context, to, token string) error {
+					return nil
+				}
 			},
-			expectedError: "email already verified",
+			expectedError: "",
 		},
 		{
 			name:  "UserNotFound",

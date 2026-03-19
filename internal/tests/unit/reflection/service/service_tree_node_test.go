@@ -59,12 +59,36 @@ func TestCreateTreeNode(t *testing.T) {
 
 	t.Run("MissingNodeID", func(t *testing.T) {
 		req := model.CreateTreeNodeRequest{NodeTitle: "Day 1", TreeID: "tree-1"}
-		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		mock := &repository_test.Repository{
+			GetTreeNodesByTreeIDFunc: func(ctx context.Context, treeID string) ([]model.TreeNode, error) {
+				return []model.TreeNode{}, nil
+			},
+			CreateStandaloneNodeFunc: func(ctx context.Context, title string) (string, error) {
+				if title != "Day 1" {
+					t.Fatalf("unexpected standalone node input: title=%s", title)
+				}
+				return "generated-node-1", nil
+			},
+			AddSingleTreeNodeFunc: func(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
+				if req.NodeID != "generated-node-1" {
+					t.Fatalf("expected generated node id, got %s", req.NodeID)
+				}
+				return "tree-node-1", nil
+			},
+			GetTreeNodeByIDFunc: func(ctx context.Context, nodeID string) (*model.TreeNode, error) {
+				return &model.TreeNode{TreeNodeID: nodeID, NodeID: "generated-node-1", NodeTitle: "Day 1", TreeID: "tree-1", Sequence: 1}, nil
+			},
+		}
 
-		_, err := svc.CreateTreeNode(context.Background(), req)
-		if err == nil || !strings.Contains(err.Error(), "node_id is required") {
-			t.Errorf("Expected node_id validation error, got %v", err)
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, logger)
+
+		resp, err := svc.CreateTreeNode(context.Background(), req)
+		if err != nil {
+			t.Errorf("Expected standalone node creation to succeed, got %v", err)
+		}
+		if resp == nil || resp.NodeID != "generated-node-1" || resp.TreeNodeID != "tree-node-1" {
+			t.Errorf("Expected generated standalone node response, got %v", resp)
 		}
 	})
 

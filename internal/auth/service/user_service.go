@@ -82,7 +82,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenType2FA)
 
 		// Store 2FA OTP in database
-		otpExpiry := GetVerificationTokenExpiry() // 15 minutes
+		otpExpiry := GetVerificationTokenExpiry() // 5 minutes
 		otpToken := &model.Token{
 			UserID:    user.UserID,
 			Token:     otpCode,
@@ -132,7 +132,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		Token:     otpCode,
 		TokenType: model.TokenTypeEmailVerification,
 		IsRevoked: false,
-		ExpireAt:  time.Now().Add(15 * time.Minute),
+		ExpireAt:  GetVerificationTokenExpiry(),
 	}
 
 	if err := s.repo.CreateToken(ctx, otpToken); err != nil {

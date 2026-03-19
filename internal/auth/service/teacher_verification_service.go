@@ -59,9 +59,6 @@ func (s *userServiceImpl) ApplyForTeacher(ctx context.Context, userID string, re
 	if user == nil {
 		return apperror.NewNotFound("user with id '%s' not found", userID)
 	}
-	if user.Role == model.RoleTeacher {
-		return apperror.NewConflict("user is already a teacher")
-	}
 
 	verificationStatus, err := s.repo.GetTeacherVerificationStatus(ctx, userID)
 	if err != nil {

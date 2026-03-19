@@ -92,10 +92,10 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		return apperror.NewBadRequest("user with this email does not exist")
 	}
 
-	// Check if email is already verified
 	if user.IsEmailVerified {
-		s.logger.WarnContext(ctx, "resend verification attempted for already verified user", "user_id", user.UserID, "email", email)
-		return apperror.NewBadRequest("email is already verified")
+		s.logger.InfoContext(ctx, "resending login verification otp for verified user", "user_id", user.UserID, "email", email)
+	} else {
+		s.logger.InfoContext(ctx, "resending account verification otp for unverified user", "user_id", user.UserID, "email", email)
 	}
 
 	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypeEmailVerification)
@@ -106,7 +106,7 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 		Token:     otpCode,
 		TokenType: model.TokenTypeEmailVerification,
 		IsRevoked: false,
-		ExpireAt:  time.Now().Add(15 * time.Minute), // รหัสมีอายุ 15 นาที
+		ExpireAt:  GetVerificationTokenExpiry(),
 	}
 
 	if err := s.repo.CreateToken(ctx, otpToken); err != nil {

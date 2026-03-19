@@ -25,12 +25,15 @@ type Repository struct {
 	CreateTreeFunc                 func(ctx context.Context, req model.CreateTreeRequest) (string, error)
 	GetTreeByIDFunc                func(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumIDFunc          func(ctx context.Context, albumID string) ([]model.Tree, error)
-	GetTreesWithNodesByAlbumIDFunc func(ctx context.Context, albumID string) ([]model.TreeResponse, error)
+	GetTreesWithNodesByAlbumIDFunc func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
+	UpdateTreeStatusFunc           func(ctx context.Context, treeID string, status string) error
 	UpdateTreeFunc                 func(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	DeleteTreeFunc                 func(ctx context.Context, treeID string) error
 	PauseTreeFunc                  func(ctx context.Context, treeID string, isPause bool) error
+	CalculateAndUpdateTreeScoreFunc func(ctx context.Context, treeID string) (*float64, error)
 
 	// Tree Node methods
+	CreateStandaloneNodeFunc func(ctx context.Context, title string) (string, error)
 	AddSingleTreeNodeFunc    func(ctx context.Context, req model.CreateTreeNodeRequest) (string, error)
 	GetTreeNodesByTreeIDFunc func(ctx context.Context, treeID string) ([]model.TreeNode, error)
 	GetTreeNodeByIDFunc      func(ctx context.Context, treeNodeID string) (*model.TreeNode, error)
@@ -123,11 +126,17 @@ func (m *Repository) GetTreesByAlbumID(ctx context.Context, albumID string) ([]m
 	}
 	return nil, nil
 }
-func (m *Repository) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string) ([]model.TreeResponse, error) {
+func (m *Repository) GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error) {
 	if m.GetTreesWithNodesByAlbumIDFunc != nil {
-		return m.GetTreesWithNodesByAlbumIDFunc(ctx, albumID)
+		return m.GetTreesWithNodesByAlbumIDFunc(ctx, albumID, userID)
 	}
 	return nil, nil
+}
+func (m *Repository) UpdateTreeStatus(ctx context.Context, treeID string, status string) error {
+	if m.UpdateTreeStatusFunc != nil {
+		return m.UpdateTreeStatusFunc(ctx, treeID, status)
+	}
+	return nil
 }
 func (m *Repository) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
 	if m.UpdateTreeFunc != nil {
@@ -148,7 +157,20 @@ func (m *Repository) PauseTree(ctx context.Context, treeID string, isPause bool)
 	return nil
 }
 
+func (m *Repository) CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error) {
+	if m.CalculateAndUpdateTreeScoreFunc != nil {
+		return m.CalculateAndUpdateTreeScoreFunc(ctx, treeID)
+	}
+	return nil, nil
+}
+
 // Tree Node methods
+func (m *Repository) CreateStandaloneNode(ctx context.Context, title string) (string, error) {
+	if m.CreateStandaloneNodeFunc != nil {
+		return m.CreateStandaloneNodeFunc(ctx, title)
+	}
+	return "", nil
+}
 func (m *Repository) AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
 	if m.AddSingleTreeNodeFunc != nil {
 		return m.AddSingleTreeNodeFunc(ctx, req)

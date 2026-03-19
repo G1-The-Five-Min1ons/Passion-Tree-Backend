@@ -54,7 +54,7 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 		TreeID:        tree.TreeID,
 		Title:         tree.Title,
 		Difficulties:  tree.Difficulties,
-		Status:        computeTreeStatus(tree.Difficulties, tree.LastReflectAt, tree.IsPause, tree.PausedAt),
+		Status:        normalizeTreeStatus(computeTreeStatus(tree.Difficulties, tree.LastReflectAt, tree.IsPause, tree.PausedAt)),
 		IsPause:       tree.IsPause,
 		NodeCount:     tree.NodeCount,
 		CreatedAt:     tree.CreatedAt,
@@ -62,6 +62,7 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 		AlbumID:       tree.AlbumID,
 		PathID:        tree.PathID,
 		LastReflectAt: tree.LastReflectAt,
+		TreeScore:     tree.TreeScore,
 		Nodes:         nodes,
 	}, nil
 }
@@ -84,15 +85,23 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 		return nil, apperror.NewInternal("database error fetching tree: %w", err)
 	}
 
-	// Compute live status based on last reflection time and difficulty level.
-	tree.Status = computeTreeStatus(tree.Difficulties, tree.LastReflectAt, tree.IsPause, tree.PausedAt)
+	// Compute live status and persist it back when the stored value is stale.
+	tree.Status = s.syncTreeStatus(
+		ctx,
+		tree.TreeID,
+		tree.Status,
+		tree.Difficulties,
+		tree.LastReflectAt,
+		tree.IsPause,
+		tree.PausedAt,
+	)
 
 	s.logger.InfoContext(ctx, "successfully retrieved tree", "tree_id", treeID)
 	return tree, nil
 }
 
-func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool) (interface{}, error) {
-	s.logger.InfoContext(ctx, "fetching trees for album", "album_id", albumID, "include_nodes", includeNodes)
+func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool, userID string) (interface{}, error) {
+	s.logger.InfoContext(ctx, "fetching trees for album", "album_id", albumID, "include_nodes", includeNodes, "user_id", userID)
 
 	if albumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
@@ -100,7 +109,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 
 	// If nodes are requested, use optimized query
 	if includeNodes {
-		treesWithNodes, err := s.refRepo.GetTreesWithNodesByAlbumID(ctx, albumID)
+		treesWithNodes, err := s.refRepo.GetTreesWithNodesByAlbumID(ctx, albumID, userID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				s.logger.WarnContext(ctx, "no trees found for album", "album_id", albumID)
@@ -115,13 +124,16 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 			return []model.TreeResponse{}, nil
 		}
 
-		// Compute live status for each tree.
+		// Compute live status for each tree and persist stale status values.
 		for i := range treesWithNodes {
-			treesWithNodes[i].Status = computeTreeStatus(
+			treesWithNodes[i].Status = s.syncTreeStatus(
+				ctx,
+				treesWithNodes[i].TreeID,
+				treesWithNodes[i].Status,
 				treesWithNodes[i].Difficulties,
 				treesWithNodes[i].LastReflectAt,
 				treesWithNodes[i].IsPause,
-				nil, // paused_at not fetched in this query; growing-only safe default
+				treesWithNodes[i].PausedAt,
 			)
 		}
 
@@ -145,9 +157,12 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 		return []model.Tree{}, nil
 	}
 
-	// Compute live status for each tree.
+	// Compute live status for each tree and persist stale status values.
 	for i := range trees {
-		trees[i].Status = computeTreeStatus(
+		trees[i].Status = s.syncTreeStatus(
+			ctx,
+			trees[i].TreeID,
+			trees[i].Status,
 			trees[i].Difficulties,
 			trees[i].LastReflectAt,
 			trees[i].IsPause,
@@ -234,10 +249,45 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 		return false, apperror.NewInternal("%s", err.Error())
 	}
 
+	updatedTree, err := s.refRepo.GetTreeByID(ctx, treeID)
+	if err != nil {
+		s.logger.WarnContext(ctx, "failed to refresh tree after pause toggle", "tree_id", treeID, "error", err)
+	} else {
+		updatedTree.Status = s.syncTreeStatus(
+			ctx,
+			updatedTree.TreeID,
+			updatedTree.Status,
+			updatedTree.Difficulties,
+			updatedTree.LastReflectAt,
+			updatedTree.IsPause,
+			updatedTree.PausedAt,
+		)
+	}
+
 	pauseStatus := "paused"
 	if !newPauseStatus {
 		pauseStatus = "unpaused"
 	}
 	s.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID, "previous_status", tree.IsPause, "new_status", newPauseStatus)
 	return newPauseStatus, nil
+}
+
+// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
+// across all reflected nodes in the tree on a 0-10 scale,
+// and persists it to tree.tree_score.
+func (s *serviceImpl) CalculateAndUpdateTreeScore(ctx context.Context, treeID string) (*float64, error) {
+	s.logger.InfoContext(ctx, "calculating tree score", "tree_id", treeID)
+
+	if treeID == "" {
+		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+
+	score, err := s.refRepo.CalculateAndUpdateTreeScore(ctx, treeID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to calculate tree score", "tree_id", treeID, "error", err)
+		return nil, apperror.NewInternal("failed to calculate tree score: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "tree score calculated and saved", "tree_id", treeID, "score", score)
+	return score, nil
 }

@@ -13,6 +13,19 @@ const (
 	statusDied    = "died"
 )
 
+func normalizeTreeStatus(status string) string {
+	normalizedStatus := strings.TrimSpace(strings.ToLower(status))
+
+	switch normalizedStatus {
+	case statusGrowing, statusFading, statusDying, statusDied:
+		return normalizedStatus
+	case "active":
+		return statusGrowing
+	default:
+		return statusGrowing
+	}
+}
+
 // computeTreeStatus returns the live status of a tree based on how long ago
 // the last reflection was submitted, the tree's difficulty level, and whether
 // the tree is currently paused.
@@ -44,7 +57,7 @@ func computeTreeStatus(difficulties string, lastReflectAt *time.Time, isPause bo
 	}
 
 	var fading, dying, died time.Duration
-	switch strings.ToLower(difficulties) {
+	switch strings.TrimSpace(strings.ToLower(difficulties)) {
 	case "easy":
 		fading = 30 * 24 * time.Hour
 		dying = 60 * 24 * time.Hour
