@@ -3,9 +3,12 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"passiontree/internal/connection"
 	"passiontree/internal/reflection/model"
 )
+
+var ErrInsufficientHearts = errors.New("insufficient hearts")
 
 type RepositoryReflection interface {
 	CreateReflection(ctx context.Context, req model.CreateReflectionRequest, summary, sentimentAnalysis string, primaryEmotion *string, strugglePoint string, aiConfidentScore, reflectionScore, weightedReflectionScore float64) (string, error)
@@ -29,6 +32,7 @@ type RepositoryReflection interface {
 	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
 	UpdateTreeStatus(ctx context.Context, treeID string, status string) error
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
+	RetrieveTree(ctx context.Context, treeID string, userID string, heartCost int) (int, error)
 	DeleteTree(ctx context.Context, treeID string) error
 	PauseTree(ctx context.Context, treeID string, isPause bool) error
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score

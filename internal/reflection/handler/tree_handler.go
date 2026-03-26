@@ -126,6 +126,31 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 	})
 }
 
+// RetrieveTree handles retrieving a dead tree by spending hearts
+func (h *Handler) RetrieveTree(c *fiber.Ctx) error {
+	treeID := c.Params("tree_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp, err := h.reflectSvc.RetrieveTree(ctx, treeID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "tree retrieved successfully", "tree_id", treeID, "user_id", userID, "remaining_hearts", resp.HeartCount)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "tree retrieved successfully",
+		"data":    resp,
+	})
+}
+
 // DeleteTree handles deleting a tree
 func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")

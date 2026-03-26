@@ -3,8 +3,11 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
+	"passiontree/internal/reflection/repository"
+	"time"
 )
 
 func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeRequest) (*model.TreeResponse, error) {
@@ -196,6 +199,45 @@ func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.U
 
 	s.logger.InfoContext(ctx, "tree updated successfully", "tree_id", treeID)
 	return nil
+}
+
+func (s *serviceImpl) RetrieveTree(ctx context.Context, treeID string, userID string) (*model.RetrieveTreeResponse, error) {
+	s.logger.InfoContext(ctx, "request to retrieve tree", "tree_id", treeID, "user_id", userID)
+
+	if treeID == "" {
+		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+	if userID == "" {
+		return nil, apperror.NewUnauthorized("user not authenticated")
+	}
+
+	const retrieveCost = 5
+
+	remainingHearts, err := s.refRepo.RetrieveTree(ctx, treeID, userID, retrieveCost)
+	if err != nil {
+		switch {
+		case errors.Is(err, repository.ErrInsufficientHearts):
+			s.logger.WarnContext(ctx, "retrieve failed due to insufficient hearts", "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewBadRequest("insufficient hearts: at least 5 hearts are required")
+		case err == sql.ErrNoRows:
+			s.logger.WarnContext(ctx, "retrieve failed: tree not found or access denied", "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
+		default:
+			s.logger.ErrorContext(ctx, "failed to retrieve tree", "tree_id", treeID, "user_id", userID, "error", err)
+			return nil, apperror.NewInternal("failed to retrieve tree: %w", err)
+		}
+	}
+
+	now := time.Now()
+	response := &model.RetrieveTreeResponse{
+		TreeID:        treeID,
+		HeartCount:    remainingHearts,
+		Status:        statusGrowing,
+		LastReflectAt: &now,
+	}
+
+	s.logger.InfoContext(ctx, "tree retrieved successfully", "tree_id", treeID, "user_id", userID, "remaining_hearts", remainingHearts)
+	return response, nil
 }
 
 func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {

@@ -57,3 +57,10 @@ type PauseTreeRequest struct {
 	// Deprecated: This field is no longer used. The endpoint toggles pause status automatically.
 	IsPause *bool `json:"is_pause,omitempty"`
 }
+
+type RetrieveTreeResponse struct {
+	TreeID        string     `json:"tree_id"`
+	HeartCount    int        `json:"heart_count"`
+	Status        string     `json:"status"`
+	LastReflectAt *time.Time `json:"last_reflect_at"`
+}

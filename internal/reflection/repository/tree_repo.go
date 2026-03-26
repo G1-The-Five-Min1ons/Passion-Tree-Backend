@@ -409,6 +409,70 @@ func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
 	return nil
 }
 
+// RetrieveTree revives a dead tree by spending user hearts.
+// This operation is transactional to keep heart deduction and tree revive consistent.
+func (r *repositoryImpl) RetrieveTree(ctx context.Context, treeID string, userID string, heartCost int) (int, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	if heartCost <= 0 {
+		heartCost = 5
+	}
+
+	var remainingHearts int
+	deductHeartQuery := `
+		UPDATE users
+		SET heart_count = heart_count - @p2,
+		    update_at = GETDATE()
+		OUTPUT INSERTED.heart_count
+		WHERE user_id = CAST(@p1 AS UNIQUEIDENTIFIER)
+		  AND heart_count >= @p2
+	`
+
+	if err := tx.QueryRowContext(ctx, deductHeartQuery, userID, heartCost).Scan(&remainingHearts); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, ErrInsufficientHearts
+		}
+		return 0, fmt.Errorf("failed to deduct hearts: %w", err)
+	}
+
+	reviveTreeQuery := `
+		UPDATE t
+		SET t.status = 'growing',
+		    t.last_reflect_at = GETDATE(),
+		    t.is_pause = 0,
+		    t.paused_at = NULL,
+		    t.last_update = GETDATE()
+		FROM tree t
+		INNER JOIN tree_album a ON a.album_id = t.album_id
+		WHERE t.tree_id = @p1
+		  AND a.user_id = CAST(@p2 AS UNIQUEIDENTIFIER)
+	`
+
+	result, err := tx.ExecContext(ctx, reviveTreeQuery, treeID, userID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve tree: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return 0, sql.ErrNoRows
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit transaction failed: %w", err)
+	}
+
+	return remainingHearts, nil
+}
+
 // PauseTree toggles the pause state of a tree.
 // Pausing records paused_at = NOW so we know when the pause started.
 // Unpausing shifts last_reflect_at forward by the pause duration so the
