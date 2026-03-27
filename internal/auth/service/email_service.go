@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"passiontree/internal/pkg/apperror"
-
-	"github.com/mailersend/mailersend-go"
 )
 
 var smtpSendMail = smtp.SendMail
@@ -95,26 +93,7 @@ func (s *emailServiceImpl) SendNotificationEmail(ctx context.Context, to, subjec
 }
 
 func (s *emailServiceImpl) sendEmail(ctx context.Context, to, subject, html, text, fromName string) error {
-	// 1. ลองส่งด้วย MailerSend ก่อน (ถ้าตั้งค่า API Key ไว้)
-	if s.config.MailerSendAPIKey != "" {
-		message := s.mailersendClient.Email.NewMessage()
-		message.SetFrom(mailersend.From{Name: fromName, Email: s.config.SMTPFromEmail})
-		message.SetRecipients([]mailersend.Recipient{{Name: "User", Email: to}})
-		message.SetSubject(subject)
-		message.SetHTML(html)
-		message.SetText(text)
-
-		_, err := s.mailersendClient.Email.Send(ctx, message)
-		if err == nil {
-			s.logger.Info("email sent via MailerSend", "to", to, "subject", subject)
-			return nil
-		}
-
-		// ถ้า MailerSend พัง หรือยังไม่ Approve (มักจะได้ Error กลับมา) ให้ Log ไว้แล้วไปต่อที่ Gmail
-		s.logger.Warn("MailerSend failed, trying fallback to Gmail", "error", err)
-	}
-
-	// 2. Fallback: ส่งด้วย Gmail SMTP (ถ้า MailerSend ใช้ไม่ได้)
+	// ส่งด้วย Gmail SMTP
 	return s.sendViaGmail(ctx, to, subject, html, text)
 }
 
