@@ -6,6 +6,7 @@ import (
 	"errors"
 	"passiontree/internal/connection"
 	"passiontree/internal/reflection/model"
+	"time"
 )
 
 var ErrInsufficientHearts = errors.New("insufficient hearts")
@@ -34,7 +35,9 @@ type RepositoryReflection interface {
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	RetrieveTree(ctx context.Context, treeID string, userID string, heartCost int) (int, error)
 	DeleteTree(ctx context.Context, treeID string) error
-	PauseTree(ctx context.Context, treeID string, isPause bool) error
+	PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time, heartCost int) (int, error)
+	TryActivateScheduledPause(ctx context.Context, treeID string) (bool, *time.Time, error)
+	UnpauseTree(ctx context.Context, treeID string) error
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
 	// across all reflected nodes in the tree on a 0-10 scale,
 	// and persists it to tree.tree_score.

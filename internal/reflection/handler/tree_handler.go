@@ -180,28 +180,26 @@ func (h *Handler) PauseTree(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	// Body is optional since we're toggling
-	_ = c.BodyParser(&req)
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
 
-	isPause, err := h.reflectSvc.PauseTree(ctx, treeID, req)
+	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	statusMsg := "paused"
-	if !isPause {
-		statusMsg = "unpaused"
+	resp, err := h.reflectSvc.PauseTree(ctx, treeID, userID, req)
+	if err != nil {
+		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "tree "+statusMsg+" successfully", "tree_id", treeID, "is_pause", isPause)
+	h.logger.InfoContext(ctx, "tree paused successfully", "tree_id", treeID, "user_id", userID, "paused_at", resp.PausedAt, "remaining_hearts", resp.HeartCount)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "tree " + statusMsg + " successfully",
-		"data": fiber.Map{
-			"tree_id":  treeID,
-			"is_pause": isPause,
-		},
+		"message": "tree paused successfully",
+		"data":    resp,
 	})
 }
 

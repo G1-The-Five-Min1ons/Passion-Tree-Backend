@@ -260,11 +260,35 @@ func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
 	return nil
 }
 
-func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) (bool, error) {
-	s.logger.InfoContext(ctx, "request to toggle pause/unpause tree", "tree_id", treeID)
+func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID string, req model.PauseTreeRequest) (*model.PauseTreeResponse, error) {
+	s.logger.InfoContext(ctx, "request to pause tree", "tree_id", treeID, "user_id", userID)
 
 	if treeID == "" {
-		return false, apperror.NewBadRequest("tree_id is required")
+		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+	if userID == "" {
+		return nil, apperror.NewUnauthorized("user not authenticated")
+	}
+	if req.PausedAt == "" {
+		return nil, apperror.NewBadRequest("paused_at is required")
+	}
+
+	resumeOn, err := time.Parse(time.RFC3339, req.PausedAt)
+	if err != nil {
+		return nil, apperror.NewBadRequest("paused_at must be a valid RFC3339 datetime")
+	}
+
+	pauseFrom := time.Now()
+	if req.PauseFrom != "" {
+		parsedPauseFrom, parseErr := time.Parse(time.RFC3339, req.PauseFrom)
+		if parseErr != nil {
+			return nil, apperror.NewBadRequest("pause_from must be a valid RFC3339 datetime")
+		}
+		pauseFrom = parsedPauseFrom
+	}
+
+	if !resumeOn.After(pauseFrom) {
+		return nil, apperror.NewBadRequest("paused_at must be in the future")
 	}
 
 	// Get current tree state
@@ -272,46 +296,38 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "tree not found", "tree_id", treeID)
-			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
-		return false, apperror.NewInternal("%s", err.Error())
+		return nil, apperror.NewInternal("%s", err.Error())
 	}
 
-	// Toggle pause status (pause -> unpause, unpause -> pause)
-	newPauseStatus := !tree.IsPause
+	if tree.IsPause {
+		return nil, apperror.NewBadRequest("tree is already paused")
+	}
 
-	// Update pause status
-	err = s.refRepo.PauseTree(ctx, treeID, newPauseStatus)
+	const pauseCost = 3
+	remainingHearts, err := s.refRepo.PauseTree(ctx, treeID, userID, pauseFrom, resumeOn, pauseCost)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
+		switch {
+		case errors.Is(err, repository.ErrInsufficientHearts):
+			return nil, apperror.NewBadRequest("insufficient hearts: at least 3 hearts are required")
+		case err == sql.ErrNoRows:
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
+		default:
+			s.logger.ErrorContext(ctx, "failed to pause tree", "error", err, "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewInternal("failed to pause tree: %w", err)
 		}
-		s.logger.ErrorContext(ctx, "failed to pause/unpause tree", "error", err, "tree_id", treeID)
-		return false, apperror.NewInternal("%s", err.Error())
 	}
 
-	updatedTree, err := s.refRepo.GetTreeByID(ctx, treeID)
-	if err != nil {
-		s.logger.WarnContext(ctx, "failed to refresh tree after pause toggle", "tree_id", treeID, "error", err)
-	} else {
-		updatedTree.Status = s.syncTreeStatus(
-			ctx,
-			updatedTree.TreeID,
-			updatedTree.Status,
-			updatedTree.Difficulties,
-			updatedTree.LastReflectAt,
-			updatedTree.IsPause,
-			updatedTree.PausedAt,
-		)
-	}
+	s.logger.InfoContext(ctx, "tree paused successfully", "tree_id", treeID, "paused_at", resumeOn, "remaining_hearts", remainingHearts)
 
-	pauseStatus := "paused"
-	if !newPauseStatus {
-		pauseStatus = "unpaused"
-	}
-	s.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID, "previous_status", tree.IsPause, "new_status", newPauseStatus)
-	return newPauseStatus, nil
+	return &model.PauseTreeResponse{
+		TreeID:     treeID,
+		IsPause:    true,
+		HeartCount: remainingHearts,
+		PausedAt:   &resumeOn,
+	}, nil
 }
 
 // CalculateAndUpdateTreeScore computes the average weighted_reflection_score

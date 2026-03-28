@@ -473,41 +473,327 @@ func (r *repositoryImpl) RetrieveTree(ctx context.Context, treeID string, userID
 	return remainingHearts, nil
 }
 
-// PauseTree toggles the pause state of a tree.
-// Pausing records paused_at = NOW so we know when the pause started.
-// Unpausing shifts last_reflect_at forward by the pause duration so the
-// progress timer resumes exactly where it left off, then clears paused_at.
-func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, isPause bool) error {
-	var query string
-	if isPause {
-		// Pausing: record the moment we paused.
-		query = `
-			UPDATE tree
-			SET is_pause   = 1,
-			    paused_at  = GETDATE(),
-			    last_update = GETDATE()
-			WHERE tree_id = @p1
-		`
-	} else {
-		// Unpausing: advance last_reflect_at by the pause duration so the
-		// effective elapsed time stays unchanged, then clear paused_at.
-		query = `
-			UPDATE tree
-			SET is_pause       = 0,
-			    last_reflect_at = CASE
-			                          WHEN last_reflect_at IS NOT NULL AND paused_at IS NOT NULL
-			                          THEN DATEADD(SECOND, DATEDIFF(SECOND, paused_at, GETDATE()), last_reflect_at)
-			                          ELSE last_reflect_at
-			                      END,
-			    paused_at       = NULL,
-			    last_update     = GETDATE()
-			WHERE tree_id = @p1
-		`
+// PauseTree pauses a tree for a selected period and spends user hearts.
+// The elapsed decay time is frozen by shifting last_reflect_at forward by
+// the pause duration and storing pausedAt in paused_at.
+func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time, heartCost int) (int, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin transaction failed: %w", err)
 	}
+	defer tx.Rollback()
+
+	if heartCost <= 0 {
+		heartCost = 3
+	}
+
+	var remainingHearts int
+	deductHeartQuery := `
+		UPDATE users
+		SET heart_count = heart_count - @p2,
+		    update_at = GETDATE()
+		OUTPUT INSERTED.heart_count
+		WHERE user_id = CAST(@p1 AS UNIQUEIDENTIFIER)
+		  AND heart_count >= @p2
+	`
+
+	if err := tx.QueryRowContext(ctx, deductHeartQuery, userID, heartCost).Scan(&remainingHearts); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, ErrInsufficientHearts
+		}
+		return 0, fmt.Errorf("failed to deduct hearts for pause: %w", err)
+	}
+
+	pauseTreeQuery := `
+		UPDATE t
+		SET t.is_pause = CASE WHEN @p4 <= GETDATE() THEN 1 ELSE 0 END,
+		    t.paused_at = CASE WHEN @p4 <= GETDATE() THEN @p3 ELSE NULL END,
+		    t.last_reflect_at = CASE
+		        WHEN t.last_reflect_at IS NOT NULL AND @p4 <= GETDATE()
+		        THEN DATEADD(SECOND, DATEDIFF(SECOND, @p4, @p3), t.last_reflect_at)
+		        ELSE t.last_reflect_at
+		    END,
+		    t.last_update = GETDATE()
+		FROM tree t
+		INNER JOIN tree_album a ON a.album_id = t.album_id
+		WHERE t.tree_id = @p1
+		  AND a.user_id = CAST(@p2 AS UNIQUEIDENTIFIER)
+		  AND t.is_pause = 0
+	`
+
+	result, err := tx.ExecContext(ctx, pauseTreeQuery, treeID, userID, pausedAt, pauseFrom)
+	if err != nil {
+		return 0, fmt.Errorf("failed to pause tree: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return 0, sql.ErrNoRows
+	}
+
+	insertPauseHistoryQuery := `
+		BEGIN TRY
+			DECLARE @objId INT = (
+				SELECT TOP 1 t.object_id
+				FROM sys.tables t
+				WHERE LOWER(t.name) = 'pause_tree'
+			)
+
+			IF @objId IS NOT NULL
+			BEGIN
+				DECLARE @treeID UNIQUEIDENTIFIER = TRY_CAST(@p1 AS UNIQUEIDENTIFIER)
+				DECLARE @userID UNIQUEIDENTIFIER = TRY_CAST(@p4 AS UNIQUEIDENTIFIER)
+				DECLARE @pauseFromParam DATETIME2 = TRY_CAST(@p2 AS DATETIME2)
+				DECLARE @pauseToParam DATETIME2 = TRY_CAST(@p3 AS DATETIME2)
+				DECLARE @sql NVARCHAR(MAX)
+				DECLARE @columns NVARCHAR(MAX) = N''
+				DECLARE @values NVARCHAR(MAX) = N''
+				DECLARE @colID SYSNAME = (
+					SELECT TOP 1 c.name
+					FROM sys.columns c
+					WHERE c.object_id = @objId
+					  AND LOWER(c.name) IN ('pause_tree_id', 'pause_id', 'id')
+				)
+				DECLARE @colTree SYSNAME = (
+					SELECT TOP 1 c.name
+					FROM sys.columns c
+					WHERE c.object_id = @objId
+					  AND LOWER(c.name) IN ('tree_id', 'treeid')
+				)
+				DECLARE @colUser SYSNAME = (
+					SELECT TOP 1 c.name
+					FROM sys.columns c
+					WHERE c.object_id = @objId
+					  AND LOWER(c.name) IN ('user_id', 'userid')
+				)
+				DECLARE @colPauseFrom SYSNAME = (
+					SELECT TOP 1 c.name
+					FROM sys.columns c
+					WHERE c.object_id = @objId
+					  AND LOWER(c.name) IN ('pause_from', 'pausefrom', 'pause_start', 'start_at', 'start_date', 'from_date')
+				)
+				DECLARE @colPauseTo SYSNAME = (
+					SELECT TOP 1 c.name
+					FROM sys.columns c
+					WHERE c.object_id = @objId
+					  AND LOWER(c.name) IN ('pause_to', 'pauseto', 'paused_at', 'pause_end', 'end_at', 'end_date', 'to_date')
+				)
+				DECLARE @colCreated SYSNAME = (
+					SELECT TOP 1 c.name
+					FROM sys.columns c
+					WHERE c.object_id = @objId
+					  AND LOWER(c.name) IN ('create_at', 'created_at', 'insert_at')
+				)
+				DECLARE @colUpdated SYSNAME = (
+					SELECT TOP 1 c.name
+					FROM sys.columns c
+					WHERE c.object_id = @objId
+					  AND LOWER(c.name) IN ('update_at', 'updated_at', 'last_update')
+				)
+
+				IF @colID IS NOT NULL
+				BEGIN
+					SET @columns = @columns + QUOTENAME(@colID) + N','
+					SET @values = @values + N'NEWID(),'
+				END
+
+				IF @treeID IS NOT NULL AND @colTree IS NOT NULL
+				BEGIN
+					SET @columns = @columns + QUOTENAME(@colTree) + N','
+					SET @values = @values + N'@treeID,'
+				END
+
+				IF @userID IS NOT NULL AND @colUser IS NOT NULL
+				BEGIN
+					SET @columns = @columns + QUOTENAME(@colUser) + N','
+					SET @values = @values + N'@userID,'
+				END
+
+				IF @colPauseFrom IS NOT NULL
+				BEGIN
+					SET @columns = @columns + QUOTENAME(@colPauseFrom) + N','
+					SET @values = @values + N'@pauseFrom,'
+				END
+
+				IF @colPauseTo IS NOT NULL
+				BEGIN
+					SET @columns = @columns + QUOTENAME(@colPauseTo) + N','
+					SET @values = @values + N'@pauseTo,'
+				END
+
+				IF @colCreated IS NOT NULL
+				BEGIN
+					SET @columns = @columns + QUOTENAME(@colCreated) + N','
+					SET @values = @values + N'GETDATE(),'
+				END
+
+				IF @colUpdated IS NOT NULL
+				BEGIN
+					SET @columns = @columns + QUOTENAME(@colUpdated) + N','
+					SET @values = @values + N'GETDATE(),'
+				END
+
+				IF LEN(@columns) > 0 AND LEN(@values) > 0
+				BEGIN
+					SET @columns = LEFT(@columns, LEN(@columns) - 1)
+					SET @values = LEFT(@values, LEN(@values) - 1)
+
+					SET @sql = N'INSERT INTO '
+						+ QUOTENAME(OBJECT_SCHEMA_NAME(@objId))
+						+ N'.'
+						+ QUOTENAME(OBJECT_NAME(@objId))
+						+ N' (' + @columns + N') VALUES (' + @values + N')'
+
+					EXEC sp_executesql
+						@sql,
+						N'@treeID UNIQUEIDENTIFIER, @userID UNIQUEIDENTIFIER, @pauseFrom DATETIME2, @pauseTo DATETIME2',
+						@treeID = @treeID,
+						@userID = @userID,
+						@pauseFrom = @pauseFromParam,
+						@pauseTo = @pauseToParam
+				END
+			END
+		END TRY
+		BEGIN CATCH
+			-- best-effort history insert: do not fail pause endpoint
+		END CATCH
+	`
+
+	_, _ = tx.ExecContext(ctx, insertPauseHistoryQuery, treeID, pauseFrom, pausedAt, userID)
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit transaction failed: %w", err)
+	}
+
+	return remainingHearts, nil
+}
+
+// TryActivateScheduledPause activates an upcoming pause window when current time
+// reaches pause_from in pause_tree history. It returns whether activation happened,
+// plus the pause end time (paused_at) when activated.
+func (r *repositoryImpl) TryActivateScheduledPause(ctx context.Context, treeID string) (bool, *time.Time, error) {
+	query := `
+		DECLARE @treeID UNIQUEIDENTIFIER = TRY_CAST(@p1 AS UNIQUEIDENTIFIER)
+		IF @treeID IS NULL
+		BEGIN
+			SELECT CAST(0 AS BIT) AS activated, CAST(NULL AS DATETIME2) AS pause_to
+			RETURN
+		END
+
+		DECLARE @objId INT = (
+			SELECT TOP 1 t.object_id
+			FROM sys.tables t
+			WHERE LOWER(t.name) = 'pause_tree'
+		)
+
+		IF @objId IS NULL
+		BEGIN
+			SELECT CAST(0 AS BIT) AS activated, CAST(NULL AS DATETIME2) AS pause_to
+			RETURN
+		END
+
+		DECLARE @colTree SYSNAME = (
+			SELECT TOP 1 c.name
+			FROM sys.columns c
+			WHERE c.object_id = @objId
+			  AND LOWER(c.name) IN ('tree_id', 'treeid')
+		)
+		DECLARE @colPauseFrom SYSNAME = (
+			SELECT TOP 1 c.name
+			FROM sys.columns c
+			WHERE c.object_id = @objId
+			  AND LOWER(c.name) IN ('pause_from', 'pausefrom', 'pause_start', 'start_at', 'start_date', 'from_date')
+		)
+		DECLARE @colPauseTo SYSNAME = (
+			SELECT TOP 1 c.name
+			FROM sys.columns c
+			WHERE c.object_id = @objId
+			  AND LOWER(c.name) IN ('pause_to', 'pauseto', 'paused_at', 'pause_end', 'end_at', 'end_date', 'to_date')
+		)
+
+		IF @colTree IS NULL OR @colPauseFrom IS NULL OR @colPauseTo IS NULL
+		BEGIN
+			SELECT CAST(0 AS BIT) AS activated, CAST(NULL AS DATETIME2) AS pause_to
+			RETURN
+		END
+
+		DECLARE @pauseFrom DATETIME2
+		DECLARE @pauseTo DATETIME2
+		DECLARE @sql NVARCHAR(MAX)
+
+		SET @sql = N'
+			SELECT TOP 1
+				@pauseFromOut = TRY_CAST(' + QUOTENAME(@colPauseFrom) + N' AS DATETIME2),
+				@pauseToOut = TRY_CAST(' + QUOTENAME(@colPauseTo) + N' AS DATETIME2)
+			FROM '
+			+ QUOTENAME(OBJECT_SCHEMA_NAME(@objId)) + N'.' + QUOTENAME(OBJECT_NAME(@objId)) + N'
+			WHERE TRY_CAST(' + QUOTENAME(@colTree) + N' AS UNIQUEIDENTIFIER) = @treeID
+			  AND TRY_CAST(' + QUOTENAME(@colPauseFrom) + N' AS DATETIME2) <= GETDATE()
+			  AND TRY_CAST(' + QUOTENAME(@colPauseTo) + N' AS DATETIME2) > GETDATE()
+			ORDER BY TRY_CAST(' + QUOTENAME(@colPauseFrom) + N' AS DATETIME2) DESC'
+
+		EXEC sp_executesql
+			@sql,
+			N'@treeID UNIQUEIDENTIFIER, @pauseFromOut DATETIME2 OUTPUT, @pauseToOut DATETIME2 OUTPUT',
+			@treeID = @treeID,
+			@pauseFromOut = @pauseFrom OUTPUT,
+			@pauseToOut = @pauseTo OUTPUT
+
+		IF @pauseFrom IS NULL OR @pauseTo IS NULL
+		BEGIN
+			SELECT CAST(0 AS BIT) AS activated, CAST(NULL AS DATETIME2) AS pause_to
+			RETURN
+		END
+
+		UPDATE tree
+		SET is_pause = 1,
+			paused_at = @pauseTo,
+			last_reflect_at = CASE
+				WHEN last_reflect_at IS NOT NULL
+				THEN DATEADD(SECOND, DATEDIFF(SECOND, @pauseFrom, @pauseTo), last_reflect_at)
+				ELSE NULL
+			END,
+			last_update = GETDATE()
+		WHERE tree_id = @treeID
+		  AND is_pause = 0
+
+		IF @@ROWCOUNT > 0
+			SELECT CAST(1 AS BIT) AS activated, @pauseTo AS pause_to
+		ELSE
+			SELECT CAST(0 AS BIT) AS activated, CAST(NULL AS DATETIME2) AS pause_to
+	`
+
+	var activated bool
+	var pauseTo sql.NullTime
+	if err := r.db.QueryRowContext(ctx, query, treeID).Scan(&activated, &pauseTo); err != nil {
+		return false, nil, fmt.Errorf("failed to activate scheduled pause: %w", err)
+	}
+
+	if !activated || !pauseTo.Valid {
+		return false, nil, nil
+	}
+
+	pausedAt := pauseTo.Time
+	return true, &pausedAt, nil
+}
+
+// UnpauseTree releases a paused tree and clears paused_at.
+func (r *repositoryImpl) UnpauseTree(ctx context.Context, treeID string) error {
+	query := `
+		UPDATE tree
+		SET is_pause = 0,
+		    paused_at = NULL,
+		    last_update = GETDATE()
+		WHERE tree_id = @p1
+	`
 
 	result, err := r.db.ExecContext(ctx, query, treeID)
 	if err != nil {
-		return fmt.Errorf("failed to pause tree: %w", err)
+		return fmt.Errorf("failed to unpause tree: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
