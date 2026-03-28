@@ -44,7 +44,7 @@ func TestGetVerificationTokenExpiry(t *testing.T) {
 }
 
 // Ensure smtpSendMail mock works
-func TestEmailServiceFallbackToSMTP(t *testing.T) {
+func TestEmailServiceSMTP(t *testing.T) {
 	// Setup generic SMTP mock
 	mockSMTPError := errors.New("mock smtp connection error")
 
@@ -55,7 +55,6 @@ func TestEmailServiceFallbackToSMTP(t *testing.T) {
 	defer service.ExportSetSMTPSendMail(originalSMTP)
 
 	cfg := &config.Config{
-		MailerSendAPIKey: "", // Purposefully empty to trigger fallback
 		SMTPFromEmail:    "noreply@example.com",
 		GmailEmail:       "test@gmail.com",
 		GmailAppPassword: "mock-password",
@@ -94,41 +93,4 @@ func TestEmailServiceFallbackToSMTP(t *testing.T) {
 			t.Errorf("Expected mock smtp connection error, got: %v", err)
 		}
 	})
-}
-
-// Ensure Mailersend client initialization doesn't panic and methods return safely
-func TestEmailServiceMailerSend(t *testing.T) {
-	// We want to test the case where API Key is given, so it attempts MailerSend
-	// Since we can't easily deep-mock mailersendClient (it's tightly coupled inside emailServiceImpl struct)
-	// without abstracting MailerSend client into an interface, we'll let it execute with a dummy key.
-	// The HTTP call will fail due to unauthorized, and it should gracefully fallback to SMTP.
-
-	mockSMTPCalled := false
-	originalSMTP := service.ExportSetSMTPSendMail(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
-		mockSMTPCalled = true
-		return nil
-	})
-	defer service.ExportSetSMTPSendMail(originalSMTP)
-
-	cfg := &config.Config{
-		MailerSendAPIKey: "dummy-key-that-will-fail-on-network",
-		SMTPFromEmail:    "noreply@example.com",
-		GmailEmail:       "test@gmail.com",
-		GmailAppPassword: "mock-password",
-	}
-
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	emailSvc := service.NewEmailService(cfg, logger)
-
-	err := emailSvc.SendVerificationEmail(context.Background(), "user@example.com", "123456")
-
-	// Either Mailersend fails due to network and triggers SMTP, or it passes (unlikely with dummy key)
-	// Our main goal is no panics!
-	if err != nil {
-		t.Logf("Expected behavior: Fallback successful or error returned: %v", err)
-	}
-
-	// Typically, it would fallback and call mockSMTPCalled == true if dummy-key makes it return an error
-	// But since it tries to make a real HTTP call, we'll just check that it didn't crash.
-	_ = mockSMTPCalled
 }

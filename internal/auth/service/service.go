@@ -12,7 +12,6 @@ import (
 	"passiontree/internal/config"
 	"passiontree/internal/pkg/jwt"
 
-	"github.com/mailersend/mailersend-go"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -100,7 +99,6 @@ type emailTemplates struct {
 	notification  *template.Template
 }
 type emailServiceImpl struct {
-	mailersendClient *mailersend.Mailersend
 	templates        *emailTemplates
 	config           *config.Config
 	logger           *slog.Logger
@@ -125,7 +123,6 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 	notificationTmpl := template.Must(template.New("notification").Parse(notificationTemplate))
 
 	return &emailServiceImpl{
-		mailersendClient: mailersend.NewMailersend(cfg.MailerSendAPIKey),
 		templates: &emailTemplates{
 			verification:  verificationTmpl,
 			passwordReset: passwordResetTmpl,

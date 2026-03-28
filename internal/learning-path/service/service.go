@@ -87,6 +87,7 @@ type serviceImpl struct {
 	historyRepo  repository.RepositoryHistory
 	resumeRepo   repository.RepositoryResume
 	progressRepo repository.RepositoryProgress
+	xpRepo       repository.RepositoryXP
 	logger       *slog.Logger
 	aiClient     *aiclient.AIClient
 	storage      *storage.BlobService
@@ -106,6 +107,7 @@ func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger 
 		historyRepo:  repo,
 		resumeRepo:   repo,
 		progressRepo: repo,
+		xpRepo:       repo,
 		logger:       logger,
 		aiClient:     aiClient,
 		storage:      nil,

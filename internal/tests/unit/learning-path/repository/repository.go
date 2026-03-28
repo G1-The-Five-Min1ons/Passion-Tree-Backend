@@ -60,6 +60,9 @@ type Repopository struct {
 	// Mock hooks for History & Resume
 	GetHistoryByUserIDFunc func(ctx context.Context, userID string) ([]model.HistoryResponse, error)
 	GetNextNodeIDFunc      func(ctx context.Context, userID string, pathID string) (string, error)
+
+	// Mock hooks for XP
+	AddXPAndRecalcLevelFunc func(ctx context.Context, userID string, xpAmount int) error
 }
 
 func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
@@ -334,4 +337,12 @@ func (m *Repopository) GetNextNodeID(ctx context.Context, userID string, pathID 
 		return m.GetNextNodeIDFunc(ctx, userID, pathID)
 	}
 	return "", nil
+}
+
+// Implement RepositoryXP
+func (m *Repopository) AddXPAndRecalcLevel(ctx context.Context, userID string, xpAmount int) error {
+	if m.AddXPAndRecalcLevelFunc != nil {
+		return m.AddXPAndRecalcLevelFunc(ctx, userID, xpAmount)
+	}
+	return nil
 }
