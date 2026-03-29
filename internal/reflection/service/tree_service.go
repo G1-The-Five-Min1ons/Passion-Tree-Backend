@@ -269,6 +269,38 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 	if userID == "" {
 		return nil, apperror.NewUnauthorized("user not authenticated")
 	}
+
+	// Get current tree state
+	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.WarnContext(ctx, "tree not found", "tree_id", treeID)
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
+		}
+		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
+		return nil, apperror.NewInternal("%s", err.Error())
+	}
+
+	if tree.IsPause {
+		if err := s.refRepo.DeactivateActivePauseWindow(ctx, treeID); err != nil {
+			s.logger.ErrorContext(ctx, "failed to deactivate active pause window", "error", err, "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewInternal("failed to resume tree: %w", err)
+		}
+
+		if err := s.refRepo.UnpauseTree(ctx, treeID); err != nil {
+			s.logger.ErrorContext(ctx, "failed to resume tree", "error", err, "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewInternal("failed to resume tree: %w", err)
+		}
+
+		s.logger.InfoContext(ctx, "tree resumed successfully", "tree_id", treeID, "user_id", userID)
+		return &model.PauseTreeResponse{
+			TreeID:     treeID,
+			IsPause:    false,
+			HeartCount: 0,
+			PausedAt:   nil,
+		}, nil
+	}
+
 	if req.PausedAt == "" {
 		return nil, apperror.NewBadRequest("paused_at is required")
 	}
@@ -289,21 +321,6 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 
 	if !resumeOn.After(pauseFrom) {
 		return nil, apperror.NewBadRequest("paused_at must be in the future")
-	}
-
-	// Get current tree state
-	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			s.logger.WarnContext(ctx, "tree not found", "tree_id", treeID)
-			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
-		}
-		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
-		return nil, apperror.NewInternal("%s", err.Error())
-	}
-
-	if tree.IsPause {
-		return nil, apperror.NewBadRequest("tree is already paused")
 	}
 
 	const pauseCost = 3

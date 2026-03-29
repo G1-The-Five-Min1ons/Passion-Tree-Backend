@@ -37,6 +37,7 @@ type RepositoryReflection interface {
 	DeleteTree(ctx context.Context, treeID string) error
 	PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time, heartCost int) (int, error)
 	TryActivateScheduledPause(ctx context.Context, treeID string) (bool, *time.Time, error)
+	DeactivateActivePauseWindow(ctx context.Context, treeID string) error
 	UnpauseTree(ctx context.Context, treeID string) error
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
 	// across all reflected nodes in the tree on a 0-10 scale,

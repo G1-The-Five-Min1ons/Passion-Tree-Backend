@@ -55,7 +55,7 @@ type TreeResponse struct {
 // PauseTreeRequest - body is optional, pause status will be toggled automatically
 type PauseTreeRequest struct {
 	PauseFrom string `json:"pause_from,omitempty"`
-	PausedAt  string `json:"paused_at"`
+	PausedAt  string `json:"paused_at,omitempty"`
 }
 
 type PauseTreeResponse struct {

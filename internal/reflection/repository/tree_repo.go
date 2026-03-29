@@ -781,6 +781,66 @@ func (r *repositoryImpl) TryActivateScheduledPause(ctx context.Context, treeID s
 	return true, &pausedAt, nil
 }
 
+// DeactivateActivePauseWindow closes any currently active pause window in pause_tree
+// so a manual resume does not get re-activated by sync right away.
+func (r *repositoryImpl) DeactivateActivePauseWindow(ctx context.Context, treeID string) error {
+	query := `
+		DECLARE @treeID UNIQUEIDENTIFIER = TRY_CAST(@p1 AS UNIQUEIDENTIFIER)
+		IF @treeID IS NULL
+			RETURN
+
+		DECLARE @objId INT = (
+			SELECT TOP 1 t.object_id
+			FROM sys.tables t
+			WHERE LOWER(t.name) = 'pause_tree'
+		)
+
+		IF @objId IS NULL
+			RETURN
+
+		DECLARE @colTree SYSNAME = (
+			SELECT TOP 1 c.name
+			FROM sys.columns c
+			WHERE c.object_id = @objId
+			  AND LOWER(c.name) IN ('tree_id', 'treeid')
+		)
+		DECLARE @colPauseFrom SYSNAME = (
+			SELECT TOP 1 c.name
+			FROM sys.columns c
+			WHERE c.object_id = @objId
+			  AND LOWER(c.name) IN ('pause_from', 'pausefrom', 'pause_start', 'start_at', 'start_date', 'from_date')
+		)
+		DECLARE @colPauseTo SYSNAME = (
+			SELECT TOP 1 c.name
+			FROM sys.columns c
+			WHERE c.object_id = @objId
+			  AND LOWER(c.name) IN ('pause_to', 'pauseto', 'paused_at', 'pause_end', 'end_at', 'end_date', 'to_date')
+		)
+
+		IF @colTree IS NULL OR @colPauseFrom IS NULL OR @colPauseTo IS NULL
+			RETURN
+
+		DECLARE @sql NVARCHAR(MAX)
+		SET @sql = N'
+			UPDATE ' + QUOTENAME(OBJECT_SCHEMA_NAME(@objId)) + N'.' + QUOTENAME(OBJECT_NAME(@objId)) + N'
+			SET ' + QUOTENAME(@colPauseTo) + N' = GETDATE()
+			WHERE TRY_CAST(' + QUOTENAME(@colTree) + N' AS UNIQUEIDENTIFIER) = @treeID
+			  AND TRY_CAST(' + QUOTENAME(@colPauseFrom) + N' AS DATETIME2) <= GETDATE()
+			  AND TRY_CAST(' + QUOTENAME(@colPauseTo) + N' AS DATETIME2) > GETDATE()'
+
+		EXEC sp_executesql
+			@sql,
+			N'@treeID UNIQUEIDENTIFIER',
+			@treeID = @treeID
+	`
+
+	if _, err := r.db.ExecContext(ctx, query, treeID); err != nil {
+		return fmt.Errorf("failed to deactivate active pause window: %w", err)
+	}
+
+	return nil
+}
+
 // UnpauseTree releases a paused tree and clears paused_at.
 func (r *repositoryImpl) UnpauseTree(ctx context.Context, treeID string) error {
 	query := `
