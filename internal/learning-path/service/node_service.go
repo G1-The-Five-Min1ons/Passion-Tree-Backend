@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
+	"passiontree/internal/learning-path/repository"
 	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
 )
@@ -221,6 +222,14 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 		return apperror.NewInternal("failed to complete node: %w", err)
 	}
 
+	// Award XP for completing a node
+	if err := s.xpRepo.AddXPAndRecalcLevel(ctx, userID, repository.XPPerNodeComplete); err != nil {
+		s.logger.ErrorContext(ctx, "failed to award XP for node completion", "error", err, "node_id", nodeID, "user_id", userID)
+		// Don't return error - XP award failure should not block node completion
+	} else {
+		s.logger.InfoContext(ctx, "XP awarded for node completion", "node_id", nodeID, "user_id", userID, "xp", repository.XPPerNodeComplete)
+	}
+
 	go func() {
 		bgCtx := context.Background()
 		s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompleteNode)
@@ -242,6 +251,13 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 						s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompletePath)
 					}()
 					s.logger.InfoContext(ctx, "path fully completed", "path_id", node.PathID, "user_id", userID)
+
+					// Award bonus XP for completing entire path
+					if err := s.xpRepo.AddXPAndRecalcLevel(ctx, userID, repository.XPPerPathComplete); err != nil {
+						s.logger.ErrorContext(ctx, "failed to award bonus XP for path completion", "error", err, "path_id", node.PathID, "user_id", userID)
+					} else {
+						s.logger.InfoContext(ctx, "bonus XP awarded for path completion", "path_id", node.PathID, "user_id", userID, "xp", repository.XPPerPathComplete)
+					}
 				}
 			}
 		}

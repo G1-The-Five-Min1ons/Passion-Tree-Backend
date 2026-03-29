@@ -129,7 +129,7 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		if err := s.emailService.SendVerificationEmail(ctx, user.Email, verificationToken); err != nil {
 			s.logger.WarnContext(ctx, "failed to send verification email", "error", err.Error(), "email", user.Email)
 			// Print full error details if available
-			s.logger.ErrorContext(ctx, "MailerSend error details", "user_id", userID, "email", user.Email, "error", err)
+			s.logger.ErrorContext(ctx, "email sending error details", "user_id", userID, "email", user.Email, "error", err)
 		}
 	}
 
