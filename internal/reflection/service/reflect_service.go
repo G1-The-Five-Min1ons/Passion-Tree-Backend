@@ -6,9 +6,10 @@ import (
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
+	missionModel "passiontree/internal/mission/model"
 )
 
-func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
+func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest, userID string) (*model.ReflectionResponse, error) {
 
 	if req.LearningReflect == "" {
 		return nil, apperror.NewBadRequest("learning_reflect is required")
@@ -62,6 +63,11 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		}
 		return nil, apperror.NewInternal("failed to create reflection: %w", err)
 	}
+
+	go func() {
+		bgCtx := context.Background()
+		s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionWriteReflect)
+	}()
 
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)
 

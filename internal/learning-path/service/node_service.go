@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
+	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
 )
 
@@ -220,6 +221,11 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 		return apperror.NewInternal("failed to complete node: %w", err)
 	}
 
+	go func() {
+		bgCtx := context.Background()
+		s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompleteNode)
+	}()
+
 	// Fetch node details to get pathID
 	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err == nil && node != nil {
@@ -231,6 +237,10 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 				if err := s.pathRepo.UpdatePathEnrollmentCompletion(ctx, node.PathID, userID); err != nil {
 					s.logger.ErrorContext(ctx, "failed to update path enrollment completion", "error", err, "path_id", node.PathID, "user_id", userID)
 				} else {
+					go func() {
+						bgCtx := context.Background()
+						s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompletePath)
+					}()
 					s.logger.InfoContext(ctx, "path fully completed", "path_id", node.PathID, "user_id", userID)
 				}
 			}

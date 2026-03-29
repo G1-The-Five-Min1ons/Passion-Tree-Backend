@@ -9,6 +9,7 @@ import (
 
 	"passiontree/internal/config"
 	"passiontree/internal/learning-path/model"
+	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
 )
 
@@ -205,6 +206,11 @@ func (s *serviceImpl) StartPath(ctx context.Context, path_id string, user_id str
 		}
 		return apperror.NewInternal("failed to enroll user '%s' in path '%s': %w", user_id, path_id, err)
 	}
+
+	go func() {
+		bgCtx := context.Background()
+		s.missionSvc.ProcessMissionEvent(bgCtx, user_id, missionModel.ConditionEnrollPath)
+	}()
 
 	s.logger.InfoContext(ctx, "user enrollment successful", "user_id", user_id, "path_id", path_id)
 	return nil

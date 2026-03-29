@@ -26,6 +26,9 @@ import (
 	"passiontree/internal/routes"
 	"passiontree/internal/worker"
 	workerRepo "passiontree/internal/worker/repository"
+
+	missionRepo "passiontree/internal/mission/repository"
+	missionService "passiontree/internal/mission/service"
 )
 
 const (
@@ -199,6 +202,8 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	authRepository := authrepo.NewRepository(db)
 	userService := authservice.NewUserService(authRepository, nil, nil, nil, logger)
 	notificationWorker := worker.NewEmailNotificationWorker(notificationProvider, emailService, userService, logger)
+	mRepo := missionRepo.NewRepository(db)
+	mSvc := missionService.NewService(mRepo, authRepository, logger)
 	c := cron.New()
 
 	// Run every midnight
@@ -209,6 +214,33 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	if err != nil {
 		logger.Error("error initializing background jobs", "error", err)
 		return c, notificationWorker
+	}
+
+	_, err = c.AddFunc("0 0 * * 1", func() {
+		logger.Info("CronJob Triggered: Starting Weekly Mission Auto-Assignment")
+		
+		bgCtx := context.Background() 
+		
+		if err := mSvc.AutoAssignWeeklyMissions(bgCtx); err != nil {
+			logger.Error("CronJob Failed: AutoAssignWeeklyMissions", "error", err)
+		}
+	})
+	if err != nil {
+		logger.Error("error initializing weekly mission assignment job", "error", err)
+	}
+
+	_, err = c.AddFunc("0 0 * * *", func() {
+        logger.Info("CronJob Triggered: Cleaning up expired missions")
+
+        bgCtx := context.Background()
+		
+        if err := mSvc.CleanupExpiredMissions(bgCtx); err != nil {
+            logger.Error("CronJob Failed: CleanupExpiredMissions", "error", err)
+        }
+    })
+
+	if err != nil {
+		logger.Error("error initializing cleanup expired missions job", "error", err)
 	}
 
 	// Run daily notifications at 08:00
