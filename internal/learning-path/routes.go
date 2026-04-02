@@ -43,6 +43,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 		paths.Get("/:path_id/comments", h.GetPathComments)
 		paths.Post("/:path_id/comments", h.CreatePathComment)
+		paths.Post("/:path_id/ratings", h.SubmitRating)
+		paths.Get("/:path_id/ratings", h.GetMyRating)
+		paths.Delete("/:path_id/ratings", h.DeleteRating)
 	}
 
 	nodes := protected.Group("/learningpaths/nodes")
