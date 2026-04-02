@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"time"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/utils"
 	"passiontree/internal/platform/aiclient"
@@ -65,7 +66,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewInternal("failed to create reflection: %w", err)
 	}
 
-	utils.SafeGo(ctx, s.logger, "Mission_WriteReflect", func(bgCtx context.Context) error {
+	utils.SafeGo(ctx, s.logger, "Mission_WriteReflect", 10*time.Second, func(bgCtx context.Context) error {
 		return s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionWriteReflect)
 	})
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)

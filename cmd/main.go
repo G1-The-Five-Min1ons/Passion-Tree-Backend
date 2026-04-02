@@ -207,10 +207,15 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	c := cron.New()
 
 	// Run every midnight
-	_, err := c.AddFunc("0 0 * * *", func() {
-		cleanupWorker.RunCleanup()
-	})
-
+	_, err := c.AddFunc("0 0 * * *", withSafeCron(
+		"StorageCleanup", 
+		30*time.Minute, // ให้เวลา Cleanup สูงสุด 30 นาที
+		logger, 
+		func(ctx context.Context) error {
+			cleanupWorker.RunCleanup()
+			return nil
+		},
+	))
 	if err != nil {
 		logger.Error("error initializing background jobs", "error", err)
 		return c, notificationWorker
@@ -241,18 +246,30 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	}
 
 	// Run daily notifications at 08:00
-	_, err = c.AddFunc("0 8 * * *", func() {
-		notificationWorker.RunDailyNotifications()
-	})
+	_, err = c.AddFunc("0 8 * * *", withSafeCron(
+		"DailyNotifications", 
+		15*time.Minute, 
+		logger, 
+		func(ctx context.Context) error {
+			notificationWorker.RunDailyNotifications()
+			return nil
+		},
+	))
 	if err != nil {
 		logger.Error("error initializing daily notification job", "error", err)
 		return c, notificationWorker
 	}
 
 	// Run weekly notifications every Monday at 09:00
-	_, err = c.AddFunc("0 9 * * 1", func() {
-		notificationWorker.RunWeeklyNotifications()
-	})
+	_, err = c.AddFunc("0 9 * * 1", withSafeCron(
+		"WeeklyNotifications", 
+		15*time.Minute, 
+		logger, 
+		func(ctx context.Context) error {
+			notificationWorker.RunWeeklyNotifications()
+			return nil
+		},
+	))
 	if err != nil {
 		logger.Error("error initializing weekly notification job", "error", err)
 		return c, notificationWorker

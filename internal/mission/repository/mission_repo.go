@@ -176,7 +176,7 @@ func (r *repositoryImpl) GetAllUserBehaviorStats(ctx context.Context) ([]model.U
 		WITH NodeStats AS (
 			SELECT user_id, COUNT(progress_id) as nodes_done
 			FROM node_progress
-			WHERE complete = 'true' AND updated_at >= GETDATE() - 7
+			WHERE complete = 'true' AND updated_at >= DATEADD(day, -7, CAST(GETDATE() AS DATE))
 			GROUP BY user_id
 		),
 		PathStats AS (
