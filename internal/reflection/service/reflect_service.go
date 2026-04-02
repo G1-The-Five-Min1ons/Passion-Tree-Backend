@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"database/sql"
+	"time"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/utils"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
+	missionModel "passiontree/internal/mission/model"
 )
 
-func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error) {
+func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest, userID string) (*model.ReflectionResponse, error) {
 
 	if req.LearningReflect == "" {
 		return nil, apperror.NewBadRequest("learning_reflect is required")
@@ -63,6 +66,9 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewInternal("failed to create reflection: %w", err)
 	}
 
+	utils.SafeGo(ctx, s.logger, "Mission_WriteReflect", 10*time.Second, func(bgCtx context.Context) error {
+		return s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionWriteReflect)
+	})
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)
 
 	// Recalculate tree score (best-effort: a failure here must not reject the reflection).
