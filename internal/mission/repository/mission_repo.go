@@ -182,7 +182,7 @@ func (r *repositoryImpl) GetAllUserBehaviorStats(ctx context.Context) ([]model.U
 		PathStats AS (
 			SELECT user_id, COUNT(enroll_id) as paths_done
 			FROM path_enroll
-			WHERE enrollment_status = 'completed' AND complete_at >= GETDATE() - 7
+			WHERE enrollment_status = 'completed' AND complete_at >= DATEADD(day, -7, CAST(GETDATE() AS DATE))
 			GROUP BY user_id
 		),
 		ReflectStats AS (
@@ -191,7 +191,7 @@ func (r *repositoryImpl) GetAllUserBehaviorStats(ctx context.Context) ([]model.U
 			JOIN dbo.Tree_Node tn ON r.tree_node_id = tn.tree_node_id
 			JOIN dbo.Tree t ON tn.tree_id = t.tree_id
 			JOIN dbo.Tree_Album ta ON t.album_id = ta.album_id
-			WHERE r.create_at >= GETDATE() - 7
+			WHERE r.create_at >= DATEADD(day, -7, CAST(GETDATE() AS DATE))
 			GROUP BY ta.user_id
 		)
 		SELECT 
