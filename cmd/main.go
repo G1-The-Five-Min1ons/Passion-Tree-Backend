@@ -12,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	flogger "github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
+	fiberRecover "github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/robfig/cron/v3"
 
 	authrepo "passiontree/internal/auth/repository"
@@ -165,7 +165,7 @@ func createFiberApp(logger *slog.Logger) *fiber.App {
 	})
 
 	app.Use(flogger.New())
-	app.Use(recover.New())
+	app.Use(fiberRecover.New())
 	app.Use(cors.New(cors.Config{
 		AllowOriginsFunc: func(origin string) bool {
 			if origin == "https://passion-tree.org" || origin == "http://localhost:3000" {
@@ -216,29 +216,26 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 		return c, notificationWorker
 	}
 
-	_, err = c.AddFunc("0 0 * * 1", func() {
-		logger.Info("CronJob Triggered: Starting Weekly Mission Auto-Assignment")
-		
-		bgCtx := context.Background() 
-		
-		if err := mSvc.AutoAssignWeeklyMissions(bgCtx); err != nil {
-			logger.Error("CronJob Failed: AutoAssignWeeklyMissions", "error", err)
-		}
-	})
+	_, err = c.AddFunc("0 0 * * 1", withSafeCron(
+		"AutoAssignWeeklyMissions",
+		10*time.Minute,
+		logger,
+		func(ctx context.Context) error {
+			return mSvc.AutoAssignWeeklyMissions(ctx)
+		},
+	))
 	if err != nil {
 		logger.Error("error initializing weekly mission assignment job", "error", err)
 	}
 
-	_, err = c.AddFunc("0 0 * * *", func() {
-        logger.Info("CronJob Triggered: Cleaning up expired missions")
-
-        bgCtx := context.Background()
-		
-        if err := mSvc.CleanupExpiredMissions(bgCtx); err != nil {
-            logger.Error("CronJob Failed: CleanupExpiredMissions", "error", err)
-        }
-    })
-
+	_, err = c.AddFunc("0 0 * * *", withSafeCron(
+		"CleanupExpiredMissions", 
+		5*time.Minute, 
+		logger, 
+		func(ctx context.Context) error {
+			return mSvc.CleanupExpiredMissions(ctx)
+		},
+	))
 	if err != nil {
 		logger.Error("error initializing cleanup expired missions job", "error", err)
 	}
@@ -264,4 +261,26 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	c.Start()
 	logger.Info("background jobs started")
 	return c, notificationWorker
+}
+
+// withSafeCron เป็น Wrapper ช่วยจัดการ Timeout และ Panic ให้กับ Cron Job
+func withSafeCron(jobName string, timeout time.Duration, logger *slog.Logger, task func(ctx context.Context) error) func() {
+	return func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("CronJob Panic Recovered (Prevented Server Crash)", "job_name", jobName, "panic_info", r)
+			}
+		}()
+
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		logger.Info("CronJob Started", "job_name", jobName)
+
+		if err := task(ctx); err != nil {
+			logger.Error("CronJob Failed", "job_name", jobName, "error", err)
+		} else {
+			logger.Info("CronJob Completed Successfully", "job_name", jobName)
+		}
+	}
 }

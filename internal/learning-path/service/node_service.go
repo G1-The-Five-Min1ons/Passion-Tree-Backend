@@ -7,6 +7,7 @@ import (
 	"passiontree/internal/learning-path/repository"
 	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/utils"
 )
 
 func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
@@ -230,10 +231,9 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 		s.logger.InfoContext(ctx, "XP awarded for node completion", "node_id", nodeID, "user_id", userID, "xp", repository.XPPerNodeComplete)
 	}
 
-	go func() {
-		bgCtx := context.Background()
-		s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompleteNode)
-	}()
+	utils.SafeGo(ctx, s.logger, "Mission_CompleteNode", func(bgCtx context.Context) error {
+		return s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompleteNode)
+	})
 
 	// Fetch node details to get pathID
 	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
@@ -246,10 +246,9 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 				if err := s.pathRepo.UpdatePathEnrollmentCompletion(ctx, node.PathID, userID); err != nil {
 					s.logger.ErrorContext(ctx, "failed to update path enrollment completion", "error", err, "path_id", node.PathID, "user_id", userID)
 				} else {
-					go func() {
-						bgCtx := context.Background()
-						s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompletePath)
-					}()
+					utils.SafeGo(ctx, s.logger, "Mission_CompletePath", func(bgCtx context.Context) error {
+						return s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompletePath)
+					})
 					s.logger.InfoContext(ctx, "path fully completed", "path_id", node.PathID, "user_id", userID)
 
 					// Award bonus XP for completing entire path

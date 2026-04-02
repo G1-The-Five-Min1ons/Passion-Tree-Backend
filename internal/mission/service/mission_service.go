@@ -68,18 +68,20 @@ func (s *serviceImpl) AutoAssignWeeklyMissions(ctx context.Context) error {
 	missionsAssigned := 0
 
 	for _, stat := range userStats {
-		
-		// สเตปที่ 1: แจกภารกิจ Common ให้ทุกคนเสมอ
+		activeMissions, err := s.repo.GetUserActiveMissions(ctx, stat.UserID)
+		if err != nil {
+			s.logger.WarnContext(ctx, "failed to get active missions", "user_id", stat.UserID, "error", err)
+			continue
+		}
+		if len(activeMissions) > 0 {
+			continue
+		}
+		var missionsToAssign []string
+
 		if commonTemplate, ok := templateMap[model.ConditionCommon]; ok {
-			err := s.repo.AssignMissionToUser(ctx, stat.UserID, commonTemplate.MissionID, expireDate)
-			if err != nil {
-				s.logger.WarnContext(ctx, "failed to assign common mission", "user_id", stat.UserID, "error", err)
-			} else {
-				missionsAssigned++
-			}
+			missionsToAssign = append(missionsToAssign, commonTemplate.MissionID)
 		}
 
-		// สเตปที่ 2: แจกภารกิจ Personalized ตามพฤติกรรม
 		var personalizedTemplate model.MissionTemplate
 		templateFound := false
 
@@ -105,19 +107,23 @@ func (s *serviceImpl) AutoAssignWeeklyMissions(ctx context.Context) error {
 		}
 
 		if templateFound {
-			err := s.repo.AssignMissionToUser(ctx, stat.UserID, personalizedTemplate.MissionID, expireDate)
+			missionsToAssign = append(missionsToAssign, personalizedTemplate.MissionID)
+		}
+
+		if len(missionsToAssign) > 0 {
+			err := s.repo.AssignMissionsToUser(ctx, stat.UserID, missionsToAssign, expireDate)
 			if err != nil {
-				s.logger.WarnContext(ctx, "failed to assign personalized mission", "user_id", stat.UserID, "error", err)
+				s.logger.WarnContext(ctx, "failed to assign missions to user", "user_id", stat.UserID, "error", err)
 			} else {
-				missionsAssigned++
+				missionsAssigned += len(missionsToAssign)
 			}
 		}
 
 		usersProcessed++
 	}
 
-	s.logger.InfoContext(ctx, "intelligent weekly mission auto-assignment completed", 
-		"users_processed", usersProcessed, 
+	s.logger.InfoContext(ctx, "intelligent weekly mission auto-assignment completed",
+		"users_processed", usersProcessed,
 		"missions_assigned", missionsAssigned,
 	)
 	return nil
@@ -131,22 +137,31 @@ func (s *serviceImpl) ProcessMissionEvent(ctx context.Context, userID string, co
 	}
 
 	if len(missions) == 0 {
-		return nil 
+		return nil
 	}
 
-	for _, m := range missions {
-		newValue := m.CurrentValue + 1
-		isCompleted := newValue >= m.TargetValue
+	var missionsToUpdate []model.UserMission
+	var totalRewardXP int64 = 0
+	var totalRewardHeart int64 = 0
 
-		err := s.repo.UpdateMissionProgressAndReward(ctx, m.UserMissionID, userID, newValue, isCompleted, m.RewardXP, m.RewardHeart)
-		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to update mission progress", "error", err, "user_mission_id", m.UserMissionID)
-			continue
-		}
+	for _, m := range missions {
+		m.CurrentValue += 1
+		isCompleted := m.CurrentValue >= m.TargetValue
 
 		if isCompleted {
-			s.logger.InfoContext(ctx, "user completed a mission!", "user_id", userID, "mission_title", m.Title, "xp_reward", m.RewardXP)
+			m.Status = "completed"
+			totalRewardXP += m.RewardXP
+			totalRewardHeart += m.RewardHeart
+			s.logger.InfoContext(ctx, "user completed a mission!", "user_id", userID, "mission_title", m.Title)
 		}
+
+		missionsToUpdate = append(missionsToUpdate, m)
+	}
+
+	err = s.repo.BatchUpdateMissionProgressAndReward(ctx, userID, missionsToUpdate, totalRewardXP, totalRewardHeart)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to batch update mission progress", "error", err, "user_id", userID)
+		return apperror.NewInternal("failed to update mission progress")
 	}
 
 	return nil

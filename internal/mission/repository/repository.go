@@ -16,14 +16,14 @@ type RepositoryMission interface {
 
 	// User (Transaction)
 	GetUserActiveMissions(ctx context.Context, userID string) ([]model.UserMission, error)
-	AssignMissionToUser(ctx context.Context, userID string, missionID string, expireAt time.Time) error
+	AssignMissionsToUser(ctx context.Context, userID string, missionIDs []string, expireAt time.Time) error
 	GetActiveMissionsByCondition(ctx context.Context, userID string, conditionType string) ([]model.UserMission, error)
 
 	// สำหรับ Background Job
 	GetAllActiveUsers(ctx context.Context) ([]string, error)
 	GetAllUserBehaviorStats(ctx context.Context) ([]model.UserBehaviorStat, error)
 	DeleteExpiredUnfinishedMissions(ctx context.Context) error
-	UpdateMissionProgressAndReward(ctx context.Context, userMissionID string, userID string, newValue int, isCompleted bool, rewardXP int64, rewardHeart int64) error
+	BatchUpdateMissionProgressAndReward(ctx context.Context, userID string, missions []model.UserMission, totalXP int64, totalHeart int64) error
 }
 
 type DBTX interface {

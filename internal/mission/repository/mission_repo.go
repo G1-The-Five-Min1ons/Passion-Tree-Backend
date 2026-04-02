@@ -2,9 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
-	"database/sql"
 
 	"github.com/google/uuid"
 
@@ -52,15 +52,31 @@ func (r *repositoryImpl) GetActiveTemplates(ctx context.Context) ([]model.Missio
 	return templates, nil
 }
 
-func (r *repositoryImpl) AssignMissionToUser(ctx context.Context, userID string, missionID string, expireAt time.Time) error {
-	newID := uuid.New().String()
+func (r *repositoryImpl) AssignMissionsToUser(ctx context.Context, userID string, missionIDs []string, expireAt time.Time) error {
+	if len(missionIDs) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	query := `
 		INSERT INTO user_mission (user_mission_id, user_id, mission_id, current_value, status, expire_at) 
 		VALUES (@p1, @p2, @p3, 0, 'active', @p4)`
 
-	_, err := r.db.ExecContext(ctx, query, newID, userID, missionID, expireAt)
-	if err != nil {
-		return fmt.Errorf("repo.AssignMission failed: %w", err)
+	for _, missionID := range missionIDs {
+		newID := uuid.New().String()
+		_, err := tx.ExecContext(ctx, query, newID, userID, missionID, expireAt)
+		if err != nil {
+			return fmt.Errorf("failed to assign mission %s: %w", missionID, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
 }
@@ -155,84 +171,38 @@ func (r *repositoryImpl) GetActiveMissionsByCondition(ctx context.Context, userI
 	return missions, nil
 }
 
-func (r *repositoryImpl) UpdateMissionProgressAndReward(ctx context.Context, userMissionID string, userID string, newValue int, isCompleted bool, rewardXP int64, rewardHeart int64) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	status := "active"
-	completeAt := sql.NullTime{Valid: false}
-	if isCompleted {
-		status = "completed"
-		completeAt = sql.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
-	}
-
-	updateMissionQ := `
-		UPDATE user_mission 
-		SET current_value = @p1, status = @p2, complete_at = @p3 
-		WHERE user_mission_id = @p4`
-	_, err = tx.ExecContext(ctx, updateMissionQ, newValue, status, completeAt, userMissionID)
-	if err != nil {
-		return fmt.Errorf("failed to update user_mission: %w", err)
-	}
-
-	if isCompleted && rewardXP > 0 {
-		updateXPQ := `UPDATE profile SET xp = ISNULL(xp, 0) + @p1 WHERE user_id = @p2`
-		_, err = tx.ExecContext(ctx, updateXPQ, rewardXP, userID)
-		if err != nil {
-			return fmt.Errorf("failed to update user xp: %w", err)
-		}
-	}
-
-	if isCompleted && rewardHeart > 0 {
-		updateHeartQ := `
-			UPDATE users 
-			SET heart_count = CASE 
-				WHEN ISNULL(heart_count, 0) + @p1 > 255 THEN 255 
-				ELSE ISNULL(heart_count, 0) + @p1 
-			END 
-			WHERE user_id = @p2`
-		_, err = tx.ExecContext(ctx, updateHeartQ, rewardHeart, userID)
-		if err != nil {
-			return fmt.Errorf("failed to update user heart_count: %w", err)
-		}
-	}
-
-	return tx.Commit()
-}
-
 func (r *repositoryImpl) GetAllUserBehaviorStats(ctx context.Context) ([]model.UserBehaviorStat, error) {
-	// ปรับปรุง Query โดยเพิ่ม Subquery สำหรับนับ reflects_done ที่ JOIN ไปจนถึง Tree_Album
 	query := `
+		WITH NodeStats AS (
+			SELECT user_id, COUNT(progress_id) as nodes_done
+			FROM node_progress
+			WHERE complete = 'true' AND updated_at >= GETDATE() - 7
+			GROUP BY user_id
+		),
+		PathStats AS (
+			SELECT user_id, COUNT(enroll_id) as paths_done
+			FROM path_enroll
+			WHERE enrollment_status = 'completed' AND complete_at >= GETDATE() - 7
+			GROUP BY user_id
+		),
+		ReflectStats AS (
+			SELECT ta.user_id, COUNT(r.reflect_id) as reflects_done
+			FROM dbo.Reflect r
+			JOIN dbo.Tree_Node tn ON r.tree_node_id = tn.tree_node_id
+			JOIN dbo.Tree t ON tn.tree_id = t.tree_id
+			JOIN dbo.Tree_Album ta ON t.album_id = ta.album_id
+			WHERE r.create_at >= GETDATE() - 7
+			GROUP BY ta.user_id
+		)
 		SELECT 
 			CONVERT(VARCHAR(36), u.user_id) as user_id,
-			
-			(SELECT COUNT(*) 
-			 FROM node_progress np 
-			 WHERE np.user_id = u.user_id 
-			   AND np.complete = 'true' 
-			   AND np.updated_at >= GETDATE() - 7) as nodes_done,
-			
-			(SELECT COUNT(*) 
-			 FROM path_enroll pe 
-			 WHERE pe.user_id = u.user_id 
-			   AND pe.enrollment_status = 'completed' 
-			   AND pe.complete_at >= GETDATE() - 7) as paths_done,
-			   
-			(SELECT COUNT(r.reflect_id) 
-			 FROM dbo.Reflect r
-			 JOIN dbo.Tree_Node tn ON r.tree_node_id = tn.tree_node_id
-			 JOIN dbo.Tree t ON tn.tree_id = t.tree_id
-			 JOIN dbo.Tree_Album ta ON t.album_id = ta.album_id
-			 WHERE ta.user_id = u.user_id 
-			   AND r.create_at >= GETDATE() - 7) as reflects_done
-
+			ISNULL(ns.nodes_done, 0) as nodes_done,
+			ISNULL(ps.paths_done, 0) as paths_done,
+			ISNULL(rs.reflects_done, 0) as reflects_done
 		FROM users u
+		LEFT JOIN NodeStats ns ON u.user_id = ns.user_id
+		LEFT JOIN PathStats ps ON u.user_id = ps.user_id
+		LEFT JOIN ReflectStats rs ON u.user_id = rs.user_id
 	`
 
 	rows, err := r.db.QueryContext(ctx, query)
@@ -249,7 +219,7 @@ func (r *repositoryImpl) GetAllUserBehaviorStats(ctx context.Context) ([]model.U
 		}
 		stats = append(stats, s)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("repo.GetAllUserBehaviorStats row iteration failed: %w", err)
 	}
@@ -267,4 +237,55 @@ func (r *repositoryImpl) DeleteExpiredUnfinishedMissions(ctx context.Context) er
 		return fmt.Errorf("repo.DeleteExpiredUnfinishedMissions failed: %w", err)
 	}
 	return nil
+}
+
+func (r *repositoryImpl) BatchUpdateMissionProgressAndReward(ctx context.Context, userID string, missions []model.UserMission, totalXP int64, totalHeart int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	updateMissionQ := `
+		UPDATE user_mission 
+		SET current_value = @p1, status = @p2, complete_at = @p3 
+		WHERE user_mission_id = @p4`
+
+	for _, m := range missions {
+		var completeAt sql.NullTime
+		if m.Status == "completed" {
+			completeAt = sql.NullTime{
+				Time:  time.Now(),
+				Valid: true,
+			}
+		}
+		_, err = tx.ExecContext(ctx, updateMissionQ, m.CurrentValue, m.Status, completeAt, m.UserMissionID)
+		if err != nil {
+			return fmt.Errorf("failed to update user_mission %s: %w", m.UserMissionID, err)
+		}
+	}
+
+	if totalXP > 0 {
+		updateXPQ := `UPDATE profile SET xp = ISNULL(xp, 0) + @p1 WHERE user_id = @p2`
+		_, err = tx.ExecContext(ctx, updateXPQ, totalXP, userID)
+		if err != nil {
+			return fmt.Errorf("failed to batch update user xp: %w", err)
+		}
+	}
+
+	if totalHeart > 0 {
+		updateHeartQ := `
+			UPDATE users 
+			SET heart_count = CASE 
+				WHEN ISNULL(heart_count, 0) + @p1 > 255 THEN 255 
+				ELSE ISNULL(heart_count, 0) + @p1 
+			END 
+			WHERE user_id = @p2`
+		_, err = tx.ExecContext(ctx, updateHeartQ, totalHeart, userID)
+		if err != nil {
+			return fmt.Errorf("failed to batch update user heart_count: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
