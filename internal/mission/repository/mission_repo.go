@@ -64,8 +64,13 @@ func (r *repositoryImpl) AssignMissionsToUser(ctx context.Context, userID string
 	defer tx.Rollback()
 
 	query := `
-		INSERT INTO user_mission (user_mission_id, user_id, mission_id, current_value, status, expire_at) 
-		VALUES (@p1, @p2, @p3, 0, 'active', @p4)`
+		INSERT INTO user_mission (user_mission_id, user_id, mission_id, current_value, status, expire_at)
+		SELECT @p1, @p2, @p3, 0, 'active', @p4
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM user_mission
+			WHERE user_id = @p2 AND mission_id = @p3
+		)`
 
 	for _, missionID := range missionIDs {
 		newID := uuid.New().String()

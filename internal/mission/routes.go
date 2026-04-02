@@ -5,10 +5,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	repoUser "passiontree/internal/auth/repository"
 	"passiontree/internal/connection"
 	"passiontree/internal/mission/handler"
 	"passiontree/internal/mission/repository"
-	repoUser "passiontree/internal/auth/repository"
 	"passiontree/internal/mission/service"
 	"passiontree/internal/pkg/jwt"
 	"passiontree/internal/pkg/middleware"

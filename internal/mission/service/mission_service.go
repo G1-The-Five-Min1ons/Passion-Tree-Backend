@@ -73,9 +73,6 @@ func (s *serviceImpl) AutoAssignWeeklyMissions(ctx context.Context) error {
 			s.logger.WarnContext(ctx, "failed to get active missions", "user_id", stat.UserID, "error", err)
 			continue
 		}
-		if len(activeMissions) > 0 {
-			continue
-		}
 		var missionsToAssign []string
 
 		if commonTemplate, ok := templateMap[model.ConditionCommon]; ok {
@@ -85,24 +82,26 @@ func (s *serviceImpl) AutoAssignWeeklyMissions(ctx context.Context) error {
 		var personalizedTemplate model.MissionTemplate
 		templateFound := false
 
-		if stat.NodesDoneLast7Days >= 2 && stat.ReflectsDoneLast7Days == 0 {
-			if t, ok := templateMap[model.ConditionWriteReflect]; ok {
-				personalizedTemplate = t
-				templateFound = true
+		if len(activeMissions) == 0 {
+			if stat.NodesDoneLast7Days >= 2 && stat.ReflectsDoneLast7Days == 0 {
+				if t, ok := templateMap[model.ConditionWriteReflect]; ok {
+					personalizedTemplate = t
+					templateFound = true
+				}
 			}
-		}
 
-		if !templateFound && stat.PathsDoneLast7Days > 0 {
-			if t, ok := templateMap[model.ConditionEnrollPath]; ok {
-				personalizedTemplate = t
-				templateFound = true
+			if !templateFound && stat.PathsDoneLast7Days > 0 {
+				if t, ok := templateMap[model.ConditionEnrollPath]; ok {
+					personalizedTemplate = t
+					templateFound = true
+				}
 			}
-		}
 
-		if !templateFound {
-			if t, ok := templateMap[model.ConditionCompleteNode]; ok {
-				personalizedTemplate = t
-				templateFound = true
+			if !templateFound {
+				if t, ok := templateMap[model.ConditionCompleteNode]; ok {
+					personalizedTemplate = t
+					templateFound = true
+				}
 			}
 		}
 
