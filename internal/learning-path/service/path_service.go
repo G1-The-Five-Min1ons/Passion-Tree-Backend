@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -56,7 +57,7 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 		return "", apperror.NewInternal("failed to validate creator verification status: %w", err)
 	}
 
-	if creatorRole == "teacher" && !isTeacherVerified {
+	if creatorRole == "teacher" && !isTeacherVerified && !allowUnverifiedTeacherPathCreation() {
 		return "", apperror.NewForbidden("teacher account must be approved before creating learning paths (bind phone number, submit application, and wait for admin approval)")
 	}
 
@@ -96,6 +97,20 @@ func (s *serviceImpl) CreatePath(ctx context.Context, req model.CreatePathReques
 
 	s.logger.InfoContext(ctx, "learning path created successfully", "path_id", id)
 	return id, nil
+}
+
+func allowUnverifiedTeacherPathCreation() bool {
+	value := strings.TrimSpace(os.Getenv("ALLOW_UNVERIFIED_TEACHER_PATH_CREATION"))
+	if value == "" {
+		return false
+	}
+
+	switch strings.ToLower(value) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *serviceImpl) UpdatePath(ctx context.Context, path_id string, req model.UpdatePathRequest) error {

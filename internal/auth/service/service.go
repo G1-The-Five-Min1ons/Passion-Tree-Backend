@@ -3,8 +3,12 @@ package service
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"html/template"
 	"log/slog"
+	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"passiontree/internal/auth/model"
@@ -25,7 +29,31 @@ var (
 	securityAlertTemplate string
 	//go:embed templates/notification.html
 	notificationTemplate string
+
+	fixedTestOTPPattern = regexp.MustCompile(`^\d{6}$`)
 )
+
+// resolveVerificationOTP returns a fixed OTP in test mode when configured,
+// otherwise it generates a normal random verification code.
+func resolveVerificationOTP(logger *slog.Logger, flow string) (string, error) {
+	fixedOTP := strings.TrimSpace(os.Getenv("FIXED_TEST_OTP_CODE"))
+	if fixedOTP == "" {
+		return GenerateVerificationToken()
+	}
+
+	if !fixedTestOTPPattern.MatchString(fixedOTP) {
+		return "", fmt.Errorf("FIXED_TEST_OTP_CODE must be a 6-digit numeric code")
+	}
+
+	if logger != nil {
+		logger.Info("[DEBUG] Fixed OTP configured for test flow",
+			"flow", flow,
+			"otp_code", fixedOTP,
+		)
+	}
+
+	return fixedOTP, nil
+}
 
 type UserService interface {
 	CreateUser(ctx context.Context, user *model.User, profile *model.Profile) (string, error)

@@ -15,6 +15,12 @@ import (
 // SeedUser is a test helper that creates a temporary valid User and Profile in the database.
 // It returns the new userID and a cleanup function to immediately delete the user when the test finishes.
 func SeedUser(db connection.Database) (string, func(), error) {
+	return SeedUserWithRole(db, model.RoleStudent)
+}
+
+// SeedUserWithRole creates a temporary valid User and Profile with the requested role.
+// It returns the new userID and a cleanup function to immediately delete the user when the test finishes.
+func SeedUserWithRole(db connection.Database, role model.UserRole) (string, func(), error) {
 	repo := repository.NewRepository(db)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -28,7 +34,7 @@ func SeedUser(db connection.Database) (string, func(), error) {
 		Password:        "hashed_test_password",
 		FirstName:       "Integration",
 		LastName:        "Tester",
-		Role:            model.RoleStudent,
+		Role:            role,
 		HeartCount:      0,
 		IsEmailVerified: true,
 		AuthProvider:    model.AuthProviderLocal,

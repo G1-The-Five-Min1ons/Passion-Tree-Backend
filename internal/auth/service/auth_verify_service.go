@@ -99,7 +99,11 @@ func (s *userServiceImpl) ResendVerificationEmail(ctx context.Context, email str
 	}
 
 	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypeEmailVerification)
-	otpCode, _ := GenerateVerificationToken()
+	otpCode, err := resolveVerificationOTP(s.logger, "resend")
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to generate verification code", "error", err, "user_id", user.UserID)
+		return apperror.NewInternal("failed to generate verification code")
+	}
 
 	otpToken := &model.Token{
 		UserID:    user.UserID,

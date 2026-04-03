@@ -119,7 +119,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		_ = s.repo.ResetFailedLogin(ctx, user.UserID)
 	}
 
-	otpCode, err := GenerateVerificationToken()
+	otpCode, err := resolveVerificationOTP(s.logger, "login")
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to generate otp", "error", err)
 		return "", "", apperror.NewInternal("failed to generate verification code")
@@ -144,6 +144,7 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		"otp_code", otpCode,
 		"user_id", user.UserID,
 		"token_type", model.TokenTypeEmailVerification,
+		"flow", "login",
 		"expire_at", otpToken.ExpireAt,
 	)
 

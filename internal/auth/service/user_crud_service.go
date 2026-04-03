@@ -60,8 +60,8 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		user.HeartCount = 5 // default hearts
 	}
 
-	// Generate email verification token
-	verificationToken, err := GenerateVerificationToken()
+	// Generate email verification token (or use fixed test OTP when configured)
+	verificationToken, err := resolveVerificationOTP(s.logger, "register")
 	if err != nil {
 		return "", apperror.NewInternal("failed to generate verification token: %w", err)
 	}
@@ -121,6 +121,14 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		s.logger.WarnContext(ctx, "failed to save verification token", "error", err, "user_id", userID)
 		return "", apperror.NewInternal("failed to save verification token: %w", err)
 	}
+
+	s.logger.InfoContext(ctx, "[DEBUG] OTP stored successfully",
+		"otp_code", verificationToken,
+		"user_id", userID,
+		"token_type", model.TokenTypeEmailVerification,
+		"flow", "register",
+		"expire_at", tokenExpiry,
+	)
 
 	// Send verification email (don't fail registration if email sending fails)
 	if user.Email == "" {
