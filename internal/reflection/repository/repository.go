@@ -10,6 +10,7 @@ import (
 )
 
 var ErrInsufficientHearts = errors.New("insufficient hearts")
+var ErrPauseTargetNotFound = errors.New("pause target not found")
 
 type RepositoryReflection interface {
 	CreateReflection(ctx context.Context, req model.CreateReflectionRequest, summary, sentimentAnalysis string, primaryEmotion *string, strugglePoint string, aiConfidentScore, reflectionScore, weightedReflectionScore float64) (string, error)
@@ -35,10 +36,10 @@ type RepositoryReflection interface {
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
 	RetrieveTree(ctx context.Context, treeID string, userID string, heartCost int) (int, error)
 	DeleteTree(ctx context.Context, treeID string) error
-	PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time, heartCost int) (int, error)
+	PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error)
 	TryActivateScheduledPause(ctx context.Context, treeID string) (bool, *time.Time, error)
 	DeactivateActivePauseWindow(ctx context.Context, treeID string) error
-	UnpauseTree(ctx context.Context, treeID string) error
+	UnpauseTree(ctx context.Context, treeID string, userID string) error
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
 	// across all reflected nodes in the tree on a 0-10 scale,
 	// and persists it to tree.tree_score.

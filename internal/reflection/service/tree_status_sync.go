@@ -29,7 +29,7 @@ func (s *serviceImpl) syncTreeStatus(
 	}
 
 	if isPause && pausedAt != nil && !time.Now().Before(*pausedAt) {
-		if err := s.refRepo.UnpauseTree(ctx, treeID); err != nil {
+		if err := s.refRepo.UnpauseTree(ctx, treeID, ""); err != nil {
 			s.logger.WarnContext(ctx, "failed to auto-unpause tree",
 				"tree_id", treeID,
 				"paused_at", pausedAt,

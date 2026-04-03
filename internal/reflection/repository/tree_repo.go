@@ -473,19 +473,17 @@ func (r *repositoryImpl) RetrieveTree(ctx context.Context, treeID string, userID
 	return remainingHearts, nil
 }
 
+const pauseHeartCost = 3
+
 // PauseTree pauses a tree for a selected period and spends user hearts.
 // The elapsed decay time is frozen by shifting last_reflect_at forward by
 // the pause duration and storing pausedAt in paused_at.
-func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time, heartCost int) (int, error) {
+func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction failed: %w", err)
 	}
 	defer tx.Rollback()
-
-	if heartCost <= 0 {
-		heartCost = 3
-	}
 
 	var remainingHearts int
 	deductHeartQuery := `
@@ -497,9 +495,9 @@ func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, userID st
 		  AND heart_count >= @p2
 	`
 
-	if err := tx.QueryRowContext(ctx, deductHeartQuery, userID, heartCost).Scan(&remainingHearts); err != nil {
+	if err := tx.QueryRowContext(ctx, deductHeartQuery, userID, pauseHeartCost).Scan(&remainingHearts); err != nil {
 		if err == sql.ErrNoRows {
-			return 0, ErrInsufficientHearts
+			return 0, sql.ErrNoRows
 		}
 		return 0, fmt.Errorf("failed to deduct hearts for pause: %w", err)
 	}
@@ -532,7 +530,7 @@ func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, userID st
 	}
 
 	if rowsAffected == 0 {
-		return 0, sql.ErrNoRows
+		return 0, ErrPauseTargetNotFound
 	}
 
 	insertPauseHistoryQuery := `
@@ -842,16 +840,29 @@ func (r *repositoryImpl) DeactivateActivePauseWindow(ctx context.Context, treeID
 }
 
 // UnpauseTree releases a paused tree and clears paused_at.
-func (r *repositoryImpl) UnpauseTree(ctx context.Context, treeID string) error {
+// If the tree is resumed before paused_at, it rolls back the unearned
+// shift that was previously added to last_reflect_at during pause activation.
+// When userID is empty, ownership filtering is skipped (system/auto-unpause).
+func (r *repositoryImpl) UnpauseTree(ctx context.Context, treeID string, userID string) error {
 	query := `
-		UPDATE tree
-		SET is_pause = 0,
-		    paused_at = NULL,
-		    last_update = GETDATE()
-		WHERE tree_id = @p1
+		UPDATE t
+		SET t.is_pause = 0,
+		    t.paused_at = NULL,
+		    t.last_reflect_at = CASE
+		        WHEN t.last_reflect_at IS NOT NULL
+		         AND t.paused_at IS NOT NULL
+		         AND t.paused_at > GETDATE()
+		        THEN DATEADD(SECOND, -DATEDIFF(SECOND, GETDATE(), t.paused_at), t.last_reflect_at)
+		        ELSE t.last_reflect_at
+		    END,
+		    t.last_update = GETDATE()
+		FROM tree t
+		INNER JOIN tree_album a ON a.album_id = t.album_id
+		WHERE t.tree_id = @p1
+		  AND (@p2 = '' OR a.user_id = TRY_CAST(@p2 AS UNIQUEIDENTIFIER))
 	`
 
-	result, err := r.db.ExecContext(ctx, query, treeID)
+	result, err := r.db.ExecContext(ctx, query, treeID, userID)
 	if err != nil {
 		return fmt.Errorf("failed to unpause tree: %w", err)
 	}

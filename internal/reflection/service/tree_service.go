@@ -287,7 +287,7 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 			return nil, apperror.NewInternal("failed to resume tree: %w", err)
 		}
 
-		if err := s.refRepo.UnpauseTree(ctx, treeID); err != nil {
+		if err := s.refRepo.UnpauseTree(ctx, treeID, userID); err != nil {
 			s.logger.ErrorContext(ctx, "failed to resume tree", "error", err, "tree_id", treeID, "user_id", userID)
 			return nil, apperror.NewInternal("failed to resume tree: %w", err)
 		}
@@ -323,13 +323,12 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 		return nil, apperror.NewBadRequest("paused_at must be in the future")
 	}
 
-	const pauseCost = 3
-	remainingHearts, err := s.refRepo.PauseTree(ctx, treeID, userID, pauseFrom, resumeOn, pauseCost)
+	remainingHearts, err := s.refRepo.PauseTree(ctx, treeID, userID, pauseFrom, resumeOn)
 	if err != nil {
 		switch {
-		case errors.Is(err, repository.ErrInsufficientHearts):
-			return nil, apperror.NewBadRequest("insufficient hearts: at least 3 hearts are required")
 		case err == sql.ErrNoRows:
+			return nil, apperror.NewBadRequest("insufficient hearts: at least 3 hearts are required")
+		case errors.Is(err, repository.ErrPauseTargetNotFound):
 			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		default:
 			s.logger.ErrorContext(ctx, "failed to pause tree", "error", err, "tree_id", treeID, "user_id", userID)
