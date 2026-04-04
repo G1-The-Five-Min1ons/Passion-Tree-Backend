@@ -6,7 +6,6 @@ import (
 	"errors"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
-	"passiontree/internal/reflection/repository"
 	"time"
 )
 
@@ -211,17 +210,18 @@ func (s *serviceImpl) RetrieveTree(ctx context.Context, treeID string, userID st
 		return nil, apperror.NewUnauthorized("user not authenticated")
 	}
 
+	if err := s.ensureTreeOwnership(ctx, treeID, userID); err != nil {
+		return nil, err
+	}
+
 	const retrieveCost = 5
 
 	remainingHearts, err := s.refRepo.RetrieveTree(ctx, treeID, userID, retrieveCost)
 	if err != nil {
 		switch {
-		case errors.Is(err, repository.ErrInsufficientHearts):
+		case errors.Is(err, sql.ErrNoRows):
 			s.logger.WarnContext(ctx, "retrieve failed due to insufficient hearts", "tree_id", treeID, "user_id", userID)
 			return nil, apperror.NewBadRequest("insufficient hearts: at least 5 hearts are required")
-		case err == sql.ErrNoRows:
-			s.logger.WarnContext(ctx, "retrieve failed: tree not found or access denied", "tree_id", treeID, "user_id", userID)
-			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		default:
 			s.logger.ErrorContext(ctx, "failed to retrieve tree", "tree_id", treeID, "user_id", userID, "error", err)
 			return nil, apperror.NewInternal("failed to retrieve tree: %w", err)
@@ -268,6 +268,10 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 	}
 	if userID == "" {
 		return nil, apperror.NewUnauthorized("user not authenticated")
+	}
+
+	if err := s.ensureTreeOwnership(ctx, treeID, userID); err != nil {
+		return nil, err
 	}
 
 	// Get current tree state
@@ -326,10 +330,8 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 	remainingHearts, err := s.refRepo.PauseTree(ctx, treeID, userID, pauseFrom, resumeOn)
 	if err != nil {
 		switch {
-		case err == sql.ErrNoRows:
+		case errors.Is(err, sql.ErrNoRows):
 			return nil, apperror.NewBadRequest("insufficient hearts: at least 3 hearts are required")
-		case errors.Is(err, repository.ErrPauseTargetNotFound):
-			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		default:
 			s.logger.ErrorContext(ctx, "failed to pause tree", "error", err, "tree_id", treeID, "user_id", userID)
 			return nil, apperror.NewInternal("failed to pause tree: %w", err)
@@ -344,6 +346,21 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 		HeartCount: remainingHearts,
 		PausedAt:   &resumeOn,
 	}, nil
+}
+
+func (s *serviceImpl) ensureTreeOwnership(ctx context.Context, treeID string, userID string) error {
+	owned, err := s.refRepo.IsTreeOwnedByUser(ctx, treeID, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to verify tree ownership", "tree_id", treeID, "user_id", userID, "error", err)
+		return apperror.NewInternal("failed to verify tree ownership: %w", err)
+	}
+
+	if !owned {
+		s.logger.WarnContext(ctx, "tree not found or access denied", "tree_id", treeID, "user_id", userID)
+		return apperror.NewNotFound("tree with id '%s' not found", treeID)
+	}
+
+	return nil
 }
 
 // CalculateAndUpdateTreeScore computes the average weighted_reflection_score

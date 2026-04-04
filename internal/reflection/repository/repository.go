@@ -3,14 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"passiontree/internal/connection"
 	"passiontree/internal/reflection/model"
 	"time"
 )
-
-var ErrInsufficientHearts = errors.New("insufficient hearts")
-var ErrPauseTargetNotFound = errors.New("pause target not found")
 
 type RepositoryReflection interface {
 	CreateReflection(ctx context.Context, req model.CreateReflectionRequest, summary, sentimentAnalysis string, primaryEmotion *string, strugglePoint string, aiConfidentScore, reflectionScore, weightedReflectionScore float64) (string, error)
@@ -30,6 +26,7 @@ type RepositoryReflection interface {
 	// Tree methods
 	CreateTree(ctx context.Context, req model.CreateTreeRequest) (string, error)
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
+	IsTreeOwnedByUser(ctx context.Context, treeID string, userID string) (bool, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error)
 	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
 	UpdateTreeStatus(ctx context.Context, treeID string, status string) error

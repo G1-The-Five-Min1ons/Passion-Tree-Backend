@@ -177,6 +177,27 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 	return &tree, nil
 }
 
+func (r *repositoryImpl) IsTreeOwnedByUser(ctx context.Context, treeID string, userID string) (bool, error) {
+	query := `
+		SELECT 1
+		FROM tree t
+		INNER JOIN tree_album a ON a.album_id = t.album_id
+		WHERE t.tree_id = @p1
+		  AND a.user_id = CAST(@p2 AS UNIQUEIDENTIFIER)
+	`
+
+	var marker int
+	err := r.db.QueryRowContext(ctx, query, treeID, userID).Scan(&marker)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, fmt.Errorf("repo.IsTreeOwnedByUser failed: %w", err)
+	}
+
+	return true, nil
+}
+
 // GetTreesByAlbumID retrieves all trees for a specific album
 func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error) {
 	query := `
@@ -368,6 +389,51 @@ func (r *repositoryImpl) DeleteTree(ctx context.Context, treeID string) error {
 		return fmt.Errorf("failed to delete reflections for tree nodes: %w", err)
 	}
 
+	// Delete pause history rows when pause_tree exists to avoid FK violations.
+	deletePauseHistoryQuery := `
+		BEGIN TRY
+			DECLARE @treeID UNIQUEIDENTIFIER = TRY_CAST(@p1 AS UNIQUEIDENTIFIER)
+			IF @treeID IS NULL
+				RETURN
+
+			DECLARE @objId INT = (
+				SELECT TOP 1 t.object_id
+				FROM sys.tables t
+				WHERE LOWER(t.name) = 'pause_tree'
+			)
+
+			IF @objId IS NULL
+				RETURN
+
+			DECLARE @colTree SYSNAME = (
+				SELECT TOP 1 c.name
+				FROM sys.columns c
+				WHERE c.object_id = @objId
+				  AND LOWER(c.name) IN ('tree_id', 'treeid')
+			)
+
+			IF @colTree IS NULL
+				RETURN
+
+			DECLARE @sql NVARCHAR(MAX)
+			SET @sql = N'
+				DELETE FROM ' + QUOTENAME(OBJECT_SCHEMA_NAME(@objId)) + N'.' + QUOTENAME(OBJECT_NAME(@objId)) + N'
+				WHERE TRY_CAST(' + QUOTENAME(@colTree) + N' AS UNIQUEIDENTIFIER) = @treeID'
+
+			EXEC sp_executesql
+				@sql,
+				N'@treeID UNIQUEIDENTIFIER',
+				@treeID = @treeID
+		END TRY
+		BEGIN CATCH
+			THROW
+		END CATCH
+	`
+	_, err = tx.ExecContext(ctx, deletePauseHistoryQuery, treeID)
+	if err != nil {
+		return fmt.Errorf("failed to delete pause history: %w", err)
+	}
+
 	// Delete all tree nodes first (cascade delete)
 	deleteNodesQuery := `DELETE FROM tree_node WHERE tree_id = @p1`
 	_, err = tx.ExecContext(ctx, deleteNodesQuery, treeID)
@@ -434,7 +500,7 @@ func (r *repositoryImpl) RetrieveTree(ctx context.Context, treeID string, userID
 
 	if err := tx.QueryRowContext(ctx, deductHeartQuery, userID, heartCost).Scan(&remainingHearts); err != nil {
 		if err == sql.ErrNoRows {
-			return 0, ErrInsufficientHearts
+			return 0, sql.ErrNoRows
 		}
 		return 0, fmt.Errorf("failed to deduct hearts: %w", err)
 	}
@@ -530,7 +596,7 @@ func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, userID st
 	}
 
 	if rowsAffected == 0 {
-		return 0, ErrPauseTargetNotFound
+		return 0, sql.ErrNoRows
 	}
 
 	insertPauseHistoryQuery := `
