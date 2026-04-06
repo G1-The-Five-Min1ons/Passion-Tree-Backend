@@ -8,6 +8,7 @@ import (
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
+	missionService "passiontree/internal/mission/service"
 )
 
 type ServiceLearningPath interface {
@@ -96,12 +97,13 @@ type serviceImpl struct {
 	resumeRepo   repository.RepositoryResume
 	progressRepo repository.RepositoryProgress
 	xpRepo       repository.RepositoryXP
+	missionSvc   missionService.ServiceMission
 	logger       *slog.Logger
 	aiClient     *aiclient.AIClient
 	storage      *storage.BlobService
 }
 
-func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
+func NewService(repo repository.Repository, ms missionService.ServiceMission, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
 	if aiClient == nil {
 		slog.Warn("[DEBUG] Warning: aiClient passed to NewService is NIL!")
 	} else {
@@ -117,6 +119,7 @@ func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger 
 		resumeRepo:   repo,
 		progressRepo: repo,
 		xpRepo:       repo,
+		missionSvc:   ms,
 		logger:       logger,
 		aiClient:     aiClient,
 		storage:      nil,

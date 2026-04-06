@@ -12,6 +12,8 @@ func (m *Migrator) RunAllMigrations(ctx context.Context) error {
 		{name: "teacher_verification_and_settings", run: m.RunTeacherVerificationAndSettingsMigration},
 		{name: "user_settings_table", run: m.RunUserSettingsTableMigration},
 		{name: "platform_announcements", run: m.RunPlatformAnnouncementsMigration},
+		{name: "default_mission_templates", run: m.RunDefaultMissionTemplatesMigration},
+		{name: "assign_starter_mission_to_users", run: m.RunAssignStarterMissionToUsersMigration},
 		{name: "remove_web_push_setting", run: m.RunRemoveWebPushSettingMigration},
 		{name: "cleanup_redundant_settings_indexes", run: m.RunCleanupSettingsIndexesMigration},
 	}

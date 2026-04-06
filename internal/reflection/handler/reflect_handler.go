@@ -8,9 +8,15 @@ import (
 	"passiontree/internal/reflection/model"
 
 	"github.com/gofiber/fiber/v2"
+	"passiontree/internal/pkg/middleware"
 )
 
 func (h *Handler) Create(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	var req model.CreateReflectionRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
@@ -19,7 +25,7 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	res, err := h.reflectSvc.CreateReflection(ctx, req)
+	res, err := h.reflectSvc.CreateReflection(ctx, req, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}

@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"log/slog"
+	missionService "passiontree/internal/mission/service"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
 	"passiontree/internal/reflection/repository"
 )
 
 type ReflectionService interface {
-	CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error)
+	CreateReflection(ctx context.Context, req model.CreateReflectionRequest, userID string) (*model.ReflectionResponse, error)
 	GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error)
 	GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error)
 	GetReflectionStats(ctx context.Context) (*model.ReflectionStats, error)
@@ -44,15 +45,17 @@ type ReflectionService interface {
 }
 
 type serviceImpl struct {
-	refRepo  repository.RepositoryReflection
-	aiClient *aiclient.AIClient
-	logger   *slog.Logger
+	refRepo    repository.RepositoryReflection
+	missionSvc missionService.ServiceMission
+	aiClient   *aiclient.AIClient
+	logger     *slog.Logger
 }
 
-func NewService(repo repository.RepositoryReflection, aiClient *aiclient.AIClient, logger *slog.Logger) ReflectionService {
+func NewService(repo repository.RepositoryReflection, ms missionService.ServiceMission, aiClient *aiclient.AIClient, logger *slog.Logger) ReflectionService {
 	return &serviceImpl{
-		refRepo:  repo,
-		aiClient: aiClient,
-		logger:   logger,
+		refRepo:    repo,
+		missionSvc: ms,
+		aiClient:   aiClient,
+		logger:     logger,
 	}
 }

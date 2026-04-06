@@ -6,10 +6,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"passiontree/internal/config"
 	"passiontree/internal/learning-path/model"
+	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/utils"
 )
 
 func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
@@ -205,6 +208,10 @@ func (s *serviceImpl) StartPath(ctx context.Context, path_id string, user_id str
 		}
 		return apperror.NewInternal("failed to enroll user '%s' in path '%s': %w", user_id, path_id, err)
 	}
+
+	utils.SafeGo(ctx, s.logger, "Mission_EnrollPath", 10*time.Second, func(bgCtx context.Context) error {
+		return s.missionSvc.ProcessMissionEvent(bgCtx, user_id, missionModel.ConditionEnrollPath)
+	})
 
 	s.logger.InfoContext(ctx, "user enrollment successful", "user_id", user_id, "path_id", path_id)
 	return nil
