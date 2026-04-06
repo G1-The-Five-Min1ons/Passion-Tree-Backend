@@ -57,10 +57,45 @@ func SeedUserWithRole(db connection.Database, role model.UserRole) (string, func
 		return "", nil, fmt.Errorf("failed to seed test user: %w", err)
 	}
 
+	verificationID := ""
+	if role == model.RoleTeacher {
+		verificationID = uuid.New().String()
+		if _, err := db.GetDB().ExecContext(ctx, `
+			INSERT INTO teacher_verification_requests (
+				request_id,
+				user_id,
+				phone_number,
+				reason,
+				teaching_history,
+				status,
+				reviewed_by,
+				reviewed_at,
+				created_at,
+				updated_at
+			) VALUES (
+				@p1,
+				@p2,
+				@p3,
+				@p4,
+				@p5,
+				'approved',
+				null,
+				GETDATE(),
+				GETDATE(),
+				GETDATE()
+			)`, verificationID, userID, "+66812345678", "Integration test approval", "Integration test teaching history"); err != nil {
+			_ = repo.DeleteUser(ctx, userID)
+			return "", nil, fmt.Errorf("failed to seed teacher verification record: %w", err)
+		}
+	}
+
 	// 3. Define the cleanup procedure
 	cleanup := func() {
 		delCtx, delCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer delCancel()
+		if verificationID != "" {
+			_, _ = db.GetDB().ExecContext(delCtx, `DELETE FROM teacher_verification_requests WHERE request_id = @p1`, verificationID)
+		}
 		_ = repo.DeleteUser(delCtx, userID)
 	}
 
