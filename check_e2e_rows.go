@@ -6,10 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/joho/godotenv"
 	"passiontree/internal/config"
 	"passiontree/internal/connection"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -46,6 +45,9 @@ func main() {
 		lp.title,
 		CONVERT(VARCHAR(36), lp.creator_id) AS creator_id,
 		ISNULL(node_count.total_nodes, 0) AS total_nodes,
+		ISNULL(mat_count.total_materials, 0) AS total_materials,
+		ISNULL(q_count.total_questions, 0) AS total_questions,
+		ISNULL(c_count.total_choices, 0) AS total_choices,
 		lp.create_at
 	FROM learning_path lp
 	LEFT JOIN (
@@ -53,6 +55,25 @@ func main() {
 		FROM node
 		GROUP BY path_id
 	) node_count ON node_count.path_id = lp.path_id
+	LEFT JOIN (
+		SELECT n.path_id, COUNT(*) AS total_materials
+		FROM node_material nm
+		JOIN node n ON n.node_id = nm.node_id
+		GROUP BY n.path_id
+	) mat_count ON mat_count.path_id = lp.path_id
+	LEFT JOIN (
+		SELECT n.path_id, COUNT(*) AS total_questions
+		FROM node_question q
+		JOIN node n ON n.node_id = q.node_id
+		GROUP BY n.path_id
+	) q_count ON q_count.path_id = lp.path_id
+	LEFT JOIN (
+		SELECT n.path_id, COUNT(*) AS total_choices
+		FROM question_choice c
+		JOIN node_question q ON q.question_id = c.question_id
+		JOIN node n ON n.node_id = q.node_id
+		GROUP BY n.path_id
+	) c_count ON c_count.path_id = lp.path_id
 	WHERE lp.title LIKE 'E2E LP%'
 	ORDER BY lp.create_at DESC`
 
@@ -67,13 +88,13 @@ func main() {
 	count := 0
 	for rows.Next() {
 		var pathID, title, creatorID, createdAt string
-		var totalNodes int
-		if err := rows.Scan(&pathID, &title, &creatorID, &totalNodes, &createdAt); err != nil {
+		var totalNodes, totalMaterials, totalQuestions, totalChoices int
+		if err := rows.Scan(&pathID, &title, &creatorID, &totalNodes, &totalMaterials, &totalQuestions, &totalChoices, &createdAt); err != nil {
 			fmt.Fprintf(os.Stderr, "Scan failed: %v\n", err)
 			os.Exit(1)
 		}
 		count++
-		fmt.Printf("%d) path_id=%s | nodes=%d | creator=%s | title=%s | created_at=%s\n", count, pathID, totalNodes, creatorID, title, createdAt)
+		fmt.Printf("%d) path_id=%s | nodes=%d | materials=%d | questions=%d | choices=%d | creator=%s | title=%s | created_at=%s\n", count, pathID, totalNodes, totalMaterials, totalQuestions, totalChoices, creatorID, title, createdAt)
 	}
 
 	if count == 0 {
