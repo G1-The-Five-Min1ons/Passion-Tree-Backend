@@ -367,7 +367,7 @@ func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) (
 
 func (s *serviceImpl) UpsertRating(ctx context.Context, pathID string, userID string, req model.RatingRequest) error {
 	if pathID == "" {
-		return apperror.NewBadRequest("path_id are required")
+		return apperror.NewBadRequest("path_id is required")
 	}
 
 	if userID == "" {
@@ -394,7 +394,7 @@ func (s *serviceImpl) UpsertRating(ctx context.Context, pathID string, userID st
 
 func (s *serviceImpl) GetMyRating(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error) {
 	if pathID == "" {
-		return nil, apperror.NewBadRequest("path_id are required")
+		return nil, apperror.NewBadRequest("path_id is required")
 	}
 
 	if userID == "" {
@@ -414,7 +414,7 @@ func (s *serviceImpl) GetMyRating(ctx context.Context, pathID string, userID str
 
 func (s *serviceImpl) DeleteRating(ctx context.Context, pathID string, userID string) error {
 	if pathID == "" {
-		return apperror.NewBadRequest("path_id are required")
+		return apperror.NewBadRequest("path_id is required")
 	}
 
 	if userID == "" {

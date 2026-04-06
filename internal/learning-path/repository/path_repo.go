@@ -493,17 +493,30 @@ func (r *repositoryImpl) UpsertLearningPathRating(ctx context.Context, rating *m
 	defer tx.Rollback()
 
 	var existingID string
-	checkQuery := `SELECT CONVERT(VARCHAR(36), rating_id) FROM Learning_Path_Rating WHERE path_id = @p1 AND user_id = @p2`
-	err = tx.QueryRowContext(ctx, checkQuery, rating.PathID, rating.UserID).Scan(&existingID)
+	var oldRatingOverall float64
+
+	checkQuery := `SELECT CONVERT(VARCHAR(36), rating_id), rating_overall FROM Learning_Path_Rating WHERE path_id = @p1 AND user_id = @p2`
+	err = tx.QueryRowContext(ctx, checkQuery, rating.PathID, rating.UserID).Scan(&existingID, &oldRatingOverall)
+
+	var ratingDiff float64
+	var countDiff int
 
 	switch err {
 	case sql.ErrNoRows:
 		rating.RatingID = uuid.New().String()
 		insertQuery := `INSERT INTO Learning_Path_Rating (rating_id, rating_content, rating_instruct, rating_overall, user_id, path_id) VALUES (@p1, @p2, @p3, @p4, @p5, @p6)`
 		_, err = tx.ExecContext(ctx, insertQuery, rating.RatingID, rating.RatingContent, rating.RatingInstruct, rating.RatingOverall, rating.UserID, rating.PathID)
+
+		ratingDiff = rating.RatingOverall
+		countDiff = 1
+
 	case nil:
 		updateQuery := `UPDATE Learning_Path_Rating SET rating_content = @p1, rating_instruct = @p2, rating_overall = @p3 WHERE rating_id = @p4`
 		_, err = tx.ExecContext(ctx, updateQuery, rating.RatingContent, rating.RatingInstruct, rating.RatingOverall, existingID)
+
+		ratingDiff = rating.RatingOverall - oldRatingOverall
+		countDiff = 0
+
 	default:
 		return fmt.Errorf("repo.UpsertRating check existing rating failed: %w", err)
 	}
@@ -512,15 +525,8 @@ func (r *repositoryImpl) UpsertLearningPathRating(ctx context.Context, rating *m
 		return fmt.Errorf("repo.UpsertRating modify rating failed: %w", err)
 	}
 
-	var newAvg float64
-	calcQuery := `SELECT ISNULL(AVG(CAST(rating_overall AS FLOAT)), 0) FROM Learning_Path_Rating WHERE path_id = @p1`
-	if err := tx.QueryRowContext(ctx, calcQuery, rating.PathID).Scan(&newAvg); err != nil {
-		return fmt.Errorf("repo.UpsertRating calc average failed: %w", err)
-	}
-
-	updatePathQuery := `UPDATE learning_path SET avg_rating = @p1, update_at = GETDATE() WHERE path_id = @p2`
-	if _, err := tx.ExecContext(ctx, updatePathQuery, newAvg, rating.PathID); err != nil {
-		return fmt.Errorf("repo.UpsertRating update path avg failed: %w", err)
+	if err := r.updatePathRatingStats(ctx, tx, rating.PathID, ratingDiff, countDiff); err != nil {
+		return err
 	}
 
 	return tx.Commit()
@@ -548,6 +554,15 @@ func (r *repositoryImpl) DeleteLearningPathRating(ctx context.Context, pathID st
 	}
 	defer tx.Rollback()
 
+	var oldRatingOverall float64
+	getRatingQuery := `SELECT rating_overall FROM Learning_Path_Rating WHERE path_id = @p1 AND user_id = @p2`
+	if err := tx.QueryRowContext(ctx, getRatingQuery, pathID, userID).Scan(&oldRatingOverall); err != nil {
+		if err == sql.ErrNoRows {
+			return sql.ErrNoRows
+		}
+		return fmt.Errorf("repo.DeleteRating fetch old rating failed: %w", err)
+	}
+
 	deleteQuery := `DELETE FROM Learning_Path_Rating WHERE path_id = @p1 AND user_id = @p2`
 	res, err := tx.ExecContext(ctx, deleteQuery, pathID, userID)
 	if err != nil {
@@ -558,16 +573,30 @@ func (r *repositoryImpl) DeleteLearningPathRating(ctx context.Context, pathID st
 		return sql.ErrNoRows
 	}
 
-	var newAvg float64
-	calcQuery := `SELECT ISNULL(AVG(CAST(rating_overall AS FLOAT)), 0) FROM Learning_Path_Rating WHERE path_id = @p1`
-	if err := tx.QueryRowContext(ctx, calcQuery, pathID).Scan(&newAvg); err != nil {
-		return fmt.Errorf("repo.DeleteRating calc average failed: %w", err)
-	}
-
-	updatePathQuery := `UPDATE learning_path SET avg_rating = @p1, update_at = GETDATE() WHERE path_id = @p2`
-	if _, err := tx.ExecContext(ctx, updatePathQuery, newAvg, pathID); err != nil {
-		return fmt.Errorf("repo.DeleteRating update path avg failed: %w", err)
+	if err := r.updatePathRatingStats(ctx, tx, pathID, -oldRatingOverall, -1); err != nil {
+		return err
 	}
 
 	return tx.Commit()
+}
+
+func (r *repositoryImpl) updatePathRatingStats(ctx context.Context, tx *sql.Tx, pathID string, ratingDiff float64, countDiff int) error {
+	query := `
+		UPDATE learning_path 
+		SET 
+			total_rating = ISNULL(total_rating, 0) + @p1,
+			rating_count = ISNULL(rating_count, 0) + @p2,
+			avg_rating = CASE 
+				WHEN (ISNULL(rating_count, 0) + @p2) > 0 
+				THEN (ISNULL(total_rating, 0) + @p1) / CAST((ISNULL(rating_count, 0) + @p2) AS FLOAT)
+				ELSE 0 
+			END,
+			update_at = GETDATE()
+		WHERE path_id = @p3
+	`
+	_, err := tx.ExecContext(ctx, query, ratingDiff, countDiff, pathID)
+	if err != nil {
+		return fmt.Errorf("repo.updatePathRatingStats update failed: %w", err)
+	}
+	return nil
 }
