@@ -61,6 +61,12 @@ type RepositoryQuiz interface {
 	DeleteChoice(ctx context.Context, choiceID string) error
 }
 
+type RepositoryRating interface {
+	UpsertLearningPathRating(ctx context.Context, rating *model.LearningPathRating) error
+	GetRatingByUser(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error)
+	DeleteLearningPathRating(ctx context.Context, pathID string, userID string) error
+}
+
 type RepositoryProgress interface {
 	GetUserPathProgress(ctx context.Context, pathID string, userID string) (*model.PathProgressResponse, error)
 }
@@ -94,6 +100,7 @@ type Repository interface {
 	RepositoryNode
 	RepositoryComment
 	RepositoryQuiz
+	RepositoryRating
 	RepositoryProgress
 	RepositoryHistory
 	RepositoryResume
