@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
+	"time"
 )
 
 func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeRequest) (*model.TreeResponse, error) {
@@ -198,6 +200,46 @@ func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.U
 	return nil
 }
 
+func (s *serviceImpl) RetrieveTree(ctx context.Context, treeID string, userID string) (*model.RetrieveTreeResponse, error) {
+	s.logger.InfoContext(ctx, "request to retrieve tree", "tree_id", treeID, "user_id", userID)
+
+	if treeID == "" {
+		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+	if userID == "" {
+		return nil, apperror.NewUnauthorized("user not authenticated")
+	}
+
+	if err := s.ensureTreeOwnership(ctx, treeID, userID); err != nil {
+		return nil, err
+	}
+
+	const retrieveCost = 5
+
+	remainingHearts, err := s.refRepo.RetrieveTree(ctx, treeID, userID, retrieveCost)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			s.logger.WarnContext(ctx, "retrieve failed due to insufficient hearts", "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewBadRequest("insufficient hearts: at least 5 hearts are required")
+		default:
+			s.logger.ErrorContext(ctx, "failed to retrieve tree", "tree_id", treeID, "user_id", userID, "error", err)
+			return nil, apperror.NewInternal("failed to retrieve tree: %w", err)
+		}
+	}
+
+	now := time.Now()
+	response := &model.RetrieveTreeResponse{
+		TreeID:        treeID,
+		HeartCount:    remainingHearts,
+		Status:        statusGrowing,
+		LastReflectAt: &now,
+	}
+
+	s.logger.InfoContext(ctx, "tree retrieved successfully", "tree_id", treeID, "user_id", userID, "remaining_hearts", remainingHearts)
+	return response, nil
+}
+
 func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
 	s.logger.InfoContext(ctx, "request to delete tree", "tree_id", treeID)
 
@@ -218,11 +260,18 @@ func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
 	return nil
 }
 
-func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) (bool, error) {
-	s.logger.InfoContext(ctx, "request to toggle pause/unpause tree", "tree_id", treeID)
+func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID string, req model.PauseTreeRequest) (*model.PauseTreeResponse, error) {
+	s.logger.InfoContext(ctx, "request to pause tree", "tree_id", treeID, "user_id", userID)
 
 	if treeID == "" {
-		return false, apperror.NewBadRequest("tree_id is required")
+		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+	if userID == "" {
+		return nil, apperror.NewUnauthorized("user not authenticated")
+	}
+
+	if err := s.ensureTreeOwnership(ctx, treeID, userID); err != nil {
+		return nil, err
 	}
 
 	// Get current tree state
@@ -230,46 +279,88 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, req model.Pa
 	if err != nil {
 		if err == sql.ErrNoRows {
 			s.logger.WarnContext(ctx, "tree not found", "tree_id", treeID)
-			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
-		return false, apperror.NewInternal("%s", err.Error())
+		return nil, apperror.NewInternal("%s", err.Error())
 	}
 
-	// Toggle pause status (pause -> unpause, unpause -> pause)
-	newPauseStatus := !tree.IsPause
-
-	// Update pause status
-	err = s.refRepo.PauseTree(ctx, treeID, newPauseStatus)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, apperror.NewNotFound("tree with id '%s' not found", treeID)
+	if tree.IsPause {
+		if err := s.refRepo.DeactivateActivePauseWindow(ctx, treeID); err != nil {
+			s.logger.ErrorContext(ctx, "failed to deactivate active pause window", "error", err, "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewInternal("failed to resume tree: %w", err)
 		}
-		s.logger.ErrorContext(ctx, "failed to pause/unpause tree", "error", err, "tree_id", treeID)
-		return false, apperror.NewInternal("%s", err.Error())
+
+		if err := s.refRepo.UnpauseTree(ctx, treeID, userID); err != nil {
+			s.logger.ErrorContext(ctx, "failed to resume tree", "error", err, "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewInternal("failed to resume tree: %w", err)
+		}
+
+		s.logger.InfoContext(ctx, "tree resumed successfully", "tree_id", treeID, "user_id", userID)
+		return &model.PauseTreeResponse{
+			TreeID:     treeID,
+			IsPause:    false,
+			HeartCount: 0,
+			PausedAt:   nil,
+		}, nil
 	}
 
-	updatedTree, err := s.refRepo.GetTreeByID(ctx, treeID)
+	if req.PausedAt == "" {
+		return nil, apperror.NewBadRequest("paused_at is required")
+	}
+
+	resumeOn, err := time.Parse(time.RFC3339, req.PausedAt)
 	if err != nil {
-		s.logger.WarnContext(ctx, "failed to refresh tree after pause toggle", "tree_id", treeID, "error", err)
-	} else {
-		updatedTree.Status = s.syncTreeStatus(
-			ctx,
-			updatedTree.TreeID,
-			updatedTree.Status,
-			updatedTree.Difficulties,
-			updatedTree.LastReflectAt,
-			updatedTree.IsPause,
-			updatedTree.PausedAt,
-		)
+		return nil, apperror.NewBadRequest("paused_at must be a valid RFC3339 datetime")
 	}
 
-	pauseStatus := "paused"
-	if !newPauseStatus {
-		pauseStatus = "unpaused"
+	pauseFrom := time.Now()
+	if req.PauseFrom != "" {
+		parsedPauseFrom, parseErr := time.Parse(time.RFC3339, req.PauseFrom)
+		if parseErr != nil {
+			return nil, apperror.NewBadRequest("pause_from must be a valid RFC3339 datetime")
+		}
+		pauseFrom = parsedPauseFrom
 	}
-	s.logger.InfoContext(ctx, "tree "+pauseStatus+" successfully", "tree_id", treeID, "previous_status", tree.IsPause, "new_status", newPauseStatus)
-	return newPauseStatus, nil
+
+	if !resumeOn.After(pauseFrom) {
+		return nil, apperror.NewBadRequest("paused_at must be in the future")
+	}
+
+	remainingHearts, err := s.refRepo.PauseTree(ctx, treeID, userID, pauseFrom, resumeOn)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, apperror.NewBadRequest("insufficient hearts: at least 3 hearts are required")
+		default:
+			s.logger.ErrorContext(ctx, "failed to pause tree", "error", err, "tree_id", treeID, "user_id", userID)
+			return nil, apperror.NewInternal("failed to pause tree: %w", err)
+		}
+	}
+
+	s.logger.InfoContext(ctx, "tree paused successfully", "tree_id", treeID, "paused_at", resumeOn, "remaining_hearts", remainingHearts)
+
+	return &model.PauseTreeResponse{
+		TreeID:     treeID,
+		IsPause:    true,
+		HeartCount: remainingHearts,
+		PausedAt:   &resumeOn,
+	}, nil
+}
+
+func (s *serviceImpl) ensureTreeOwnership(ctx context.Context, treeID string, userID string) error {
+	owned, err := s.refRepo.IsTreeOwnedByUser(ctx, treeID, userID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to verify tree ownership", "tree_id", treeID, "user_id", userID, "error", err)
+		return apperror.NewInternal("failed to verify tree ownership: %w", err)
+	}
+
+	if !owned {
+		s.logger.WarnContext(ctx, "tree not found or access denied", "tree_id", treeID, "user_id", userID)
+		return apperror.NewNotFound("tree with id '%s' not found", treeID)
+	}
+
+	return nil
 }
 
 // CalculateAndUpdateTreeScore computes the average weighted_reflection_score

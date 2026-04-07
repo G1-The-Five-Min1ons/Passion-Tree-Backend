@@ -29,8 +29,9 @@ type ReflectionService interface {
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool, userID string) (interface{}, error)
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
+	RetrieveTree(ctx context.Context, treeID string, userID string) (*model.RetrieveTreeResponse, error)
 	DeleteTree(ctx context.Context, treeID string) error
-	PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) (bool, error)
+	PauseTree(ctx context.Context, treeID string, userID string, req model.PauseTreeRequest) (*model.PauseTreeResponse, error)
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
 	// for all reflected nodes in the tree on a 0-10 scale,
 	// and persists it to tree.tree_score.

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"passiontree/internal/connection"
 	"passiontree/internal/reflection/model"
+	"time"
 )
 
 type RepositoryReflection interface {
@@ -25,12 +26,17 @@ type RepositoryReflection interface {
 	// Tree methods
 	CreateTree(ctx context.Context, req model.CreateTreeRequest) (string, error)
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
+	IsTreeOwnedByUser(ctx context.Context, treeID string, userID string) (bool, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error)
 	GetTreesWithNodesByAlbumID(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
 	UpdateTreeStatus(ctx context.Context, treeID string, status string) error
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
+	RetrieveTree(ctx context.Context, treeID string, userID string, heartCost int) (int, error)
 	DeleteTree(ctx context.Context, treeID string) error
-	PauseTree(ctx context.Context, treeID string, isPause bool) error
+	PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error)
+	TryActivateScheduledPause(ctx context.Context, treeID string) (bool, *time.Time, error)
+	DeactivateActivePauseWindow(ctx context.Context, treeID string) error
+	UnpauseTree(ctx context.Context, treeID string, userID string) error
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
 	// across all reflected nodes in the tree on a 0-10 scale,
 	// and persists it to tree.tree_score.
