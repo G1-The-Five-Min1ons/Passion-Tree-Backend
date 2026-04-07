@@ -371,7 +371,11 @@ func (s *serviceImpl) UpsertRating(ctx context.Context, pathID string, userID st
 	}
 
 	if userID == "" {
-		return apperror.NewBadRequest("user_id are required")
+		return apperror.NewBadRequest("user_id is required")
+	}
+
+	if req.RatingContent < 1 || req.RatingContent > 5 || req.RatingInstruct < 1 || req.RatingInstruct > 5 {
+		return apperror.NewBadRequest("rating scores must be between 1 and 5")
 	}
 
 	overall := float64(req.RatingContent+req.RatingInstruct) / 2.0
