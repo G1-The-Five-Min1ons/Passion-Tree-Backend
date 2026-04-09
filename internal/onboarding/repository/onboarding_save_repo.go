@@ -13,7 +13,7 @@ func (r *repositoryImpl) UpsertOnboarding(ctx context.Context, userID string, re
 	learningStyles := strings.Join(req.LearningStyles, ",")
 
 	query := `
-		MERGE INTO onboarding_answers AS target
+		MERGE INTO onboarding_answers WITH (HOLDLOCK) AS target
 		USING (SELECT @p1 AS user_id) AS source ON target.user_id = source.user_id
 		WHEN MATCHED THEN
 			UPDATE SET
