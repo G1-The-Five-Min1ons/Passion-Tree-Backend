@@ -13,6 +13,7 @@ import (
 
 	auth "passiontree/internal/auth"
 	learningpath "passiontree/internal/learning-path"
+	onboarding "passiontree/internal/onboarding"
 	recommendation "passiontree/internal/recommendation"
 	reflection "passiontree/internal/reflection"
 	setting "passiontree/internal/setting"
@@ -48,6 +49,7 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 	recommendation.RegisterRoutes(api, db, aiClient, jwtService, logger, storageClient)
 	setting.RegisterRoutes(api, db, jwtService, notificationWorker, logger)
 	dashboard.RegisterRoutes(api, db, jwtService, logger)
+	onboarding.RegisterRoutes(api, db, jwtService, logger)
 }
 
 // healthCheck returns the service health status

@@ -16,6 +16,7 @@ func (m *Migrator) RunAllMigrations(ctx context.Context) error {
 		{name: "assign_starter_mission_to_users", run: m.RunAssignStarterMissionToUsersMigration},
 		{name: "remove_web_push_setting", run: m.RunRemoveWebPushSettingMigration},
 		{name: "cleanup_redundant_settings_indexes", run: m.RunCleanupSettingsIndexesMigration},
+		{name: "onboarding_answers_table", run: m.RunOnboardingMigration},
 	}
 
 	for _, step := range steps {
