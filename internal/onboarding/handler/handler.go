@@ -25,9 +25,9 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 	ctx := c.UserContext()
 
 	logAttrs := []any{
-		"method",     c.Method(),
-		"path",       c.Path(),
-		"ip",         c.IP(),
+		"method", c.Method(),
+		"path", c.Path(),
+		"ip", c.IP(),
 		"user_agent", c.Get("User-Agent"),
 		"request_id", c.GetRespHeader("X-Request-ID"),
 	}
@@ -36,9 +36,9 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 		if appErr.Log != nil {
 			h.logger.WarnContext(ctx, "application handled error",
 				append(logAttrs,
-					"code",    appErr.Code,
+					"code", appErr.Code,
 					"message", appErr.Message,
-					"cause",   appErr.Log,
+					"cause", appErr.Log,
 				)...,
 			)
 		}
