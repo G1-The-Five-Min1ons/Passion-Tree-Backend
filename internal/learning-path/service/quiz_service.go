@@ -115,3 +115,68 @@ func (s *serviceImpl) RemoveChoice(ctx context.Context, choiceID string) error {
 	s.logger.InfoContext(ctx, "choice removed successfully", "choice_id", choiceID)
 	return nil
 }
+
+func (s *serviceImpl) EditQuestion(ctx context.Context, questionID string, req model.UpdateQuestionRequest) error {
+	if questionID == "" {
+		return apperror.NewBadRequest("question_id is required")
+	}
+	if req.QuestionText == "" && req.Type == "" {
+		return apperror.NewBadRequest("at least one field (question_text or type) is required for update")
+	}
+
+	existing, err := s.quizRepo.GetQuestionByID(ctx, questionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("question id '%s' not found", questionID)
+		}
+		return apperror.NewInternal("failed to retrieve question: %w", err)
+	}
+
+	if req.QuestionText == "" {
+		req.QuestionText = existing.QuestionText
+	}
+	if req.Type == "" {
+		req.Type = existing.Type
+	}
+
+	if err := s.quizRepo.UpdateQuestion(ctx, questionID, req); err != nil {
+		return apperror.NewInternal("failed to update question: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "question updated successfully", "question_id", questionID)
+	return nil
+}
+
+func (s *serviceImpl) EditChoice(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error {
+	if choiceID == "" {
+		return apperror.NewBadRequest("choice_id is required")
+	}
+	if req.ChoiceText == nil && req.IsCorrect == nil && req.Reasoning == nil {
+		return apperror.NewBadRequest("at least one field (choice_text, is_correct, reasoning) is required for update")
+	}
+
+	existing, err := s.quizRepo.GetChoiceByID(ctx, choiceID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("choice id '%s' not found", choiceID)
+		}
+		return apperror.NewInternal("failed to retrieve choice: %w", err)
+	}
+
+	if req.ChoiceText == nil {
+		req.ChoiceText = &existing.ChoiceText
+	}
+	if req.IsCorrect == nil {
+		req.IsCorrect = &existing.IsCorrect
+	}
+	if req.Reasoning == nil {
+		req.Reasoning = &existing.Reasoning
+	}
+
+	if err := s.quizRepo.UpdateChoice(ctx, choiceID, req); err != nil {
+		return apperror.NewInternal("failed to update choice: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "choice updated successfully", "choice_id", choiceID)
+	return nil
+}
