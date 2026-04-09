@@ -13,6 +13,7 @@ type CreateNodeRequest struct {
 type UpdateNodeRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
+	Link_vdo    string `json:"link_vdo"`
 }
 
 type Node struct {

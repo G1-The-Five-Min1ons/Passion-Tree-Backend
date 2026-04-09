@@ -75,8 +75,8 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 }
 
 func (r *repositoryImpl) UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error {
-	query := `UPDATE node SET title=@p1, description=@p2 WHERE node_id=@p3`
-	res, err := r.db.ExecContext(ctx, query, req.Title, req.Description, nodeID)
+	query := `UPDATE node SET title=@p1, description=@p2, link_vdo=@p3 WHERE node_id=@p4`
+	res, err := r.db.ExecContext(ctx, query, req.Title, req.Description, req.Link_vdo, nodeID)
 	if err != nil {
 		return fmt.Errorf("repo.UpdateNode exec failed [id=%s]: %w", nodeID, err)
 	}

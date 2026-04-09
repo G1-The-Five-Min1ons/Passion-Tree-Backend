@@ -43,8 +43,8 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 	if nodeID == "" {
 		return apperror.NewBadRequest("node_id is required")
 	}
-	if req.Title == "" && req.Description == "" {
-		return apperror.NewBadRequest("at least one field (title or description) is required for update")
+	if req.Title == "" && req.Description == "" && req.Link_vdo == "" {
+		return apperror.NewBadRequest("at least one field (title, description, or link_vdo) is required for update")
 	}
 
 	existingNode, err := s.nodeRepo.GetNodeByID(ctx, nodeID, "")
@@ -64,6 +64,9 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 	}
 	if req.Description == "" {
 		req.Description = existingNode.Description
+	}
+	if req.Link_vdo == "" {
+		req.Link_vdo = existingNode.Link_vdo
 	}
 
 	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
