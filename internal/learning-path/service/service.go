@@ -8,6 +8,7 @@ import (
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/pkg/storage"
 	"passiontree/internal/platform/aiclient"
+	missionService "passiontree/internal/mission/service"
 )
 
 type ServiceLearningPath interface {
@@ -61,6 +62,12 @@ type ServiceQuiz interface {
 	RemoveChoice(ctx context.Context, choiceID string) error
 }
 
+type ServiceRating interface {
+	UpsertRating(ctx context.Context, pathID string, userID string, req model.RatingRequest) error
+	GetMyRating(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error)
+	DeleteRating(ctx context.Context, pathID string, userID string) error
+}
+
 type ServiceHistory interface {
 	GetUserHistory(ctx context.Context, userID string) ([]model.HistoryResponse, error)
 }
@@ -75,6 +82,7 @@ type Service interface {
 	ServiceNode
 	ServiceComment
 	ServiceQuiz
+	ServiceRating
 	ServiceHistory
 	ServiceResume
 }
@@ -84,16 +92,18 @@ type serviceImpl struct {
 	nodeRepo     repository.RepositoryNode
 	commentRepo  repository.RepositoryComment
 	quizRepo     repository.RepositoryQuiz
+	ratingRepo   repository.RepositoryRating
 	historyRepo  repository.RepositoryHistory
 	resumeRepo   repository.RepositoryResume
 	progressRepo repository.RepositoryProgress
 	xpRepo       repository.RepositoryXP
+	missionSvc   missionService.ServiceMission
 	logger       *slog.Logger
 	aiClient     *aiclient.AIClient
 	storage      *storage.BlobService
 }
 
-func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
+func NewService(repo repository.Repository, ms missionService.ServiceMission, aiClient *aiclient.AIClient, logger *slog.Logger) Service {
 	if aiClient == nil {
 		slog.Warn("[DEBUG] Warning: aiClient passed to NewService is NIL!")
 	} else {
@@ -104,10 +114,12 @@ func NewService(repo repository.Repository, aiClient *aiclient.AIClient, logger 
 		nodeRepo:     repo,
 		commentRepo:  repo,
 		quizRepo:     repo,
+		ratingRepo:   repo,
 		historyRepo:  repo,
 		resumeRepo:   repo,
 		progressRepo: repo,
 		xpRepo:       repo,
+		missionSvc:   ms,
 		logger:       logger,
 		aiClient:     aiClient,
 		storage:      nil,

@@ -2,54 +2,36 @@ package handler
 
 import (
 	"log/slog"
-	"passiontree/internal/learning-path/service"
+
+	"passiontree/internal/onboarding/service"
 	"passiontree/internal/pkg/apperror"
-	"passiontree/internal/pkg/storage"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type Handler struct {
-	pathSvc    service.ServiceLearningPath
-	searchSvc  service.ServiceSearch
-	nodeSvc    service.ServiceNode
-	commentSvc service.ServiceComment
-	quizSvc    service.ServiceQuiz
-	ratingSvc  service.ServiceRating
-	historySvc service.ServiceHistory
-	resumeSvc  service.ServiceResume
-	logger     *slog.Logger
-	storage    *storage.BlobService
+	svc    service.Service
+	logger *slog.Logger
 }
 
-func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobService) *Handler {
+func NewHandler(svc service.Service, logger *slog.Logger) *Handler {
 	return &Handler{
-		pathSvc:    svc,
-		searchSvc:  svc,
-		nodeSvc:    svc,
-		commentSvc: svc,
-		quizSvc:    svc,
-		ratingSvc:	svc,
-		historySvc: svc,
-		resumeSvc:  svc,
-		logger:     logger,
-		storage:    storage,
+		svc:    svc,
+		logger: logger,
 	}
 }
 
 func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 	ctx := c.UserContext()
 
-	// Common Attributes
 	logAttrs := []any{
 		"method", c.Method(),
 		"path", c.Path(),
 		"ip", c.IP(),
 		"user_agent", c.Get("User-Agent"),
-		"request_id", c.GetRespHeader("X-Request-ID"), // Request ID Middleware
+		"request_id", c.GetRespHeader("X-Request-ID"),
 	}
 
-	// Business/Handled Error)
 	if appErr, ok := err.(*apperror.AppError); ok {
 		if appErr.Log != nil {
 			h.logger.WarnContext(ctx, "application handled error",
@@ -60,14 +42,12 @@ func (h *Handler) handleError(c *fiber.Ctx, err error) error {
 				)...,
 			)
 		}
-
 		return c.Status(appErr.Code).JSON(fiber.Map{
 			"success": false,
 			"error":   appErr.Message,
 		})
 	}
 
-	// System Error (Unhandled Error)
 	h.logger.ErrorContext(ctx, "unhandled system error",
 		append(logAttrs, "error", err.Error())...,
 	)

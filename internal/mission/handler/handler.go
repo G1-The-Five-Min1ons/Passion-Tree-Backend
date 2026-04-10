@@ -2,39 +2,20 @@ package handler
 
 import (
 	"log/slog"
-	"passiontree/internal/learning-path/service"
+	
+	"passiontree/internal/mission/service"
 	"passiontree/internal/pkg/apperror"
-	"passiontree/internal/pkg/storage"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type Handler struct {
-	pathSvc    service.ServiceLearningPath
-	searchSvc  service.ServiceSearch
-	nodeSvc    service.ServiceNode
-	commentSvc service.ServiceComment
-	quizSvc    service.ServiceQuiz
-	ratingSvc  service.ServiceRating
-	historySvc service.ServiceHistory
-	resumeSvc  service.ServiceResume
+	missionSvc service.ServiceMission
 	logger     *slog.Logger
-	storage    *storage.BlobService
 }
 
-func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobService) *Handler {
-	return &Handler{
-		pathSvc:    svc,
-		searchSvc:  svc,
-		nodeSvc:    svc,
-		commentSvc: svc,
-		quizSvc:    svc,
-		ratingSvc:	svc,
-		historySvc: svc,
-		resumeSvc:  svc,
-		logger:     logger,
-		storage:    storage,
-	}
+func NewHandler(svc service.ServiceMission, logger *slog.Logger) *Handler {
+	return &Handler{missionSvc: svc, logger: logger}
 }
 
 func (h *Handler) handleError(c *fiber.Ctx, err error) error {

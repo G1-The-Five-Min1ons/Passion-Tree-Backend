@@ -11,12 +11,19 @@ import (
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/handler"
 	"passiontree/internal/reflection/repository"
+	missionRepo "passiontree/internal/mission/repository"
+	repoUser "passiontree/internal/auth/repository"
+	missionService "passiontree/internal/mission/service"
 	"passiontree/internal/reflection/service"
 )
 
 func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, jwtService *jwt.Service, logger *slog.Logger) {
+	missionRepo := missionRepo.NewRepository(db)
+	repouser := repoUser.NewRepository(db)
+	missionSvc := missionService.NewService(missionRepo, repouser, logger)	
+
 	repo := repository.NewRepository(db)
-	svc := service.NewService(repo, aiClient, logger)
+	svc := service.NewService(repo, missionSvc, aiClient, logger)
 	h := handler.NewHandler(svc, logger)
 
 	// All reflection routes require JWT authentication

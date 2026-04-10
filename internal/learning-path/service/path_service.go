@@ -6,10 +6,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"passiontree/internal/config"
 	"passiontree/internal/learning-path/model"
+	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/utils"
 )
 
 func (s *serviceImpl) GetPaths(ctx context.Context) ([]model.LearningPath, error) {
@@ -206,6 +209,10 @@ func (s *serviceImpl) StartPath(ctx context.Context, path_id string, user_id str
 		return apperror.NewInternal("failed to enroll user '%s' in path '%s': %w", user_id, path_id, err)
 	}
 
+	utils.SafeGo(ctx, s.logger, "Mission_EnrollPath", 10*time.Second, func(bgCtx context.Context) error {
+		return s.missionSvc.ProcessMissionEvent(bgCtx, user_id, missionModel.ConditionEnrollPath)
+	})
+
 	s.logger.InfoContext(ctx, "user enrollment successful", "user_id", user_id, "path_id", path_id)
 	return nil
 }
@@ -356,4 +363,75 @@ func (s *serviceImpl) GetUserEnrolledPaths(ctx context.Context, userID string) (
 	}
 
 	return paths, nil
+}
+
+func (s *serviceImpl) UpsertRating(ctx context.Context, pathID string, userID string, req model.RatingRequest) error {
+	if pathID == "" {
+		return apperror.NewBadRequest("path_id is required")
+	}
+
+	if userID == "" {
+		return apperror.NewBadRequest("user_id is required")
+	}
+
+	if req.RatingContent < 1 || req.RatingContent > 5 || req.RatingInstruct < 1 || req.RatingInstruct > 5 {
+		return apperror.NewBadRequest("rating scores must be between 1 and 5")
+	}
+
+	overall := float64(req.RatingContent+req.RatingInstruct) / 2.0
+
+	rating := &model.LearningPathRating{
+		RatingContent:  req.RatingContent,
+		RatingInstruct: req.RatingInstruct,
+		RatingOverall:  overall,
+		UserID:         userID,
+		PathID:         pathID,
+	}
+
+	if err := s.ratingRepo.UpsertLearningPathRating(ctx, rating); err != nil {
+		s.logger.ErrorContext(ctx, "failed to upsert rating", "error", err, "path_id", pathID)
+		return apperror.NewInternal("failed to submit rating: %w", err)
+	}
+
+	return nil
+}
+
+func (s *serviceImpl) GetMyRating(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error) {
+	if pathID == "" {
+		return nil, apperror.NewBadRequest("path_id is required")
+	}
+
+	if userID == "" {
+		return nil, apperror.NewBadRequest("user_id are required")
+	}
+
+	rating, err := s.ratingRepo.GetRatingByUser(ctx, pathID, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("rating not found for this path")
+		}
+		return nil, apperror.NewInternal("failed to get rating: %w", err)
+	}
+
+	return rating, nil
+}
+
+func (s *serviceImpl) DeleteRating(ctx context.Context, pathID string, userID string) error {
+	if pathID == "" {
+		return apperror.NewBadRequest("path_id is required")
+	}
+
+	if userID == "" {
+		return apperror.NewBadRequest("user_id are required")
+	}
+
+	if err := s.ratingRepo.DeleteLearningPathRating(ctx, pathID, userID); err != nil {
+		if err == sql.ErrNoRows {
+			return apperror.NewNotFound("rating not found")
+		}
+		s.logger.ErrorContext(ctx, "failed to delete rating", "error", err, "path_id", pathID)
+		return apperror.NewInternal("failed to delete rating: %w", err)
+	}
+
+	return nil
 }

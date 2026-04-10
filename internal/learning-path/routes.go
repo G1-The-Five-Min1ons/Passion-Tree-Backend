@@ -8,6 +8,9 @@ import (
 	"passiontree/internal/connection"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
+	missionRepo "passiontree/internal/mission/repository"
+	repoUser "passiontree/internal/auth/repository"
+	missionService "passiontree/internal/mission/service"
 	"passiontree/internal/learning-path/service"
 	"passiontree/internal/pkg/jwt"
 	"passiontree/internal/pkg/middleware"
@@ -16,8 +19,12 @@ import (
 )
 
 func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, jwtService *jwt.Service, logger *slog.Logger, storageClient *storage.BlobService) {
+	missionRepo := missionRepo.NewRepository(db)
+	repouser := repoUser.NewRepository(db)
+	missionSvc := missionService.NewService(missionRepo, repouser, logger)
+
 	repo := repository.NewRepository(db)
-	svc := service.NewService(repo, aiClient, logger)
+	svc := service.NewService(repo, missionSvc, aiClient, logger)
 	h := handler.NewHandler(svc, logger, storageClient)
 
 	// All reflection routes require JWT authentication
@@ -43,6 +50,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 		paths.Get("/:path_id/comments", h.GetPathComments)
 		paths.Post("/:path_id/comments", h.CreatePathComment)
+		paths.Post("/:path_id/ratings", h.SubmitRating)
+		paths.Get("/:path_id/ratings", h.GetMyRating)
+		paths.Delete("/:path_id/ratings", h.DeleteRating)
 	}
 
 	nodes := protected.Group("/learningpaths/nodes")
@@ -58,10 +68,6 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		nodes.Get("/:node_id/questions", h.GetQuestions)
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
 		nodes.Delete("/materials/:material_id", h.DeleteMaterial)
-
-		// Node progress routes
-		nodes.Put("/:node_id/start", h.StartNodeStatus)
-		nodes.Put("/:node_id/complete", h.CompleteNodeStatus)
 	}
 
 	questions := protected.Group("/learningpaths/questions")

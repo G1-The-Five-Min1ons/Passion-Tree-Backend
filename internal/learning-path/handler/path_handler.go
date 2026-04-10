@@ -304,3 +304,69 @@ func (h *Handler) GetMyPaths(c *fiber.Ctx) error {
 		"data":    paths,
 	})
 }
+
+func (h *Handler) SubmitRating(c *fiber.Ctx) error {
+	pathID := c.Params("path_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	var req model.RatingRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.ratingSvc.UpsertRating(ctx, pathID, userID, req); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Rating submitted successfully",
+	})
+}
+
+func (h *Handler) GetMyRating(c *fiber.Ctx) error {
+	pathID := c.Params("path_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	rating, err := h.ratingSvc.GetMyRating(ctx, pathID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    rating,
+	})
+}
+
+func (h *Handler) DeleteRating(c *fiber.Ctx) error {
+	pathID := c.Params("path_id")
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.ratingSvc.DeleteRating(ctx, pathID, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Rating deleted successfully",
+	})
+}
