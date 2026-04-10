@@ -64,6 +64,9 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 		AlbumID:       tree.AlbumID,
 		PathID:        tree.PathID,
 		LastReflectAt: tree.LastReflectAt,
+		PauseFrom:     tree.PauseFrom,
+		PauseTo:       tree.PauseTo,
+		PausedAt:      tree.PausedAt,
 		TreeScore:     tree.TreeScore,
 		Nodes:         nodes,
 	}, nil
