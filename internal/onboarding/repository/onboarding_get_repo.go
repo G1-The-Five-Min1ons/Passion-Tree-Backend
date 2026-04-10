@@ -41,7 +41,7 @@ func (r *repositoryImpl) GetOnboardingByUserID(ctx context.Context, userID strin
 		&d.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, err
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get onboarding failed (user: %s): %w", userID, err)
