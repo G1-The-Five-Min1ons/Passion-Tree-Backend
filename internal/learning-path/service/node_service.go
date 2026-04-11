@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 	"database/sql"
-	"time"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/learning-path/repository"
 	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/utils"
+	"time"
 )
 
 func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
@@ -43,8 +43,8 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 	if nodeID == "" {
 		return apperror.NewBadRequest("node_id is required")
 	}
-	if req.Title == "" && req.Description == "" && req.Link_vdo == "" {
-		return apperror.NewBadRequest("at least one field (title, description, or link_vdo) is required for update")
+	if req.Title == "" && req.Description == "" && req.Link_vdo == "" && req.Materials == nil {
+		return apperror.NewBadRequest("at least one field (title, description, link_vdo, or materials) is required for update")
 	}
 
 	existingNode, err := s.nodeRepo.GetNodeByID(ctx, nodeID, "")

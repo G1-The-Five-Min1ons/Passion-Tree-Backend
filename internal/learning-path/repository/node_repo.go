@@ -75,17 +75,35 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 }
 
 func (r *repositoryImpl) UpdateNode(ctx context.Context, nodeID string, req model.UpdateNodeRequest) error {
-	query := `UPDATE node SET title=@p1, description=@p2, link_vdo=@p3 WHERE node_id=@p4`
-	res, err := r.db.ExecContext(ctx, query, req.Title, req.Description, req.Link_vdo, nodeID)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("repo.UpdateNode exec failed [id=%s]: %w", nodeID, err)
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	queryNode := `UPDATE node SET title=@p1, description=@p2, link_vdo=@p3 WHERE node_id=@p4`
+	_, err = tx.ExecContext(ctx, queryNode, req.Title, req.Description, req.Link_vdo, nodeID)
+	if err != nil {
+		return fmt.Errorf("update node failed: %w", err)
 	}
 
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		return sql.ErrNoRows
+	if req.Materials != nil {
+		_, err = tx.ExecContext(ctx, `DELETE FROM node_material WHERE node_id = @p1`, nodeID)
+		if err != nil {
+			return fmt.Errorf("delete old materials failed: %w", err)
+		}
+
+		for _, mat := range *req.Materials {
+			newMatID := uuid.New().String()
+			queryMat := `INSERT INTO node_material (material_id, type, url, node_id) VALUES (@p1, @p2, @p3, @p4)`
+			_, err = tx.ExecContext(ctx, queryMat, newMatID, mat.Type, mat.URL, nodeID)
+			if err != nil {
+				return fmt.Errorf("insert new material failed: %w", err)
+			}
+		}
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 func (r *repositoryImpl) DeleteNode(ctx context.Context, nodeID string) error {
