@@ -121,3 +121,53 @@ func (h *Handler) DeleteChoice(c *fiber.Ctx) error {
 		},
 	})
 }
+
+func (h *Handler) UpdateQuestion(c *fiber.Ctx) error {
+	questionID := c.Params("question_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	var req model.UpdateQuestionRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	h.logger.InfoContext(ctx, "updating question", "question_id", questionID)
+
+	if err := h.quizSvc.EditQuestion(ctx, questionID, req); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Question updated successfully",
+		"data": fiber.Map{
+			"question_id": questionID,
+		},
+	})
+}
+
+func (h *Handler) UpdateChoice(c *fiber.Ctx) error {
+	choiceID := c.Params("choice_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	var req model.UpdateChoiceRequest
+	if err := c.BodyParser(&req); err != nil {
+		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+	}
+
+	h.logger.InfoContext(ctx, "updating choice", "choice_id", choiceID)
+
+	if err := h.quizSvc.EditChoice(ctx, choiceID, req); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Choice updated successfully",
+		"data": fiber.Map{
+			"choice_id": choiceID,
+		},
+	})
+}

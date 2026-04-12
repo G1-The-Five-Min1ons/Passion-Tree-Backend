@@ -72,8 +72,10 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 
 	questions := protected.Group("/learningpaths/questions")
 	{
+		questions.Put("/:question_id", h.UpdateQuestion)
 		questions.Delete("/:question_id", h.DeleteQuestion)
 		questions.Post("/:question_id/choices", h.CreateChoice)
+		questions.Put("/choices/:choice_id", h.UpdateChoice)
 		questions.Delete("/choices/:choice_id", h.DeleteChoice)
 	}
 

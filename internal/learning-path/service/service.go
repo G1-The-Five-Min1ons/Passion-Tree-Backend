@@ -60,6 +60,8 @@ type ServiceQuiz interface {
 	RemoveQuestion(ctx context.Context, questionID string) error
 	AddChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error)
 	RemoveChoice(ctx context.Context, choiceID string) error
+	EditQuestion(ctx context.Context, questionID string, req model.UpdateQuestionRequest) error
+	EditChoice(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error
 }
 
 type ServiceRating interface {
