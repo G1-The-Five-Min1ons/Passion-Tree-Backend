@@ -44,17 +44,17 @@ type Service struct {
 // NewService creates a new JWT service from config
 func NewService(cfg *config.Config) *Service {
 	if cfg.JWTSecret == "" {
-        panic("JWT_SECRET is not set in configuration")
-    }
+		panic("JWT_SECRET is not set in configuration")
+	}
 
 	// Parse access token TTL from config (hours)
-	accessTTL := 1 * time.Hour
+	accessTTL := 5 * time.Hour
 	if hours, err := strconv.Atoi(cfg.JWTAccessTTL); err == nil {
 		accessTTL = time.Duration(hours) * time.Hour
 	}
 
 	// Parse refresh token TTL from config (hours)
-	refreshTTL := 168 * time.Hour // 7 days
+	refreshTTL := 720 * time.Hour // 30 days
 	if hours, err := strconv.Atoi(cfg.JWTRefreshTTL); err == nil {
 		refreshTTL = time.Duration(hours) * time.Hour
 	}

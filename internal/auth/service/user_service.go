@@ -268,7 +268,7 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	}
 
 	// Get refresh TTL from config
-	refreshTTLHours := 168 // 7 days default
+	refreshTTLHours := 720 // 30 days default
 	if s.config.JWTRefreshTTL != "" {
 		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshTTL); parseErr == nil {
 			refreshTTLHours = hours
@@ -357,6 +357,37 @@ func (s *userServiceImpl) Logout(ctx context.Context, userID string) error {
 	}
 
 	s.logger.InfoContext(ctx, "user logged out", "user_id", userID)
+	return nil
+}
+
+// LogoutByRefreshToken revokes a specific refresh token for the authenticated user.
+func (s *userServiceImpl) LogoutByRefreshToken(ctx context.Context, userID, refreshToken string) error {
+	if userID == "" {
+		return apperror.NewBadRequest("user ID is required")
+	}
+	if refreshToken == "" {
+		return apperror.NewBadRequest("refresh token is required")
+	}
+
+	storedToken, err := s.repo.GetTokenByValue(ctx, refreshToken, model.TokenTypeRefresh)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to lookup refresh token on logout", "error", err, "user_id", userID)
+		return apperror.NewInternal("failed to logout")
+	}
+	if storedToken == nil {
+		return apperror.NewUnauthorized("invalid refresh token")
+	}
+	if storedToken.UserID != userID {
+		s.logger.WarnContext(ctx, "refresh token ownership mismatch on logout", "user_id", userID)
+		return apperror.NewUnauthorized("invalid refresh token")
+	}
+
+	if err := s.repo.RevokeTokenByValue(ctx, refreshToken, model.TokenTypeRefresh); err != nil {
+		s.logger.ErrorContext(ctx, "failed to revoke refresh token on logout", "error", err, "user_id", userID)
+		return apperror.NewInternal("failed to logout")
+	}
+
+	s.logger.InfoContext(ctx, "refresh token revoked on logout", "user_id", userID)
 	return nil
 }
 

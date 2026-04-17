@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"passiontree/internal/auth/model"
@@ -55,14 +56,29 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, otpCode string, devic
 	}
 
 	now := time.Now()
+	refreshTTLHours := 720 // 30 days default
+	if s.config.JWTRefreshTTL != "" {
+		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshTTL); parseErr == nil {
+			refreshTTLHours = hours
+		}
+	}
+	refreshAbsoluteHours := 720 // 30 days default
+	if s.config.JWTRefreshAbsolute != "" {
+		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshAbsolute); parseErr == nil {
+			refreshAbsoluteHours = hours
+		}
+	}
+	maxExpiresAt := now.Add(time.Duration(refreshAbsoluteHours) * time.Hour)
 	tokenModel := &model.Token{
-		UserID:     user.UserID,
-		Token:      refreshToken,
-		TokenType:  model.TokenTypeRefresh,
-		ExpireAt:   now.Add(168 * time.Hour), // 7 วัน
-		DeviceInfo: &deviceInfo,
-		IPAddress:  &ip,
-		UserAgent:  &ua,
+		UserID:       user.UserID,
+		Token:        refreshToken,
+		TokenType:    model.TokenTypeRefresh,
+		ExpireAt:     now.Add(time.Duration(refreshTTLHours) * time.Hour),
+		DeviceInfo:   &deviceInfo,
+		IPAddress:    &ip,
+		UserAgent:    &ua,
+		LastUsedAt:   &now,
+		MaxExpiresAt: &maxExpiresAt,
 	}
 
 	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
