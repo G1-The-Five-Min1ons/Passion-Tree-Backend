@@ -32,7 +32,7 @@ func RegisterRoutes(r fiber.Router, db connection.Database, jwtService *jwt.Serv
 		userGroup.Get("", h.GetMyMissions)
 	}
 
-	systemGroup := r.Group("/system/missions")
+	systemGroup := protected.Group("/system/missions")
 	{
 		systemGroup.Post("/auto-assign", h.TriggerAutoAssign)
 	}
