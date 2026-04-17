@@ -135,13 +135,26 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause,
 		       ISNULL(node_count, 0) as node_count,
 		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id,
-		       last_reflect_at, paused_at, tree_score
-		FROM tree
+		       last_reflect_at,
+		       pw.pause_from,
+		       pw.pause_to as pause_to,
+		       COALESCE(paused_at, pw.pause_to) as paused_at,
+		       tree_score
+		FROM tree t
+		OUTER APPLY (
+			SELECT TOP 1
+				TRY_CAST(pt.pause_from AS DATETIME2) as pause_from,
+				TRY_CAST(pt.pause_to AS DATETIME2) as pause_to
+			FROM pause_tree pt
+			WHERE TRY_CAST(pt.tree_id AS UNIQUEIDENTIFIER) = TRY_CAST(t.tree_id AS UNIQUEIDENTIFIER)
+			  AND TRY_CAST(pt.pause_to AS DATETIME2) >= GETDATE()
+			ORDER BY TRY_CAST(pt.pause_from AS DATETIME2) DESC
+		) pw
 		WHERE tree_id = @p1
 	`
 
 	var tree model.Tree
-	var lastReflectAt, pausedAt sql.NullTime
+	var lastReflectAt, pauseFrom, pauseTo, pausedAt sql.NullTime
 	var treeScore sql.NullFloat64
 	err := r.db.QueryRowContext(ctx, query, treeID).Scan(
 		&tree.TreeID,
@@ -155,6 +168,8 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 		&tree.LastUpdate,
 		&tree.AlbumID,
 		&lastReflectAt,
+		&pauseFrom,
+		&pauseTo,
 		&pausedAt,
 		&treeScore,
 	)
@@ -166,6 +181,12 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 	}
 	if lastReflectAt.Valid {
 		tree.LastReflectAt = &lastReflectAt.Time
+	}
+	if pauseFrom.Valid {
+		tree.PauseFrom = &pauseFrom.Time
+	}
+	if pauseTo.Valid {
+		tree.PauseTo = &pauseTo.Time
 	}
 	if pausedAt.Valid {
 		tree.PausedAt = &pausedAt.Time
@@ -205,8 +226,21 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause,
 		       ISNULL(node_count, 0) as node_count,
 		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id,
-		       last_reflect_at, paused_at, tree_score
-		FROM tree
+		       last_reflect_at,
+		       pw.pause_from,
+		       pw.pause_to as pause_to,
+		       COALESCE(paused_at, pw.pause_to) as paused_at,
+		       tree_score
+		FROM tree t
+		OUTER APPLY (
+			SELECT TOP 1
+				TRY_CAST(pt.pause_from AS DATETIME2) as pause_from,
+				TRY_CAST(pt.pause_to AS DATETIME2) as pause_to
+			FROM pause_tree pt
+			WHERE TRY_CAST(pt.tree_id AS UNIQUEIDENTIFIER) = TRY_CAST(t.tree_id AS UNIQUEIDENTIFIER)
+			  AND TRY_CAST(pt.pause_to AS DATETIME2) >= GETDATE()
+			ORDER BY TRY_CAST(pt.pause_from AS DATETIME2) DESC
+		) pw
 		WHERE album_id = @p1
 		ORDER BY last_update DESC
 	`
@@ -220,7 +254,7 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 	var trees []model.Tree
 	for rows.Next() {
 		var tree model.Tree
-		var lastReflectAt, pausedAt sql.NullTime
+		var lastReflectAt, pauseFrom, pauseTo, pausedAt sql.NullTime
 		var treeScore sql.NullFloat64
 		err := rows.Scan(
 			&tree.TreeID,
@@ -234,6 +268,8 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 			&tree.LastUpdate,
 			&tree.AlbumID,
 			&lastReflectAt,
+			&pauseFrom,
+			&pauseTo,
 			&pausedAt,
 			&treeScore,
 		)
@@ -242,6 +278,12 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 		}
 		if lastReflectAt.Valid {
 			tree.LastReflectAt = &lastReflectAt.Time
+		}
+		if pauseFrom.Valid {
+			tree.PauseFrom = &pauseFrom.Time
+		}
+		if pauseTo.Valid {
+			tree.PauseTo = &pauseTo.Time
 		}
 		if pausedAt.Valid {
 			tree.PausedAt = &pausedAt.Time
@@ -968,7 +1010,9 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			t.last_update,
 			CONVERT(VARCHAR(36), t.album_id) as album_id,
 			t.last_reflect_at,
-			t.paused_at,
+			pw.pause_from,
+			pw.pause_to as pause_to,
+			COALESCE(t.paused_at, pw.pause_to) as paused_at,
 			CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
 			tn.node_title,
 			CONVERT(VARCHAR(36), tn.node_id) as node_id,
@@ -981,6 +1025,15 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			t.tree_score
 		FROM tree t
 		LEFT JOIN Tree_Node tn ON t.tree_id = tn.tree_id
+		OUTER APPLY (
+			SELECT TOP 1
+				TRY_CAST(pt.pause_from AS DATETIME2) as pause_from,
+				TRY_CAST(pt.pause_to AS DATETIME2) as pause_to
+			FROM pause_tree pt
+			WHERE TRY_CAST(pt.tree_id AS UNIQUEIDENTIFIER) = TRY_CAST(t.tree_id AS UNIQUEIDENTIFIER)
+			  AND TRY_CAST(pt.pause_to AS DATETIME2) >= GETDATE()
+			ORDER BY TRY_CAST(pt.pause_from AS DATETIME2) DESC
+		) pw
 		LEFT JOIN node n ON tn.node_id = n.node_id
 		LEFT JOIN node_progress np ON tn.node_id = np.node_id AND np.user_id = @p2
 		LEFT JOIN Reflect r ON tn.tree_node_id = r.tree_node_id
@@ -1003,7 +1056,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		var isPause bool
 		var nodeCount int
 		var createdAt, lastUpdate time.Time
-		var lastReflectAt, pausedAt sql.NullTime
+		var lastReflectAt, pauseFrom, pauseTo, pausedAt sql.NullTime
 
 		// Nullable node fields
 		var treeNodeID, nodeTitle, nodeID sql.NullString
@@ -1018,6 +1071,8 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			&treeID, &title, &difficulties, &pathID, &status, &isPause, &nodeCount,
 			&createdAt, &lastUpdate, &treeAlbumID,
 			&lastReflectAt,
+			&pauseFrom,
+			&pauseTo,
 			&pausedAt,
 			&treeNodeID, &nodeTitle, &nodeID, &nodeCreatedAt,
 			&nodeStatus, &nodeComplete,
@@ -1047,6 +1102,12 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			}
 			if lastReflectAt.Valid {
 				tr.LastReflectAt = &lastReflectAt.Time
+			}
+			if pauseFrom.Valid {
+				tr.PauseFrom = &pauseFrom.Time
+			}
+			if pauseTo.Valid {
+				tr.PauseTo = &pauseTo.Time
 			}
 			if pausedAt.Valid {
 				tr.PausedAt = &pausedAt.Time

@@ -59,6 +59,10 @@ type RepositoryQuiz interface {
 	CreateChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error)
 	GetChoicesByQuestionID(ctx context.Context, questionID string) ([]model.QuestionChoice, error)
 	DeleteChoice(ctx context.Context, choiceID string) error
+	GetQuestionByID(ctx context.Context, questionID string) (*model.NodeQuestion, error)
+	UpdateQuestion(ctx context.Context, questionID string, req model.UpdateQuestionRequest) error
+	GetChoiceByID(ctx context.Context, choiceID string) (*model.QuestionChoice, error)
+	UpdateChoice(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error
 }
 
 type RepositoryRating interface {

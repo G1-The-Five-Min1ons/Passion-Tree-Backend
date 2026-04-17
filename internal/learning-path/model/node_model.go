@@ -11,8 +11,10 @@ type CreateNodeRequest struct {
 }
 
 type UpdateNodeRequest struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	Title       string                   `json:"title"`
+	Description string                   `json:"description"`
+	Link_vdo    string                   `json:"link_vdo"`
+	Materials   *[]UpdateMaterialRequest `json:"materials"`
 }
 
 type Node struct {
@@ -42,4 +44,9 @@ type CreateMaterialRequest struct {
 
 type ReorderNodesRequest struct {
 	NodeIDs []string `json:"node_ids" binding:"required"`
+}
+
+type UpdateMaterialRequest struct {
+	Type string `json:"type" binding:"required"`
+	URL  string `json:"url" binding:"required"`
 }
