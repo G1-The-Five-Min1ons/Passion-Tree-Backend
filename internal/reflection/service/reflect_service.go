@@ -23,6 +23,28 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		return nil, apperror.NewBadRequest("tree_node_id is required")
 	}
 
+	treeNode, err := s.refRepo.GetTreeNodeByID(ctx, req.TreeNodeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("tree node with id '%s' not found", req.TreeNodeID)
+		}
+		return nil, apperror.NewInternal("failed to load tree node: %w", err)
+	}
+	if treeNode == nil {
+		return nil, apperror.NewInternal("failed to load tree node: empty result")
+	}
+
+	tree, err := s.refRepo.GetTreeByID(ctx, treeNode.TreeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeNode.TreeID)
+		}
+		return nil, apperror.NewInternal("failed to load tree state: %w", err)
+	}
+	if tree.IsReflectionClosed {
+		return nil, apperror.NewForbidden("this reflection tree has already been ended")
+	}
+
 	// AI analysis is required
 	if s.aiClient == nil {
 		s.logger.ErrorContext(ctx, "AI client is not available")
@@ -72,14 +94,9 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	s.logger.InfoContext(ctx, "reflection created successfully", "reflection_id", id)
 
 	// Recalculate tree score (best-effort: a failure here must not reject the reflection).
-	if node, getErr := s.refRepo.GetTreeNodeByID(ctx, req.TreeNodeID); getErr == nil && node != nil {
-		if _, scoreErr := s.refRepo.CalculateAndUpdateTreeScore(ctx, node.TreeID); scoreErr != nil {
-			s.logger.WarnContext(ctx, "failed to recalculate tree score after reflection",
-				"tree_id", node.TreeID, "error", scoreErr)
-		}
-	} else if getErr != nil {
-		s.logger.WarnContext(ctx, "failed to resolve tree node after reflection; tree score recalculation skipped",
-			"tree_node_id", req.TreeNodeID, "error", getErr)
+	if _, scoreErr := s.refRepo.CalculateAndUpdateTreeScore(ctx, treeNode.TreeID); scoreErr != nil {
+		s.logger.WarnContext(ctx, "failed to recalculate tree score after reflection",
+			"tree_id", treeNode.TreeID, "error", scoreErr)
 	}
 
 	return &model.ReflectionResponse{

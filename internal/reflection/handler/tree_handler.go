@@ -151,6 +151,31 @@ func (h *Handler) RetrieveTree(c *fiber.Ctx) error {
 	})
 }
 
+// EndReflecting handles freezing a tree's reflection status.
+func (h *Handler) EndReflecting(c *fiber.Ctx) error {
+	treeID := c.Params("tree_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp, err := h.reflectSvc.EndReflecting(ctx, treeID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "tree reflection ended successfully", "tree_id", treeID, "user_id", userID)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "tree reflection ended successfully",
+		"data":    resp,
+	})
+}
+
 // DeleteTree handles deleting a tree
 func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")

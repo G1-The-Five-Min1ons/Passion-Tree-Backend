@@ -53,22 +53,23 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 	s.logger.InfoContext(ctx, "tree created successfully", "tree_id", treeID, "nodes_count", len(nodes))
 
 	return &model.TreeResponse{
-		TreeID:        tree.TreeID,
-		Title:         tree.Title,
-		Difficulties:  tree.Difficulties,
-		Status:        normalizeTreeStatus(computeTreeStatus(tree.Difficulties, tree.LastReflectAt, tree.IsPause, tree.PausedAt)),
-		IsPause:       tree.IsPause,
-		NodeCount:     tree.NodeCount,
-		CreatedAt:     tree.CreatedAt,
-		LastUpdate:    tree.LastUpdate,
-		AlbumID:       tree.AlbumID,
-		PathID:        tree.PathID,
-		LastReflectAt: tree.LastReflectAt,
-		PauseFrom:     tree.PauseFrom,
-		PauseTo:       tree.PauseTo,
-		PausedAt:      tree.PausedAt,
-		TreeScore:     tree.TreeScore,
-		Nodes:         nodes,
+		TreeID:             tree.TreeID,
+		Title:              tree.Title,
+		Difficulties:       tree.Difficulties,
+		Status:             normalizeTreeStatus(computeTreeStatus(tree.Difficulties, tree.LastReflectAt, tree.IsPause, tree.PausedAt)),
+		IsPause:            tree.IsPause,
+		IsReflectionClosed: tree.IsReflectionClosed,
+		NodeCount:          tree.NodeCount,
+		CreatedAt:          tree.CreatedAt,
+		LastUpdate:         tree.LastUpdate,
+		AlbumID:            tree.AlbumID,
+		PathID:             tree.PathID,
+		LastReflectAt:      tree.LastReflectAt,
+		PauseFrom:          tree.PauseFrom,
+		PauseTo:            tree.PauseTo,
+		PausedAt:           tree.PausedAt,
+		TreeScore:          tree.TreeScore,
+		Nodes:              nodes,
 	}, nil
 }
 
@@ -99,6 +100,7 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 		tree.LastReflectAt,
 		tree.IsPause,
 		tree.PausedAt,
+		tree.IsReflectionClosed,
 	)
 
 	s.logger.InfoContext(ctx, "successfully retrieved tree", "tree_id", treeID)
@@ -139,6 +141,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 				treesWithNodes[i].LastReflectAt,
 				treesWithNodes[i].IsPause,
 				treesWithNodes[i].PausedAt,
+				treesWithNodes[i].IsReflectionClosed,
 			)
 		}
 
@@ -172,6 +175,7 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 			trees[i].LastReflectAt,
 			trees[i].IsPause,
 			trees[i].PausedAt,
+			trees[i].IsReflectionClosed,
 		)
 	}
 
@@ -217,6 +221,18 @@ func (s *serviceImpl) RetrieveTree(ctx context.Context, treeID string, userID st
 		return nil, err
 	}
 
+	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.WarnContext(ctx, "tree not found", "tree_id", treeID)
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
+		}
+		return nil, apperror.NewInternal("failed to load tree state: %w", err)
+	}
+	if tree.IsReflectionClosed {
+		return nil, apperror.NewForbidden("this reflection tree has already been ended")
+	}
+
 	const retrieveCost = 5
 
 	remainingHearts, err := s.refRepo.RetrieveTree(ctx, treeID, userID, retrieveCost)
@@ -241,6 +257,65 @@ func (s *serviceImpl) RetrieveTree(ctx context.Context, treeID string, userID st
 
 	s.logger.InfoContext(ctx, "tree retrieved successfully", "tree_id", treeID, "user_id", userID, "remaining_hearts", remainingHearts)
 	return response, nil
+}
+
+func (s *serviceImpl) EndReflecting(ctx context.Context, treeID string, userID string) (*model.TreeResponse, error) {
+	s.logger.InfoContext(ctx, "request to end reflecting", "tree_id", treeID, "user_id", userID)
+
+	if treeID == "" {
+		return nil, apperror.NewBadRequest("tree_id is required")
+	}
+	if userID == "" {
+		return nil, apperror.NewUnauthorized("user not authenticated")
+	}
+
+	if err := s.ensureTreeOwnership(ctx, treeID, userID); err != nil {
+		return nil, err
+	}
+
+	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.WarnContext(ctx, "tree not found", "tree_id", treeID)
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
+		}
+		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
+		return nil, apperror.NewInternal("failed to load tree state: %w", err)
+	}
+
+	if !tree.IsReflectionClosed {
+		if err := s.refRepo.CloseTreeReflection(ctx, treeID, tree.Status); err != nil {
+			s.logger.ErrorContext(ctx, "failed to end reflecting", "tree_id", treeID, "error", err)
+			return nil, apperror.NewInternal("failed to end reflecting: %w", err)
+		}
+	}
+
+	updatedTree, err := s.refRepo.GetTreeByID(ctx, treeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
+		}
+		return nil, apperror.NewInternal("failed to reload tree after ending reflection: %w", err)
+	}
+
+	return &model.TreeResponse{
+		TreeID:             updatedTree.TreeID,
+		Title:              updatedTree.Title,
+		Difficulties:       updatedTree.Difficulties,
+		Status:             updatedTree.Status,
+		IsPause:            updatedTree.IsPause,
+		IsReflectionClosed: updatedTree.IsReflectionClosed,
+		NodeCount:          updatedTree.NodeCount,
+		CreatedAt:          updatedTree.CreatedAt,
+		LastUpdate:         updatedTree.LastUpdate,
+		AlbumID:            updatedTree.AlbumID,
+		PathID:             updatedTree.PathID,
+		LastReflectAt:      updatedTree.LastReflectAt,
+		PauseFrom:          updatedTree.PauseFrom,
+		PauseTo:            updatedTree.PauseTo,
+		PausedAt:           updatedTree.PausedAt,
+		TreeScore:          updatedTree.TreeScore,
+	}, nil
 }
 
 func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
@@ -277,7 +352,6 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 		return nil, err
 	}
 
-	// Get current tree state
 	tree, err := s.refRepo.GetTreeByID(ctx, treeID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -285,7 +359,10 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
-		return nil, apperror.NewInternal("%s", err.Error())
+		return nil, apperror.NewInternal("failed to load tree state: %w", err)
+	}
+	if tree.IsReflectionClosed {
+		return nil, apperror.NewForbidden("this reflection tree has already been ended")
 	}
 
 	if tree.IsPause {

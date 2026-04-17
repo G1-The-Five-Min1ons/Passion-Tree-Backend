@@ -29,6 +29,7 @@ type ReflectionService interface {
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool, userID string) (interface{}, error)
 	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
+	EndReflecting(ctx context.Context, treeID string, userID string) (*model.TreeResponse, error)
 	RetrieveTree(ctx context.Context, treeID string, userID string) (*model.RetrieveTreeResponse, error)
 	DeleteTree(ctx context.Context, treeID string) error
 	PauseTree(ctx context.Context, treeID string, userID string, req model.PauseTreeRequest) (*model.PauseTreeResponse, error)
