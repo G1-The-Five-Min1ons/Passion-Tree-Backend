@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strconv"
 	"strings"
 	"time"
 
@@ -267,17 +266,18 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 		// Continue anyway
 	}
 
-	// Get refresh TTL from config
-	refreshTTLHours := 720 // 30 days default
-	if s.config.JWTRefreshTTL != "" {
-		if hours, parseErr := strconv.Atoi(s.config.JWTRefreshTTL); parseErr == nil {
-			refreshTTLHours = hours
-		}
+	refreshTTL := parseDurationOrHours(s.config.JWTRefreshTTL, 720*time.Hour)
+	refreshAbsolute := parseDurationOrHours(s.config.JWTRefreshAbsolute, 720*time.Hour)
+
+	// Sliding session: extend from now while clamping to absolute max lifetime.
+	now := time.Now()
+	maxExpiresAt := storedToken.MaxExpiresAt
+	if maxExpiresAt == nil {
+		fallbackMax := now.Add(refreshAbsolute)
+		maxExpiresAt = &fallbackMax
 	}
 
-	// Store new refresh token with same absolute expiration as original
-	now := time.Now()
-	expireAt := now.Add(time.Duration(refreshTTLHours) * time.Hour)
+	expireAt := clampExpiry(now.Add(refreshTTL), maxExpiresAt)
 
 	newTokenModel := &model.Token{
 		UserID:        user.UserID,
@@ -289,8 +289,8 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 		IPAddress:     &ipAddress,
 		UserAgent:     &userAgent,
 		LastUsedAt:    &now,
-		MaxExpiresAt:  storedToken.MaxExpiresAt, // Keep same absolute expiration
-		ParentTokenID: &storedToken.TokenID,     // Track rotation chain
+		MaxExpiresAt:  maxExpiresAt,
+		ParentTokenID: &storedToken.TokenID, // Track rotation chain
 		IsRotated:     false,
 	}
 	err = s.repo.CreateToken(ctx, newTokenModel)
