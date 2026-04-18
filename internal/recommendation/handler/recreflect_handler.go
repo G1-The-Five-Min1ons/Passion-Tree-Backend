@@ -28,7 +28,7 @@ func (h *Handler) GetRecommendations(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "received request for path recommendations", "user_id", userID, "tree_id", treeID)
 
-	response, err := h.recreflectSvc.RecommendPathsForUser(ctx, userID, treeID)
+	response, err := h.recSvc.RecommendPathsForUser(ctx, userID, treeID)
 	if err != nil {
 		return h.handleError(c, err)
 	}

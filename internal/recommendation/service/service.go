@@ -18,8 +18,13 @@ type ServiceRecommendation interface {
 	extractPathID(id any) (string, bool)
 }
 
+type SaveBatchRecommendations interface{
+	RunDailyRecommendationBatch(ctx context.Context) error
+}
+
 type Service interface {
 	ServiceRecommendation
+	SaveBatchRecommendations
 }
 
 type serviceImpl struct {

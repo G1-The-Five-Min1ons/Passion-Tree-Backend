@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"passiontree/internal/learning-path/model"
+	batchmodel "passiontree/internal/recommendation/model"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -158,4 +159,25 @@ func (c *AIClient) SyncLearningPath(ctx context.Context, req SyncLearningPathReq
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 	return &syncResp, nil
+}
+
+func (c *AIClient) ComputeBatchRecommendations(ctx context.Context, payload batchmodel.BatchRecommendPayload) (*batchmodel.BatchRecommendResponse, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetBody(payload).
+		Post(c.baseURL + "/api/v1/recommend/batch-compute")
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to send batch request: %v", err)
+	}
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
+	}
+
+	var result batchmodel.BatchRecommendResponse
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal batch response: %w", err)
+	}
+	return &result, nil
 }

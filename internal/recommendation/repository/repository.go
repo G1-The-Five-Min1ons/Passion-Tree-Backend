@@ -13,6 +13,13 @@ type RepositoryRecommendation interface {
 	GetTopPopularPaths(ctx context.Context) ([]model.RecommendedPath, error)
 }
 
+type BatchRepository interface {
+	GetBatchInteractions(ctx context.Context) ([]model.UserInteraction, error)
+	GetBatchProfiles(ctx context.Context) ([]model.UserProfile, error)
+	SaveBatchRecommendations(ctx context.Context, results []model.BatchRecommendationResult) error
+	GetSavedHomeRecommendations(ctx context.Context, userID string) ([]model.RecommendedPath, error)
+}
+
 type DBTX interface {
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
@@ -27,6 +34,7 @@ type Database interface {
 
 type Repository interface {
 	RepositoryRecommendation
+	BatchRepository
 }
 
 type repositoryImpl struct {

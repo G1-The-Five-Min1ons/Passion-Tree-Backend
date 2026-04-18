@@ -10,16 +10,16 @@ import (
 )
 
 type Handler struct {
-	recreflectSvc service.ServiceRecommendation
-	logger        *slog.Logger
-	storage       *storage.BlobService
+	recSvc  service.Service
+	logger  *slog.Logger
+	storage *storage.BlobService
 }
 
 func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobService) *Handler {
 	return &Handler{
-		recreflectSvc: svc,
-		logger:        logger,
-		storage:       storage,
+		recSvc:  svc,
+		logger:  logger,
+		storage: storage,
 	}
 }
 

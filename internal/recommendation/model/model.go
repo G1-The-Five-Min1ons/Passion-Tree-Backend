@@ -22,3 +22,14 @@ type RecommendPathResponse struct {
 	UserPersonaQuery string            `json:"user_persona_query"`
 	RecommendedPaths []RecommendedPath `json:"recommended_paths"`
 }
+
+type BatchRecommendationResult struct {
+	UserID           string   `json:"user_id"`
+	RecommendedPaths []string `json:"recommended_paths"`
+}
+
+type BatchRecommendResponse struct {
+	Success bool                        `json:"success"`
+	Message string                      `json:"message"`
+	Data    []BatchRecommendationResult `json:"data"`
+}

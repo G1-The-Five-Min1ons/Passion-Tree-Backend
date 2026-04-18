@@ -32,4 +32,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 	{
 		homePaths.Get("", h.GetHomeRecommendations)
 	}
+	batchPaths := protected.Group("/batch/recommendation")
+	{
+		batchPaths.Post("/trigger", h.TriggerBatchRecommendation)
+	}
 }

@@ -22,7 +22,7 @@ func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "received request for home path recommendations", "user_id", userID)
 
-	response, err := h.recreflectSvc.RecommendHomePathsForUser(ctx, userID)
+	response, err := h.recSvc.RecommendHomePathsForUser(ctx, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -31,5 +31,22 @@ func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Recommendations retrieved successfully",
 		"data":    response,
+	})
+}
+
+func (h *Handler) TriggerBatchRecommendation(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Minute)
+	defer cancel()
+
+	h.logger.InfoContext(ctx, "manual trigger for recommendation batch started")
+
+	err := h.recSvc.RunDailyRecommendationBatch(ctx)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Batch recommendation triggered and completed successfully!",
 	})
 }
