@@ -40,7 +40,7 @@ func TestRecommendPathsForUser(t *testing.T) {
 			name:          "MissingParams_EmptyUserID",
 			userID:        "",
 			treeID:        "tree-123",
-			expectedError: "user_id and tree_id are required",
+			expectedError: "Authentication session expired",
 		},
 		{
 			name:   "RepoError_ReturnsInternalError",
@@ -76,11 +76,10 @@ func TestRecommendPathsForUser(t *testing.T) {
 						{Summary: "Learned APIs", PrimaryEmotion: "Excited"},
 					}, "path-1", nil
 				}
-				path.GetLearningPathByIDFunc = func(ctx context.Context, pathID string) (*lpmodel.LearningPath, error) {
-					if pathID == "path-2" {
-						return &lpmodel.LearningPath{PathID: "path-2", Title: "Original Title"}, nil
-					}
-					return nil, errors.New("not found")
+				path.GetLearningPathsByIDsFunc = func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
+					return []lpmodel.LearningPath{
+						{PathID: "PATH-2", Title: "Advanced Go"},
+					}, nil
 				}
 			},
 			expectedPaths: 1,
@@ -136,7 +135,7 @@ func TestRecommendHomePathsForUser(t *testing.T) {
 		{
 			name:          "MissingParams_EmptyUserID",
 			userID:        "",
-			expectedError: "user_id is required",
+			expectedError: "Authentication session expired",
 		},
 		{
 			name:   "NoEnrolledPaths_ReturnsTopPopular",
@@ -160,8 +159,10 @@ func TestRecommendHomePathsForUser(t *testing.T) {
 				rec.GetUserEnrolledPathsForRecFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
 					return []model.RecommendedPath{{LearningPath: lpmodel.LearningPath{PathID: "path-enrolled", Title: "Basic Go"}}}, nil
 				}
-				path.GetLearningPathByIDFunc = func(ctx context.Context, pathID string) (*lpmodel.LearningPath, error) {
-					return &lpmodel.LearningPath{PathID: pathID, Title: "Found Path"}, nil
+				path.GetLearningPathsByIDsFunc = func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
+					return []lpmodel.LearningPath{
+						{PathID: "PATH-NEW", Title: "Found Path"},
+					}, nil
 				}
 			},
 			expectedPaths: 1,

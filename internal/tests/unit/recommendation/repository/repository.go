@@ -36,12 +36,20 @@ func (m *MockRecRepository) GetTopPopularPaths(ctx context.Context) ([]model.Rec
 
 type MockPathRepository struct {
 	pathrepo.RepositoryLearningPath
-	GetLearningPathByIDFunc func(ctx context.Context, pathID string) (*lpmodel.LearningPath, error)
+	GetLearningPathByIDFunc  func(ctx context.Context, pathID string) (*lpmodel.LearningPath, error)
+	GetLearningPathsByIDsFunc func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error)
 }
 
 func (m *MockPathRepository) GetLearningPathByID(ctx context.Context, pathID string) (*lpmodel.LearningPath, error) {
 	if m.GetLearningPathByIDFunc != nil {
 		return m.GetLearningPathByIDFunc(ctx, pathID)
+	}
+	return nil, nil
+}
+
+func (m *MockPathRepository) GetLearningPathsByIDs(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
+	if m.GetLearningPathsByIDsFunc != nil {
+		return m.GetLearningPathsByIDsFunc(ctx, pathIDs)
 	}
 	return nil, nil
 }
