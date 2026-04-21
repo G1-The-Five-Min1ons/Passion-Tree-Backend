@@ -1,0 +1,9 @@
+PASS warmkid03: 70/70
+PASS warmkid04: 70/70
+PASS warmkid05: 70/70
+PASS warmkid06: 70/70
+PASS warmkid07: 70/70
+PASS warmkid08: 70/70
+PASS warmkid09: 70/70
+PASS warmkid10: 70/70
+PASS warmkid11: 70/70

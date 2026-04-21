@@ -222,19 +222,26 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 		return "", "", apperror.NewUnauthorized("token has been revoked - all sessions terminated for security")
 	}
 
-	// 🚨 Check if token was already rotated (reuse detection)
-	if storedToken.IsRotated {
-		// Old token being reused = definitely theft!
-		s.logger.ErrorContext(ctx, "token reuse detected - security breach", "user_id", claims.UserID)
-		s.handleTokenTheft(ctx, claims.UserID)
-		return "", "", apperror.NewUnauthorized("token reuse detected - all sessions terminated for security")
+	if storedToken.IsRevoked || storedToken.IsRotated {
+		reason := "revoked_token_reuse"
+		if storedToken.IsRotated {
+			reason = "rotated_token_reuse"
+		}
+
+		s.logger.ErrorContext(ctx, "security breach detected: token reuse",
+			"user_id", storedToken.UserID,
+			"reason", reason,
+		)
+
+		// 🚨 Kill Switch: เตะทุก Session ของ User คนนี้ทิ้งทันที
+		s.handleTokenTheft(ctx, storedToken.UserID)
+		return "", "", apperror.NewUnauthorized("security violation detected - all sessions terminated")
 	}
 
 	// Check absolute expiration
 	if storedToken.MaxExpiresAt != nil && time.Now().After(*storedToken.MaxExpiresAt) {
-		// use Task Queue to revoke token asynchronously to avoid blocking user request in Future
-		_ = s.repo.RevokeTokenByValue(context.Background(), refreshToken, model.TokenTypeRefresh)
-		s.logger.WarnContext(ctx, "absolute token lifetime exceeded", "user_id", claims.UserID)
+		s.logger.WarnContext(ctx, "absolute lifetime exceeded", "user_id", storedToken.UserID)
+		_ = s.repo.RevokeTokenByValue(ctx, refreshToken, model.TokenTypeRefresh)
 		return "", "", apperror.NewUnauthorized("session expired - please login again")
 	}
 
@@ -242,42 +249,22 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 	user, _, err := s.repo.GetUserByID(ctx, claims.UserID)
 	if err != nil || user == nil {
 		s.logger.ErrorContext(ctx, "user not found for refresh token", "user_id", claims.UserID)
-		return "", "", apperror.NewUnauthorized("invalid refresh token")
+		return "", "", apperror.NewUnauthorized("invalid refresh token(user not found)")
 	}
 
-	// Generate new access token
-	newAccessToken, err := s.jwtService.GenerateAccessToken(user)
+	newAccessToken, err := s.jwtService.GenerateAccessToken(user) // Generate new access token
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to generate access token", "error", err, "user_id", user.UserID)
-		return "", "", apperror.NewInternal("failed to generate access token")
+		return "", "", apperror.NewInternal("failed to generate tokens")
 	}
 
-	// Generate new refresh token (token rotation)
 	newRefreshToken, err := s.jwtService.GenerateRefreshToken(user)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to generate refresh token", "error", err, "user_id", user.UserID)
-		return "", "", apperror.NewInternal("failed to generate refresh token")
-	}
-
-	// Mark old token as rotated (not revoked yet - for grace period)
-	err = s.repo.MarkTokenAsRotated(ctx, refreshToken, model.TokenTypeRefresh)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to mark token as rotated", "error", err)
-		// Continue anyway
+		return "", "", apperror.NewInternal("failed to generate tokens")
 	}
 
 	refreshTTL := parseDurationOrHours(s.config.JWTRefreshTTL, 720*time.Hour)
-	refreshAbsolute := parseDurationOrHours(s.config.JWTRefreshAbsolute, 720*time.Hour)
-
-	// Sliding session: extend from now while clamping to absolute max lifetime.
 	now := time.Now()
-	maxExpiresAt := storedToken.MaxExpiresAt
-	if maxExpiresAt == nil {
-		fallbackMax := now.Add(refreshAbsolute)
-		maxExpiresAt = &fallbackMax
-	}
-
-	expireAt := clampExpiry(now.Add(refreshTTL), maxExpiresAt)
+	expireAt := clampExpiry(now.Add(refreshTTL), storedToken.MaxExpiresAt)
 
 	newTokenModel := &model.Token{
 		UserID:        user.UserID,
@@ -285,28 +272,28 @@ func (s *userServiceImpl) RefreshAccessToken(ctx context.Context, refreshToken s
 		TokenType:     model.TokenTypeRefresh,
 		IsRevoked:     false,
 		ExpireAt:      expireAt,
+		MaxExpiresAt:  storedToken.MaxExpiresAt,
 		DeviceInfo:    &deviceInfo,
 		IPAddress:     &ipAddress,
 		UserAgent:     &userAgent,
-		LastUsedAt:    &now,
-		MaxExpiresAt:  maxExpiresAt,
 		ParentTokenID: &storedToken.TokenID, // Track rotation chain
 		IsRotated:     false,
-	}
-	err = s.repo.CreateToken(ctx, newTokenModel)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to store new refresh token", "error", err, "user_id", user.UserID)
-		return "", "", apperror.NewInternal("failed to store refresh token: %w", err)
+		LastUsedAt:    &now,
 	}
 
-	// Revoke old token after short grace period (5 minutes) to handle race conditions
-	// Use context.Background() because the parent request context will be cancelled before this completes
+	err = s.repo.RotateRefreshToken(ctx, refreshToken, newTokenModel)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to rotate tokens in transaction", "error", err)
+		return "", "", apperror.NewInternal("failed to process token rotation")
+	}
+
 	go func() {
 		time.Sleep(5 * time.Minute)
+		// ใช้ context.Background() เพราะไม่อยากให้ผูกกับ Request ปัจจุบันที่กำลังจะจบลง
 		_ = s.repo.RevokeTokenByValue(context.Background(), refreshToken, model.TokenTypeRefresh)
 	}()
 
-	s.logger.InfoContext(ctx, "tokens refreshed successfully", "user_id", user.UserID)
+	s.logger.InfoContext(ctx, "tokens rotated successfully", "user_id", user.UserID)
 	return newAccessToken, newRefreshToken, nil
 }
 

@@ -16,7 +16,9 @@ func parseDurationOrHours(raw string, fallback time.Duration) time.Duration {
 
 	// Backward compatibility: legacy configuration stores integer hours.
 	if hours, err := strconv.Atoi(raw); err == nil {
-		return time.Duration(hours) * time.Hour
+		if hours > 0 { // 
+			return time.Duration(hours) * time.Hour
+		}
 	}
 
 	return fallback
