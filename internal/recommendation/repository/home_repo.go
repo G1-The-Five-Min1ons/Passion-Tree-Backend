@@ -146,8 +146,8 @@ func (r *repositoryImpl) SaveBatchRecommendations(ctx context.Context, results [
 	deleteQuery := `DELETE FROM dbo.Recommendation WHERE user_id = @p1`
 
 	insertQuery := `
-		INSERT INTO dbo.Recommendation (recommend_id, user_id, path_id, rank_order, updated_at)
-		VALUES (@p1, @p2, @p3, @p4, GETUTCDATE())
+		INSERT INTO dbo.Recommendation (recommend_id, user_id, path_id, rank_order, score, updated_at)
+		VALUES (@p1, @p2, @p3, @p4, @p5, GETUTCDATE())
 	`
 
 	for _, userResult := range results {
@@ -156,13 +156,13 @@ func (r *repositoryImpl) SaveBatchRecommendations(ctx context.Context, results [
 			return fmt.Errorf("failed to delete old recommendations for user %s: %w", userResult.UserID, err)
 		}
 
-		for index, pathID := range userResult.RecommendedPaths {
+		for index, rec := range userResult.RecommendedPaths {
 			rankOrder := index + 1
 			newID := uuid.New().String()
 
-			_, err = tx.ExecContext(ctx, insertQuery, newID, userResult.UserID, pathID, rankOrder)
+			_, err = tx.ExecContext(ctx, insertQuery, newID, userResult.UserID, rec.PathID, rankOrder, rec.Score)
 			if err != nil {
-				return fmt.Errorf("failed to insert recommendation (user: %s, path: %s): %w", userResult.UserID, pathID, err)
+				return fmt.Errorf("failed to insert recommendation (user: %s, path: %s): %w", userResult.UserID, rec.PathID, err)
 			}
 		}
 	}
@@ -176,13 +176,13 @@ func (r *repositoryImpl) SaveBatchRecommendations(ctx context.Context, results [
 
 func (r *repositoryImpl) GetSavedHomeRecommendations(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
 	query := `
-		SELECT 
-			CONVERT(VARCHAR(36), lp.path_id) as path_id, 
-			ISNULL(lp.title, 'null') as title, 
-			ISNULL(lp.cover_img_url, 'null') as cover_img_url, 
-			ISNULL(lp.objective, 'null') as objective, 
+		SELECT
+			CONVERT(VARCHAR(36), lp.path_id) as path_id,
+			ISNULL(lp.title, 'null') as title,
+			ISNULL(lp.cover_img_url, 'null') as cover_img_url,
+			ISNULL(lp.objective, 'null') as objective,
 			ISNULL(lp.description, 'null') as description,
-			ISNULL(lp.avg_rating, 0) as recommendation_score
+			ISNULL(r.score, 0) as recommendation_score
 		FROM dbo.Recommendation r
 		JOIN dbo.Learning_Path lp ON r.path_id = lp.path_id
 		WHERE r.user_id = @p1 AND lp.publish_status = 'published'

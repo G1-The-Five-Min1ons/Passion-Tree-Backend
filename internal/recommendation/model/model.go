@@ -23,9 +23,14 @@ type RecommendPathResponse struct {
 	RecommendedPaths []RecommendedPath `json:"recommended_paths"`
 }
 
+type RecommendedPathScore struct {
+	PathID string  `json:"path_id"`
+	Score  float64 `json:"score"`
+}
+
 type BatchRecommendationResult struct {
-	UserID           string   `json:"user_id"`
-	RecommendedPaths []string `json:"recommended_paths"`
+	UserID           string                 `json:"user_id"`
+	RecommendedPaths []RecommendedPathScore `json:"recommended_paths"`
 }
 
 type BatchRecommendResponse struct {
