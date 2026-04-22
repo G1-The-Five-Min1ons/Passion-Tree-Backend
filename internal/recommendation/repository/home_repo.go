@@ -144,10 +144,9 @@ func (r *repositoryImpl) SaveBatchRecommendations(ctx context.Context, results [
 	defer tx.Rollback()
 
 	deleteQuery := `DELETE FROM dbo.Recommendation WHERE user_id = @p1`
-	
-	newID := uuid.New().String()
+
 	insertQuery := `
-		INSERT INTO dbo.Recommendation (recommend_id, user_id, path_id, rank_order, updated_at) 
+		INSERT INTO dbo.Recommendation (recommend_id, user_id, path_id, rank_order, updated_at)
 		VALUES (@p1, @p2, @p3, @p4, GETUTCDATE())
 	`
 
@@ -159,6 +158,7 @@ func (r *repositoryImpl) SaveBatchRecommendations(ctx context.Context, results [
 
 		for index, pathID := range userResult.RecommendedPaths {
 			rankOrder := index + 1
+			newID := uuid.New().String()
 
 			_, err = tx.ExecContext(ctx, insertQuery, newID, userResult.UserID, pathID, rankOrder)
 			if err != nil {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"passiontree/internal/learning-path/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
@@ -226,4 +227,150 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 		Message: syncResp.Message,
 		PathID:  syncResp.PathID,
 	}, nil
+}
+
+// buildSyncRequest converts a LearningPath row into the payload expected by the AI sync endpoint.
+func buildSyncRequest(path model.LearningPath) aiclient.SyncLearningPathRequest {
+	metadata := map[string]interface{}{
+		"title":            path.Title,
+		"description":      path.Description,
+		"cover_img_url":    path.CoverImgURL,
+		"objective":        path.Objective,
+		"avg_rating":       path.Rating,
+		"publish_status":   path.Publish_status,
+		"creator_id":       path.CreatorID,
+		"creator_name":     path.CreatorName,
+		"creator_username": path.CreatorUsername,
+		"instructor":       path.Instructor,
+		"modules":          path.Modules,
+		"student":          path.Students,
+	}
+	if path.CreatedAt != nil {
+		metadata["created_at"] = path.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+	}
+	if path.UpdatedAt != nil {
+		metadata["updated_at"] = path.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")
+	}
+	return aiclient.SyncLearningPathRequest{
+		PathID:         path.PathID,
+		Title:          path.Title,
+		Description:    path.Description,
+		Metadata:       metadata,
+		CollectionName: "learning_paths",
+	}
+}
+
+// BulkSyncLearningPaths pushes every learning path in SQL to Qdrant in a single call.
+func (s *serviceImpl) BulkSyncLearningPaths(ctx context.Context) (*aiclient.BulkSyncResponse, error) {
+	if s.aiClient == nil {
+		return nil, apperror.NewInternal("ai client is not initialized")
+	}
+
+	paths, err := s.pathRepo.GetAllLearningPath(ctx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to fetch paths for bulk sync", "error", err)
+		return nil, apperror.NewInternal("failed to fetch learning paths: %w", err)
+	}
+
+	requests := make([]aiclient.SyncLearningPathRequest, 0, len(paths))
+	for _, p := range paths {
+		requests = append(requests, buildSyncRequest(p))
+	}
+
+	resp, err := s.aiClient.BulkSyncLearningPaths(ctx, aiclient.BulkSyncRequest{
+		LearningPaths:  requests,
+		CollectionName: "learning_paths",
+	})
+	if err != nil {
+		s.logger.ErrorContext(ctx, "bulk sync to AI failed", "error", err)
+		return nil, apperror.NewInternal("failed to bulk sync learning paths: %w", err)
+	}
+
+	s.logger.InfoContext(ctx, "bulk sync completed", "total", resp.Total, "succeeded", resp.Succeeded, "failed", resp.Failed)
+	return resp, nil
+}
+
+// ReconcileLearningPaths removes Qdrant points that no longer exist in SQL and upserts ones that are missing.
+func (s *serviceImpl) ReconcileLearningPaths(ctx context.Context) (*model.ReconcileResponse, error) {
+	if s.aiClient == nil {
+		return nil, apperror.NewInternal("ai client is not initialized")
+	}
+
+	sqlPaths, err := s.pathRepo.GetAllLearningPath(ctx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to fetch paths for reconcile", "error", err)
+		return nil, apperror.NewInternal("failed to fetch learning paths: %w", err)
+	}
+
+	sqlIDs := make(map[string]model.LearningPath, len(sqlPaths))
+	for _, p := range sqlPaths {
+		sqlIDs[p.PathID] = p
+	}
+
+	qdrantIDs, err := s.aiClient.ListCollectionIDs(ctx, "learning_paths")
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to list Qdrant ids", "error", err)
+		return nil, apperror.NewInternal("failed to list Qdrant ids: %w", err)
+	}
+
+	qdrantSet := make(map[string]struct{}, len(qdrantIDs.IDs))
+	for _, id := range qdrantIDs.IDs {
+		qdrantSet[id] = struct{}{}
+	}
+
+	report := &model.ReconcileResponse{
+		Success:       true,
+		SQLTotal:      len(sqlPaths),
+		QdrantTotal:   qdrantIDs.Total,
+		StaleDeleted:  []string{},
+		MissingSynced: []string{},
+		Errors:        []string{},
+	}
+
+	// Stale: in Qdrant but not in SQL
+	for id := range qdrantSet {
+		if _, ok := sqlIDs[id]; ok {
+			continue
+		}
+		if _, err := s.aiClient.SyncDeletePath(ctx, id, "learning_paths"); err != nil {
+			report.Success = false
+			report.Errors = append(report.Errors, fmt.Sprintf("delete %s: %v", id, err))
+			continue
+		}
+		report.StaleDeleted = append(report.StaleDeleted, id)
+	}
+
+	// Missing: in SQL but not in Qdrant — bulk upsert
+	missing := make([]aiclient.SyncLearningPathRequest, 0)
+	for id, p := range sqlIDs {
+		if _, ok := qdrantSet[id]; ok {
+			continue
+		}
+		missing = append(missing, buildSyncRequest(p))
+		report.MissingSynced = append(report.MissingSynced, id)
+	}
+	if len(missing) > 0 {
+		resp, err := s.aiClient.BulkSyncLearningPaths(ctx, aiclient.BulkSyncRequest{
+			LearningPaths:  missing,
+			CollectionName: "learning_paths",
+		})
+		if err != nil {
+			report.Success = false
+			report.Errors = append(report.Errors, fmt.Sprintf("bulk upsert: %v", err))
+		} else if resp.Failed > 0 {
+			report.Success = false
+			report.Errors = append(report.Errors, resp.Errors...)
+		}
+	}
+
+	report.Message = fmt.Sprintf("reconcile finished: deleted=%d synced=%d errors=%d",
+		len(report.StaleDeleted), len(report.MissingSynced), len(report.Errors))
+	s.logger.InfoContext(ctx, "reconcile completed",
+		"sql_total", report.SQLTotal,
+		"qdrant_total", report.QdrantTotal,
+		"stale_deleted", len(report.StaleDeleted),
+		"missing_synced", len(report.MissingSynced),
+		"errors", len(report.Errors),
+	)
+	return report, nil
 }

@@ -73,3 +73,26 @@ type SyncLearningPathResponse struct {
 	Message string `json:"message"`
 	PathID  string `json:"path_id,omitempty"`
 }
+
+// BulkSyncRequest represents the request for bulk syncing learning paths to Qdrant
+type BulkSyncRequest struct {
+	LearningPaths  []SyncLearningPathRequest `json:"learning_paths"`
+	CollectionName string                    `json:"collection_name,omitempty"`
+}
+
+// BulkSyncResponse represents the response for bulk sync
+type BulkSyncResponse struct {
+	Success   bool     `json:"success"`
+	Message   string   `json:"message"`
+	Total     int      `json:"total"`
+	Succeeded int      `json:"succeeded"`
+	Failed    int      `json:"failed"`
+	Errors    []string `json:"errors"`
+}
+
+// ListIDsResponse lists all point ids in a Qdrant collection
+type ListIDsResponse struct {
+	CollectionName string   `json:"collection_name"`
+	Total          int      `json:"total"`
+	IDs            []string `json:"ids"`
+}

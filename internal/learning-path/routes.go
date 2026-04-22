@@ -39,6 +39,8 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Put("/uploadimg", h.UpdateCoverImage)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
+		paths.Post("/sync/bulk", h.BulkSyncLearningPaths)
+		paths.Post("/sync/reconcile", h.ReconcileLearningPaths)
 		paths.Post("/sync/:path_id", h.SyncLearningPath)
 		paths.Get("/:path_id", h.GetOne)
 		paths.Put("/:path_id", h.Update)

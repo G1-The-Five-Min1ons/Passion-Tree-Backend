@@ -62,6 +62,44 @@ func (h *Handler) DebugCollection(c *fiber.Ctx) error {
 	})
 }
 
+// BulkSyncLearningPaths pushes every path in SQL to Qdrant in one call.
+func (h *Handler) BulkSyncLearningPaths(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Minute)
+	defer cancel()
+
+	h.logger.InfoContext(ctx, "bulk sync learning paths requested")
+
+	resp, err := h.searchSvc.BulkSyncLearningPaths(ctx)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": resp.Success,
+		"message": resp.Message,
+		"data":    resp,
+	})
+}
+
+// ReconcileLearningPaths aligns Qdrant with SQL (delete stale, sync missing).
+func (h *Handler) ReconcileLearningPaths(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Minute)
+	defer cancel()
+
+	h.logger.InfoContext(ctx, "reconcile Qdrant↔SQL requested")
+
+	resp, err := h.searchSvc.ReconcileLearningPaths(ctx)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": resp.Success,
+		"message": resp.Message,
+		"data":    resp,
+	})
+}
+
 // SyncLearningPath syncs a single learning path from Azure DB to Qdrant
 func (h *Handler) SyncLearningPath(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")

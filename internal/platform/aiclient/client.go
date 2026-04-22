@@ -161,6 +161,72 @@ func (c *AIClient) SyncLearningPath(ctx context.Context, req SyncLearningPathReq
 	return &syncResp, nil
 }
 
+// SyncDeletePath removes a learning path point from Qdrant.
+func (c *AIClient) SyncDeletePath(ctx context.Context, pathID string, collectionName string) (*SyncLearningPathResponse, error) {
+	if collectionName == "" {
+		collectionName = "learning_paths"
+	}
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetQueryParam("collection_name", collectionName).
+		Delete(fmt.Sprintf("%s/api/v1/search/sync/%s", c.baseURL, pathID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send delete request: %v", err)
+	}
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
+	}
+	var syncResp SyncLearningPathResponse
+	if err := json.Unmarshal(resp.Body(), &syncResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal delete response: %w", err)
+	}
+	return &syncResp, nil
+}
+
+// BulkSyncLearningPaths upserts many paths in one call.
+func (c *AIClient) BulkSyncLearningPaths(ctx context.Context, req BulkSyncRequest) (*BulkSyncResponse, error) {
+	if req.CollectionName == "" {
+		req.CollectionName = "learning_paths"
+	}
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetBody(req).
+		Post(c.baseURL + "/api/v1/search/sync/bulk")
+	if err != nil {
+		return nil, fmt.Errorf("failed to send bulk sync request: %v", err)
+	}
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
+	}
+	var bulkResp BulkSyncResponse
+	if err := json.Unmarshal(resp.Body(), &bulkResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal bulk sync response: %w", err)
+	}
+	return &bulkResp, nil
+}
+
+// ListCollectionIDs returns every point id inside a Qdrant collection.
+func (c *AIClient) ListCollectionIDs(ctx context.Context, collectionName string) (*ListIDsResponse, error) {
+	if collectionName == "" {
+		collectionName = "learning_paths"
+	}
+	resp, err := c.client.R().
+		SetContext(ctx).
+		Get(fmt.Sprintf("%s/api/v1/search/ids/%s", c.baseURL, collectionName))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send list ids request: %v", err)
+	}
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
+	}
+	var ids ListIDsResponse
+	if err := json.Unmarshal(resp.Body(), &ids); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal list ids response: %w", err)
+	}
+	return &ids, nil
+}
+
 func (c *AIClient) ComputeBatchRecommendations(ctx context.Context, payload batchmodel.BatchRecommendPayload) (*batchmodel.BatchRecommendResponse, error) {
 	resp, err := c.client.R().
 		SetContext(ctx).

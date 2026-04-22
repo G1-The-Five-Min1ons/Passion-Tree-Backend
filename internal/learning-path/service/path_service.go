@@ -176,6 +176,12 @@ func (s *serviceImpl) DeletePath(ctx context.Context, path_id string) error {
 		return apperror.NewInternal("database error during path deletion: %w", err)
 	}
 
+	if s.aiClient != nil {
+		if _, err := s.aiClient.SyncDeletePath(ctx, path_id, "learning_paths"); err != nil {
+			s.logger.WarnContext(ctx, "learning path removed from SQL but Qdrant delete failed", "path_id", path_id, "error", err)
+		}
+	}
+
 	s.logger.InfoContext(ctx, "learning path deleted successfully", "path_id", path_id)
 	return nil
 }
