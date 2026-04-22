@@ -14,7 +14,12 @@ func (s *serviceImpl) syncTreeStatus(
 	lastReflectAt *time.Time,
 	isPause bool,
 	pausedAt *time.Time,
+	isReflectionClosed bool,
 ) string {
+	if isReflectionClosed {
+		return normalizeTreeStatus(currentStatus)
+	}
+
 	if !isPause {
 		activated, activatedPausedAt, err := s.refRepo.TryActivateScheduledPause(ctx, treeID)
 		if err != nil {

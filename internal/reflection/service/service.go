@@ -25,12 +25,13 @@ type ReflectionService interface {
 	DeleteAlbum(ctx context.Context, albumID string) error
 
 	// Tree methods
-	CreateTree(ctx context.Context, req model.CreateTreeRequest) (*model.TreeResponse, error)
+	CreateTree(ctx context.Context, req model.CreateTreeRequest, userID string) (*model.TreeResponse, error)
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool, userID string) (interface{}, error)
-	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
+	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest, userID string) error
+	EndReflecting(ctx context.Context, treeID string, userID string) (*model.TreeResponse, error)
 	RetrieveTree(ctx context.Context, treeID string, userID string) (*model.RetrieveTreeResponse, error)
-	DeleteTree(ctx context.Context, treeID string) error
+	DeleteTree(ctx context.Context, treeID string, userID string) error
 	PauseTree(ctx context.Context, treeID string, userID string, req model.PauseTreeRequest) (*model.PauseTreeResponse, error)
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
 	// for all reflected nodes in the tree on a 0-10 scale,
