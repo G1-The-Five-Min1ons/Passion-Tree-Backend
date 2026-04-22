@@ -14,8 +14,8 @@ import (
 func (r *repositoryImpl) CreateTemplate(ctx context.Context, req model.CreateTemplateRequest) (string, error) {
 	newID := uuid.New().String()
 	query := `
-		INSERT INTO mission (mission_id, title, detail, reward_xp, reward_heart, condition_type, target_value, is_active, create_at, update_at) 
-		OUTPUT INSERTED.mission_id
+		INSERT INTO mission (mission_id, title, detail, reward_xp, reward_heart, condition_type, target_value, is_active, create_at, update_at)
+		OUTPUT CONVERT(VARCHAR(36), INSERTED.mission_id)
 		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, 1, GETDATE(), GETDATE())`
 
 	err := r.db.QueryRowContext(ctx, query, newID, req.Title, req.Description, req.RewardXP, req.RewardHeart, req.ConditionType, req.TargetValue).Scan(&newID)
@@ -69,7 +69,7 @@ func (r *repositoryImpl) AssignMissionsToUser(ctx context.Context, userID string
 		WHERE NOT EXISTS (
 			SELECT 1
 			FROM user_mission
-			WHERE user_id = @p2 AND mission_id = @p3
+			WHERE user_id = @p2 AND mission_id = @p3 AND status = 'active' AND expire_at > GETDATE()
 		)`
 
 	for _, missionID := range missionIDs {
@@ -88,8 +88,8 @@ func (r *repositoryImpl) AssignMissionsToUser(ctx context.Context, userID string
 
 func (r *repositoryImpl) GetUserActiveMissions(ctx context.Context, userID string) ([]model.UserMission, error) {
 	query := `
-		SELECT 
-			CONVERT(VARCHAR(36), um.user_mission_id), um.mission_id, m.title, m.detail, 
+		SELECT
+			CONVERT(VARCHAR(36), um.user_mission_id), CONVERT(VARCHAR(36), um.mission_id), m.title, m.detail,
 			m.reward_xp, m.reward_heart, um.current_value, m.target_value, um.status, um.expire_at
 		FROM user_mission um
 		JOIN mission m ON um.mission_id = m.mission_id
@@ -144,14 +144,14 @@ func (r *repositoryImpl) GetAllActiveUsers(ctx context.Context) ([]string, error
 
 func (r *repositoryImpl) GetActiveMissionsByCondition(ctx context.Context, userID string, conditionType string) ([]model.UserMission, error) {
 	query := `
-		SELECT 
-			CONVERT(VARCHAR(36), um.user_mission_id), um.mission_id, m.title, 
+		SELECT
+			CONVERT(VARCHAR(36), um.user_mission_id), CONVERT(VARCHAR(36), um.mission_id), m.title, m.detail,
 			m.reward_xp, m.reward_heart, um.current_value, m.target_value, um.status
 		FROM user_mission um
 		JOIN mission m ON um.mission_id = m.mission_id
-		WHERE um.user_id = @p1 
-		  AND m.condition_type = @p2 
-		  AND um.status = 'active' 
+		WHERE um.user_id = @p1
+		  AND m.condition_type = @p2
+		  AND um.status = 'active'
 		  AND um.expire_at > GETDATE()`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, conditionType)
@@ -163,7 +163,7 @@ func (r *repositoryImpl) GetActiveMissionsByCondition(ctx context.Context, userI
 	var missions []model.UserMission
 	for rows.Next() {
 		var m model.UserMission
-		if err := rows.Scan(&m.UserMissionID, &m.MissionID, &m.Title, &m.RewardXP, &m.RewardHeart, &m.CurrentValue, &m.TargetValue, &m.Status); err != nil {
+		if err := rows.Scan(&m.UserMissionID, &m.MissionID, &m.Title, &m.Description, &m.RewardXP, &m.RewardHeart, &m.CurrentValue, &m.TargetValue, &m.Status); err != nil {
 			return nil, err
 		}
 		missions = append(missions, m)

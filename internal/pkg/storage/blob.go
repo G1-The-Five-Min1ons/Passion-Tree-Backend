@@ -19,6 +19,7 @@ const (
 	ContentTypeJPEG = "image/jpeg"
 	ContentTypeJPG  = "image/jpg"
 	ContentTypePNG  = "image/png"
+	ContentTypePDF  = "application/pdf"
 
 	SASStartTimeBuffer = -1 * time.Minute // Buffer เวลาเผื่อนาฬิกา server ไม่ตรงกัน
 )
@@ -116,7 +117,8 @@ func (s *BlobService) ValidateUploadedFile(ctx context.Context, blobURL string, 
 
 	if props.ContentType != nil {
 		ct := *props.ContentType
-		if ct != ContentTypeJPEG && ct != ContentTypePNG && ct != ContentTypeJPG {
+		isValidContentType := ct == ContentTypeJPEG || ct == ContentTypePNG || ct == ContentTypeJPG || ct == ContentTypePDF
+		if !isValidContentType {
 			_, _ = blobClient.Delete(ctx, nil)
 			return fmt.Errorf("invalid content type: %s", ct)
 		}
