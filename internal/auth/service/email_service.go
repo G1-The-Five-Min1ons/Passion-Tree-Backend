@@ -6,6 +6,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net/smtp"
+	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -178,6 +180,12 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 }
 
 func GenerateVerificationToken() (string, error) {
+	if fixedCode := strings.TrimSpace(os.Getenv("FIXED_TEST_OTP_CODE")); fixedCode != "" {
+		if matched, _ := regexp.MatchString(`^\d{6}$`, fixedCode); matched {
+			return fixedCode, nil
+		}
+	}
+
 	bytes := make([]byte, 4)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
