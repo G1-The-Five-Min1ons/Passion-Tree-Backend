@@ -9,7 +9,6 @@ import (
 
 type RepositoryRecommendation interface {
 	GetUserReflectionsByTree(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error)
-	GetUserEnrolledPathsForRec(ctx context.Context, userID string) ([]model.RecommendedPath, error)
 	GetTopPopularPaths(ctx context.Context) ([]model.RecommendedPath, error)
 }
 
