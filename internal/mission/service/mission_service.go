@@ -9,7 +9,14 @@ import (
 )
 
 func (s *serviceImpl) CreateTemplate(ctx context.Context, req model.CreateTemplateRequest, userID string) (string, error) {
-	if req.Title == "" || req.RewardXP <= 0 {
+	validConditions := map[string]bool{
+		model.ConditionCompleteNode: true,
+		model.ConditionWriteReflect: true,
+		model.ConditionEnrollPath:   true,
+		model.ConditionCompletePath: true,
+		model.ConditionCommon:       true,
+	}
+	if req.Title == "" || req.RewardXP <= 0 || req.TargetValue <= 0 || !validConditions[req.ConditionType] {
 		return "", apperror.NewBadRequest("invalid template parameters")
 	}
 
@@ -39,6 +46,9 @@ func (s *serviceImpl) GetMyMissions(ctx context.Context, userID string) ([]model
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to fetch user missions", "error", err, "user_id", userID)
 		return nil, apperror.NewInternal("failed to fetch user missions")
+	}
+	if missions == nil {
+		missions = []model.UserMission{}
 	}
 	return missions, nil
 }
