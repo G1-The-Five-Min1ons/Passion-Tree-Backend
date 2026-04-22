@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"passiontree/internal/auth/model"
 
@@ -177,6 +178,56 @@ func (r *repositoryImpl) MarkTokenAsRotated(ctx context.Context, tokenValue stri
 
 	if rows == 0 {
 		return fmt.Errorf("token not found")
+	}
+
+	return nil
+}
+
+// RotateRefreshToken marks the old refresh token as rotated and stores the new token atomically.
+func (r *repositoryImpl) RotateRefreshToken(ctx context.Context, oldTokenValue string, newToken *model.Token) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	markQuery := `UPDATE Token SET is_rotated = 1 WHERE token = @p1 AND token_type = @p2`
+	result, err := tx.ExecContext(ctx, markQuery, oldTokenValue, model.TokenTypeRefresh)
+	if err != nil {
+		return fmt.Errorf("mark token as rotated failed: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("get rows affected failed: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("token not found")
+	}
+
+	if newToken.TokenID == "" {
+		newToken.TokenID = uuid.New().String()
+	}
+
+	if newToken.LastUsedAt == nil {
+		now := time.Now().UTC()
+		newToken.LastUsedAt = &now
+	}
+
+	insertQuery := `INSERT INTO Token (
+		token_id, user_id, token, token_type, is_revoke, expire_at,
+		device_info, ip_address, user_agent, last_used_at, max_expires_at, parent_token_id, is_rotated
+	) VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9, @p10, @p11, @p12, @p13)`
+	_, err = tx.ExecContext(ctx, insertQuery,
+		newToken.TokenID, newToken.UserID, newToken.Token, newToken.TokenType, newToken.IsRevoked, newToken.ExpireAt,
+		newToken.DeviceInfo, newToken.IPAddress, newToken.UserAgent, newToken.LastUsedAt, newToken.MaxExpiresAt,
+		newToken.ParentTokenID, newToken.IsRotated)
+	if err != nil {
+		return fmt.Errorf("create token failed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction failed: %w", err)
 	}
 
 	return nil

@@ -55,14 +55,20 @@ func (s *userServiceImpl) VerifyEmail(ctx context.Context, otpCode string, devic
 	}
 
 	now := time.Now()
+	refreshTTL := parseDurationOrHours(s.config.JWTRefreshTTL, 720*time.Hour)
+	refreshAbsolute := parseDurationOrHours(s.config.JWTRefreshAbsolute, 720*time.Hour)
+	maxExpiresAt := now.Add(refreshAbsolute)
+	expireAt := clampExpiry(now.Add(refreshTTL), &maxExpiresAt)
 	tokenModel := &model.Token{
-		UserID:     user.UserID,
-		Token:      refreshToken,
-		TokenType:  model.TokenTypeRefresh,
-		ExpireAt:   now.Add(168 * time.Hour), // 7 วัน
-		DeviceInfo: &deviceInfo,
-		IPAddress:  &ip,
-		UserAgent:  &ua,
+		UserID:       user.UserID,
+		Token:        refreshToken,
+		TokenType:    model.TokenTypeRefresh,
+		ExpireAt:     expireAt,
+		DeviceInfo:   &deviceInfo,
+		IPAddress:    &ip,
+		UserAgent:    &ua,
+		LastUsedAt:   &now,
+		MaxExpiresAt: &maxExpiresAt,
 	}
 
 	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {

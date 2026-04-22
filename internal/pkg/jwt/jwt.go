@@ -44,26 +44,34 @@ type Service struct {
 // NewService creates a new JWT service from config
 func NewService(cfg *config.Config) *Service {
 	if cfg.JWTSecret == "" {
-        panic("JWT_SECRET is not set in configuration")
-    }
-
-	// Parse access token TTL from config (hours)
-	accessTTL := 1 * time.Hour
-	if hours, err := strconv.Atoi(cfg.JWTAccessTTL); err == nil {
-		accessTTL = time.Duration(hours) * time.Hour
+		panic("JWT_SECRET is not set in configuration")
 	}
 
-	// Parse refresh token TTL from config (hours)
-	refreshTTL := 168 * time.Hour // 7 days
-	if hours, err := strconv.Atoi(cfg.JWTRefreshTTL); err == nil {
-		refreshTTL = time.Duration(hours) * time.Hour
-	}
+	accessTTL := parseTokenDuration(cfg.JWTAccessTTL, 30*time.Minute)
+	refreshTTL := parseTokenDuration(cfg.JWTRefreshTTL, 720*time.Hour)
 
 	return &Service{
 		secretKey:       []byte(cfg.JWTSecret),
 		accessTokenTTL:  accessTTL,
 		refreshTokenTTL: refreshTTL,
 	}
+}
+
+func parseTokenDuration(raw string, fallback time.Duration) time.Duration {
+	if raw == "" {
+		return fallback
+	}
+
+	if durationValue, err := time.ParseDuration(raw); err == nil {
+		return durationValue
+	}
+
+	// Backward compatibility: historical values are stored as integer hours.
+	if hours, err := strconv.Atoi(raw); err == nil {
+		return time.Duration(hours) * time.Hour
+	}
+
+	return fallback
 }
 
 // GenerateAccessToken generates a new access token
