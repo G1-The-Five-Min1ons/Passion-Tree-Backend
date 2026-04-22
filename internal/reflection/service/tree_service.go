@@ -6,10 +6,11 @@ import (
 	"errors"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/reflection/model"
+	"strings"
 	"time"
 )
 
-func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeRequest) (*model.TreeResponse, error) {
+func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeRequest, userID string) (*model.TreeResponse, error) {
 	s.logger.InfoContext(ctx, "creating new tree", "album_id", req.AlbumID, "title", req.Title, "path_id", req.PathID)
 
 	// Validate required fields
@@ -24,6 +25,13 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 	}
 	if req.AlbumID == "" {
 		return nil, apperror.NewBadRequest("album_id is required")
+	}
+	if userID == "" {
+		return nil, apperror.NewUnauthorized("user not authenticated")
+	}
+
+	if err := s.ensureAlbumOwnership(ctx, req.AlbumID, userID); err != nil {
+		return nil, err
 	}
 
 	// Create the tree (this will also create tree_node records)
@@ -42,12 +50,15 @@ func (s *serviceImpl) CreateTree(ctx context.Context, req model.CreateTreeReques
 		s.logger.ErrorContext(ctx, "failed to get tree after creation", "error", err, "tree_id", treeID)
 		return nil, apperror.NewInternal("failed to get tree after creation: %w", err)
 	}
+	if tree == nil {
+		return nil, apperror.NewInternal("failed to get tree after creation: empty result")
+	}
 
 	// Fetch tree nodes
 	nodes, err := s.refRepo.GetTreeNodesByTreeID(ctx, treeID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to fetch tree nodes", "error", err, "tree_id", treeID)
-		return nil, apperror.NewInternal("%s", err.Error())
+		return nil, apperror.NewInternal("failed to fetch tree nodes: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "tree created successfully", "tree_id", treeID, "nodes_count", len(nodes))
@@ -89,6 +100,9 @@ func (s *serviceImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tr
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
 
 		return nil, apperror.NewInternal("database error fetching tree: %w", err)
+	}
+	if tree == nil {
+		return nil, apperror.NewInternal("database error fetching tree: empty result")
 	}
 
 	// Compute live status and persist it back when the stored value is stale.
@@ -183,14 +197,21 @@ func (s *serviceImpl) GetTreesByAlbumID(ctx context.Context, albumID string, inc
 	return trees, nil
 }
 
-func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error {
+func (s *serviceImpl) UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest, userID string) error {
 	s.logger.InfoContext(ctx, "updating tree", "tree_id", treeID, "title", req.Title)
 
 	if treeID == "" {
 		return apperror.NewBadRequest("tree_id is required")
 	}
+	if userID == "" {
+		return apperror.NewUnauthorized("user not authenticated")
+	}
 	if req.Title == "" {
 		return apperror.NewBadRequest("title is required")
+	}
+
+	if err := s.ensureTreeOwnership(ctx, treeID, userID); err != nil {
+		return err
 	}
 
 	err := s.refRepo.UpdateTree(ctx, treeID, req)
@@ -228,6 +249,9 @@ func (s *serviceImpl) RetrieveTree(ctx context.Context, treeID string, userID st
 			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		return nil, apperror.NewInternal("failed to load tree state: %w", err)
+	}
+	if tree == nil {
+		return nil, apperror.NewInternal("failed to load tree state: empty result")
 	}
 	if tree.IsReflectionClosed {
 		return nil, apperror.NewForbidden("this reflection tree has already been ended")
@@ -282,6 +306,9 @@ func (s *serviceImpl) EndReflecting(ctx context.Context, treeID string, userID s
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
 		return nil, apperror.NewInternal("failed to load tree state: %w", err)
 	}
+	if tree == nil {
+		return nil, apperror.NewInternal("failed to load tree state: empty result")
+	}
 
 	if !tree.IsReflectionClosed {
 		if err := s.refRepo.CloseTreeReflection(ctx, treeID, tree.Status); err != nil {
@@ -296,6 +323,9 @@ func (s *serviceImpl) EndReflecting(ctx context.Context, treeID string, userID s
 			return nil, apperror.NewNotFound("tree with id '%s' not found", treeID)
 		}
 		return nil, apperror.NewInternal("failed to reload tree after ending reflection: %w", err)
+	}
+	if updatedTree == nil {
+		return nil, apperror.NewInternal("failed to reload tree after ending reflection: empty result")
 	}
 
 	return &model.TreeResponse{
@@ -318,11 +348,18 @@ func (s *serviceImpl) EndReflecting(ctx context.Context, treeID string, userID s
 	}, nil
 }
 
-func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string) error {
+func (s *serviceImpl) DeleteTree(ctx context.Context, treeID string, userID string) error {
 	s.logger.InfoContext(ctx, "request to delete tree", "tree_id", treeID)
 
 	if treeID == "" {
 		return apperror.NewBadRequest("tree_id is required")
+	}
+	if userID == "" {
+		return apperror.NewUnauthorized("user not authenticated")
+	}
+
+	if err := s.ensureTreeOwnership(ctx, treeID, userID); err != nil {
+		return err
 	}
 
 	err := s.refRepo.DeleteTree(ctx, treeID)
@@ -360,6 +397,9 @@ func (s *serviceImpl) PauseTree(ctx context.Context, treeID string, userID strin
 		}
 		s.logger.ErrorContext(ctx, "database error fetching tree", "error", err, "tree_id", treeID)
 		return nil, apperror.NewInternal("failed to load tree state: %w", err)
+	}
+	if tree == nil {
+		return nil, apperror.NewInternal("failed to load tree state: empty result")
 	}
 	if tree.IsReflectionClosed {
 		return nil, apperror.NewForbidden("this reflection tree has already been ended")
@@ -438,6 +478,29 @@ func (s *serviceImpl) ensureTreeOwnership(ctx context.Context, treeID string, us
 	if !owned {
 		s.logger.WarnContext(ctx, "tree not found or access denied", "tree_id", treeID, "user_id", userID)
 		return apperror.NewNotFound("tree with id '%s' not found", treeID)
+	}
+
+	return nil
+}
+
+func (s *serviceImpl) ensureAlbumOwnership(ctx context.Context, albumID string, userID string) error {
+	album, err := s.refRepo.GetAlbumByID(ctx, albumID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			s.logger.WarnContext(ctx, "album not found", "album_id", albumID, "user_id", userID)
+			return apperror.NewNotFound("album with id '%s' not found", albumID)
+		}
+		s.logger.ErrorContext(ctx, "failed to verify album ownership", "album_id", albumID, "user_id", userID, "error", err)
+		return apperror.NewInternal("failed to verify album ownership: %w", err)
+	}
+
+	if album == nil {
+		return apperror.NewInternal("failed to verify album ownership: empty result")
+	}
+
+	if !strings.EqualFold(album.UserID, userID) {
+		s.logger.WarnContext(ctx, "album not found or access denied", "album_id", albumID, "user_id", userID)
+		return apperror.NewNotFound("album with id '%s' not found", albumID)
 	}
 
 	return nil

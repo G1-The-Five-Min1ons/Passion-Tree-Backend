@@ -20,7 +20,12 @@ func (h *Handler) CreateTree(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	resp, err := h.reflectSvc.CreateTree(ctx, req)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp, err := h.reflectSvc.CreateTree(ctx, req, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -110,7 +115,12 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	err := h.reflectSvc.UpdateTree(ctx, treeID, req)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	err = h.reflectSvc.UpdateTree(ctx, treeID, req, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -182,7 +192,12 @@ func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	err := h.reflectSvc.DeleteTree(ctx, treeID)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	err = h.reflectSvc.DeleteTree(ctx, treeID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}

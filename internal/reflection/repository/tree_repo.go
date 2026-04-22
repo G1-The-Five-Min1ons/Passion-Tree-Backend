@@ -102,7 +102,8 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 	// Update node_count in tree
 	updateTreeQuery := `
 		UPDATE tree
-		SET node_count = @p1
+		SET node_count = @p1,
+		    last_update = GETDATE()
 		WHERE tree_id = @p2
 	`
 	_, err = tx.ExecContext(ctx, updateTreeQuery, nodeCount, treeID)
@@ -303,12 +304,12 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 	return trees, nil
 }
 
-// UpdateTreeStatus persists the computed status without changing last_update,
-// so read-driven status refreshes do not reorder trees unexpectedly.
+// UpdateTreeStatus persists the computed status and refreshes last_update.
 func (r *repositoryImpl) UpdateTreeStatus(ctx context.Context, treeID string, status string) error {
 	query := `
 		UPDATE tree
-		SET status = @p1
+		SET status = @p1,
+		    last_update = GETDATE()
 		WHERE tree_id = @p2
 		  AND ISNULL(is_reflection_closed, 0) = 0
 	`
@@ -1111,18 +1112,18 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		// If tree not yet in map, add it
 		if _, exists := treeMap[treeID]; !exists {
 			tr := &model.TreeResponse{
-				TreeID:       treeID,
-				Title:        title,
-				Difficulties: difficulties,
-				PathID:       pathID,
-				Status:       status,
-				IsPause:      isPause,
+				TreeID:             treeID,
+				Title:              title,
+				Difficulties:       difficulties,
+				PathID:             pathID,
+				Status:             status,
+				IsPause:            isPause,
 				IsReflectionClosed: isReflectionClosed,
-				NodeCount:    nodeCount,
-				AlbumID:      treeAlbumID,
-				CreatedAt:    createdAt,
-				LastUpdate:   lastUpdate,
-				Nodes:        []model.TreeNode{},
+				NodeCount:          nodeCount,
+				AlbumID:            treeAlbumID,
+				CreatedAt:          createdAt,
+				LastUpdate:         lastUpdate,
+				Nodes:              []model.TreeNode{},
 			}
 			if lastReflectAt.Valid {
 				tr.LastReflectAt = &lastReflectAt.Time
