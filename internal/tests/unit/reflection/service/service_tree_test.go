@@ -40,7 +40,7 @@ func TestCreateTree(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		resp, err := svc.CreateTree(context.Background(), req)
 		if err != nil {
@@ -54,7 +54,7 @@ func TestCreateTree(t *testing.T) {
 	t.Run("MissingTitle", func(t *testing.T) {
 		req := model.CreateTreeRequest{Title: "", Difficulties: "Easy", PathID: "p1", AlbumID: "a1"}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "title is required") {
@@ -65,7 +65,7 @@ func TestCreateTree(t *testing.T) {
 	t.Run("MissingDifficulties", func(t *testing.T) {
 		req := model.CreateTreeRequest{Title: "T", Difficulties: "", PathID: "p1", AlbumID: "a1"}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "difficulties is required") {
@@ -76,7 +76,7 @@ func TestCreateTree(t *testing.T) {
 	t.Run("MissingPathID", func(t *testing.T) {
 		req := model.CreateTreeRequest{Title: "T", Difficulties: "Easy", PathID: "", AlbumID: "a1"}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "path_id is required") {
@@ -87,7 +87,7 @@ func TestCreateTree(t *testing.T) {
 	t.Run("MissingAlbumID", func(t *testing.T) {
 		req := model.CreateTreeRequest{Title: "T", Difficulties: "Easy", PathID: "p1"}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "album_id is required") {
@@ -104,7 +104,7 @@ func TestCreateTree(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "invalid album_id or path_id") {
@@ -123,7 +123,7 @@ func TestCreateTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -145,7 +145,7 @@ func TestCreateTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -165,7 +165,7 @@ func TestCreateTree(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.CreateTree(context.Background(), req)
 		if err == nil || (!strings.Contains(err.Error(), "invalid album_id") && !strings.Contains(err.Error(), "internal server error")) {
@@ -182,7 +182,7 @@ func TestGetTreeByID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		tree, err := svc.GetTreeByID(context.Background(), "t1")
 		if err != nil || tree == nil || tree.TreeID != "t1" {
@@ -211,7 +211,7 @@ func TestGetTreeByID(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		tree, err := svc.GetTreeByID(context.Background(), "t-sync")
 		if err != nil {
@@ -232,7 +232,7 @@ func TestGetTreeByID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.GetTreeByID(context.Background(), "t2")
 		if err == nil || !strings.Contains(err.Error(), "tree with id 't2' not found") {
@@ -242,7 +242,7 @@ func TestGetTreeByID(t *testing.T) {
 
 	t.Run("EmptyTreeID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 
 		_, err := svc.GetTreeByID(context.Background(), "")
 		if err == nil || !strings.Contains(err.Error(), "tree_id is required") {
@@ -257,7 +257,7 @@ func TestGetTreeByID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.GetTreeByID(context.Background(), "t2")
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -274,7 +274,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		res, err := svc.GetTreesByAlbumID(context.Background(), "a1", false, "user1")
 		if err != nil {
@@ -294,7 +294,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		res, err := svc.GetTreesByAlbumID(context.Background(), "a2", true, "user1")
 		if err != nil {
@@ -331,7 +331,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		res, err := svc.GetTreesByAlbumID(context.Background(), "album-1", true, "user-1")
 		if err != nil {
@@ -352,7 +352,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 
 	t.Run("MissingAlbumID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 		_, err := svc.GetTreesByAlbumID(context.Background(), "", false, "user1")
 		if err == nil || !strings.Contains(err.Error(), "album_id is required") {
 			t.Errorf("Expected validation error")
@@ -366,7 +366,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.GetTreesByAlbumID(context.Background(), "a3", false, "user1")
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -381,7 +381,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		res, err := svc.GetTreesByAlbumID(context.Background(), "a1", false, "user1")
 		if err != nil {
@@ -401,7 +401,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		res, err := svc.GetTreesByAlbumID(context.Background(), "empty", true, "user1")
 		if err != nil {
@@ -421,7 +421,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		res, err := svc.GetTreesByAlbumID(context.Background(), "a-unknown", true, "user1")
 		if err != nil {
@@ -441,7 +441,7 @@ func TestGetTreesByAlbumID(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.GetTreesByAlbumID(context.Background(), "err", true, "user1")
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -458,7 +458,7 @@ func TestUpdateTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		req := model.UpdateTreeRequest{Title: "Edited"}
 		err := svc.UpdateTree(context.Background(), "t1", req)
@@ -474,7 +474,7 @@ func TestUpdateTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		req := model.UpdateTreeRequest{Title: "Edited"}
 		err := svc.UpdateTree(context.Background(), "t2", req)
@@ -485,7 +485,7 @@ func TestUpdateTree(t *testing.T) {
 
 	t.Run("EmptyBody", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 		err := svc.UpdateTree(context.Background(), "t2", model.UpdateTreeRequest{})
 		if err == nil || !strings.Contains(err.Error(), "title is required") {
 			t.Errorf("Expected empty body validation error, got %v", err)
@@ -494,7 +494,7 @@ func TestUpdateTree(t *testing.T) {
 
 	t.Run("EmptyTreeID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 		err := svc.UpdateTree(context.Background(), "", model.UpdateTreeRequest{Title: "titler"})
 		if err == nil || !strings.Contains(err.Error(), "tree_id is required") {
 			t.Errorf("Expected validation error")
@@ -508,7 +508,7 @@ func TestUpdateTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		err := svc.UpdateTree(context.Background(), "t2", model.UpdateTreeRequest{Title: "e"})
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -525,7 +525,7 @@ func TestDeleteTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		err := svc.DeleteTree(context.Background(), "t1")
 		if err != nil {
@@ -540,7 +540,7 @@ func TestDeleteTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		err := svc.DeleteTree(context.Background(), "t2")
 		if err == nil || !strings.Contains(err.Error(), "not found") {
@@ -550,7 +550,7 @@ func TestDeleteTree(t *testing.T) {
 
 	t.Run("EmptyTreeID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
 
 		err := svc.DeleteTree(context.Background(), "")
 		if err == nil || !strings.Contains(err.Error(), "tree_id is required") {
@@ -565,7 +565,7 @@ func TestDeleteTree(t *testing.T) {
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		err := svc.DeleteTree(context.Background(), "t2")
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -575,56 +575,68 @@ func TestDeleteTree(t *testing.T) {
 }
 
 func TestPauseTree(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		getTreeCalls := 0
-		lastReflectAt := time.Now().Add(-31 * 24 * time.Hour)
-		var syncedStatus string
+	futureTime := time.Now().Add(7 * 24 * time.Hour).Format(time.RFC3339)
+
+	t.Run("Success_Pause", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			PauseTreeFunc: func(ctx context.Context, treeID string, isPause bool) error {
-				return nil
+			IsTreeOwnedByUserFunc: func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
 			},
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
-				getTreeCalls++
-				if getTreeCalls == 1 {
-					return &model.Tree{TreeID: treeID, IsPause: false, Difficulties: "easy", Status: "growing", LastReflectAt: &lastReflectAt}, nil
-				}
-				pausedAt := time.Now()
-				return &model.Tree{TreeID: treeID, IsPause: true, Difficulties: "easy", Status: "growing", LastReflectAt: &lastReflectAt, PausedAt: &pausedAt}, nil
+				return &model.Tree{TreeID: treeID, IsPause: false}, nil
 			},
-			UpdateTreeStatusFunc: func(ctx context.Context, treeID string, status string) error {
-				syncedStatus = status
+			PauseTreeFunc: func(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error) {
+				return 3, nil
+			},
+		}
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(mock, nil, nil, logger)
+
+		req := model.PauseTreeRequest{PausedAt: futureTime}
+		res, err := svc.PauseTree(context.Background(), "t1", "user1", req)
+		if err != nil || res == nil || !res.IsPause {
+			t.Errorf("Expected successful pause, got res=%v, err=%v", res, err)
+		}
+	})
+
+	t.Run("Success_Unpause", func(t *testing.T) {
+		mock := &repository_test.Repository{
+			IsTreeOwnedByUserFunc: func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
+			},
+			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
+				return &model.Tree{TreeID: treeID, IsPause: true}, nil
+			},
+			DeactivateActivePauseWindowFunc: func(ctx context.Context, treeID string) error {
+				return nil
+			},
+			UnpauseTreeFunc: func(ctx context.Context, treeID string, userID string) error {
 				return nil
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
-		isPause := true
-		req := model.PauseTreeRequest{IsPause: &isPause}
-		res, err := svc.PauseTree(context.Background(), "t1", req)
-		if err != nil || !res {
-			t.Errorf("Expected successful pause, got res=%v, err=%v", res, err)
-		}
-		if syncedStatus != "fading" {
-			t.Errorf("Expected paused tree status to sync as fading, got %s", syncedStatus)
+		res, err := svc.PauseTree(context.Background(), "t1", "user1", model.PauseTreeRequest{})
+		if err != nil || res == nil || res.IsPause {
+			t.Errorf("Expected successful unpause, got res=%v, err=%v", res, err)
 		}
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			PauseTreeFunc: func(ctx context.Context, treeID string, isPause bool) error {
-				return sql.ErrNoRows
+			IsTreeOwnedByUserFunc: func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
 			},
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
 				return nil, sql.ErrNoRows
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
-		isPause := true
-		req := model.PauseTreeRequest{IsPause: &isPause}
-		_, err := svc.PauseTree(context.Background(), "t2", req)
+		req := model.PauseTreeRequest{PausedAt: futureTime}
+		_, err := svc.PauseTree(context.Background(), "t2", "user1", req)
 		if err == nil || !strings.Contains(err.Error(), "not found") {
 			t.Errorf("Expected not found error, got %v", err)
 		}
@@ -632,67 +644,82 @@ func TestPauseTree(t *testing.T) {
 
 	t.Run("EmptyTreeID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(&repository_test.Repository{}, nil, logger)
-		_, err := svc.PauseTree(context.Background(), "", model.PauseTreeRequest{})
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
+		_, err := svc.PauseTree(context.Background(), "", "user1", model.PauseTreeRequest{})
 		if err == nil || !strings.Contains(err.Error(), "tree_id is required") {
 			t.Errorf("Expected validation error")
 		}
 	})
 
+	t.Run("EmptyUserID", func(t *testing.T) {
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+		svc := service.NewService(&repository_test.Repository{}, nil, nil, logger)
+		_, err := svc.PauseTree(context.Background(), "t1", "", model.PauseTreeRequest{})
+		if err == nil || !strings.Contains(err.Error(), "user not authenticated") {
+			t.Errorf("Expected unauthorized error, got %v", err)
+		}
+	})
+
 	t.Run("GetTreeInternalError", func(t *testing.T) {
 		mock := &repository_test.Repository{
+			IsTreeOwnedByUserFunc: func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
+			},
 			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
 				return nil, errors.New("fake db")
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
-		isPause := true
-		req := model.PauseTreeRequest{IsPause: &isPause}
-		_, err := svc.PauseTree(context.Background(), "t2", req)
+		req := model.PauseTreeRequest{PausedAt: futureTime}
+		_, err := svc.PauseTree(context.Background(), "t2", "user1", req)
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
-			t.Errorf("Expected fake db error")
+			t.Errorf("Expected internal error, got %v", err)
 		}
 	})
 
 	t.Run("PauseUpdateInternalError", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
-				return &model.Tree{TreeID: treeID}, nil
+			IsTreeOwnedByUserFunc: func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
 			},
-			PauseTreeFunc: func(ctx context.Context, treeID string, isPause bool) error {
-				return errors.New("update err")
+			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
+				return &model.Tree{TreeID: treeID, IsPause: false}, nil
+			},
+			PauseTreeFunc: func(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error) {
+				return 0, errors.New("update err")
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
-		isPause := false
-		req := model.PauseTreeRequest{IsPause: &isPause}
-		_, err := svc.PauseTree(context.Background(), "t2", req)
+		req := model.PauseTreeRequest{PausedAt: futureTime}
+		_, err := svc.PauseTree(context.Background(), "t2", "user1", req)
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
-			t.Errorf("Expected update error")
+			t.Errorf("Expected update error, got %v", err)
 		}
 	})
 
-	t.Run("PauseUpdateNotFoundErr", func(t *testing.T) {
+	t.Run("InsufficientHearts", func(t *testing.T) {
 		mock := &repository_test.Repository{
-			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
-				return &model.Tree{TreeID: treeID}, nil
+			IsTreeOwnedByUserFunc: func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
 			},
-			PauseTreeFunc: func(ctx context.Context, treeID string, isPause bool) error {
-				return sql.ErrNoRows
+			GetTreeByIDFunc: func(ctx context.Context, treeID string) (*model.Tree, error) {
+				return &model.Tree{TreeID: treeID, IsPause: false}, nil
+			},
+			PauseTreeFunc: func(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error) {
+				return 0, sql.ErrNoRows
 			},
 		}
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
-		isPause := false
-		req := model.PauseTreeRequest{IsPause: &isPause}
-		_, err := svc.PauseTree(context.Background(), "t2", req)
-		if err == nil || !strings.Contains(err.Error(), "not found") {
-			t.Errorf("Expected not found error")
+		req := model.PauseTreeRequest{PausedAt: futureTime}
+		_, err := svc.PauseTree(context.Background(), "t2", "user1", req)
+		if err == nil || !strings.Contains(err.Error(), "insufficient hearts") {
+			t.Errorf("Expected insufficient hearts error, got %v", err)
 		}
 	})
 }
