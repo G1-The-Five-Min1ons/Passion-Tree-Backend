@@ -61,6 +61,11 @@ func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, 
 		ResourceType: "learning_paths",
 	}
 
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "recommendation aborted: AI client is nil")
+		return nil, apperror.NewInternal("Recommendation engine is temporarily unavailable")
+	}
+
 	aiResp, err := s.aiClient.Search(ctx, aiReq)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "vector search failed", "error", err.Error())

@@ -33,6 +33,11 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		ResourceType: "learning_paths",
 	}
 
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "search aborted: AI client is nil")
+		return nil, apperror.NewInternal("ai client is not initialized")
+	}
+
 	// Call AI service to get results with payload
 	aiResp, err := s.aiClient.Search(ctx, aiReq)
 	if err != nil {
@@ -138,6 +143,10 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 
 	if collectionName == "" {
 		return nil, apperror.NewBadRequest("collection name cannot be empty")
+	}
+
+	if s.aiClient == nil {
+		return nil, apperror.NewInternal("ai client is not initialized")
 	}
 
 	// Call AI service to get collection info

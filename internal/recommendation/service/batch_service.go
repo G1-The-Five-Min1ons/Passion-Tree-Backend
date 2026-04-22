@@ -2,11 +2,17 @@ package service
 
 import (
 	"context"
+	"errors"
 	recmodel "passiontree/internal/recommendation/model"
 )
 
 func (s *serviceImpl) RunDailyRecommendationBatch(ctx context.Context) error {
 	s.logger.InfoContext(ctx, "starting daily recommendation batch...")
+
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "batch aborted: AI client is nil")
+		return errors.New("ai client is not initialized")
+	}
 
 	interactions, err := s.recRepo.GetBatchInteractions(ctx)
 	if err != nil {

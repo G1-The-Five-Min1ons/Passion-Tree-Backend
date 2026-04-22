@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"passiontree/internal/learning-path/model"
 	batchmodel "passiontree/internal/recommendation/model"
 
 	"github.com/go-resty/resty/v2"
 )
+
+const defaultAIClientTimeout = 60 * time.Second
 
 // AIClient represents a client for AI service
 type AIClient struct {
@@ -21,7 +24,7 @@ type AIClient struct {
 func NewAIClient(baseURL string) *AIClient {
 	return &AIClient{
 		baseURL: baseURL,
-		client:  resty.New(),
+		client:  resty.New().SetTimeout(defaultAIClientTimeout),
 	}
 }
 

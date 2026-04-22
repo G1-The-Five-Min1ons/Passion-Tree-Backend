@@ -270,6 +270,11 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 
 	s.logger.InfoContext(ctx, "generating learning path with AI", "topic", topic)
 
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "AI path generation aborted: AI client is nil")
+		return nil, apperror.NewInternal("ai client is not initialized")
+	}
+
 	rawResponse, err := s.aiClient.GenerateLearningPath(ctx, topic)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "AI generation failed", "error", err, "topic", topic)
