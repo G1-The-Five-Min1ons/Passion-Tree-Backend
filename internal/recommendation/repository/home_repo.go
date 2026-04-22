@@ -7,45 +7,35 @@ import (
 	"passiontree/internal/recommendation/model"
 )
 
-func (r *repositoryImpl) GetUserEnrolledPathsForRec(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
-	query := `
-		SELECT 
-			CONVERT(VARCHAR(36), lp.path_id) as path_id,
-			ISNULL(lp.title, 'null') as title,
-			ISNULL(lp.description, 'null') as description
-		FROM dbo.Path_Enroll pe
-		JOIN dbo.Learning_Path lp ON pe.path_id = lp.path_id
-		WHERE pe.user_id = @p1
-	`
-	rows, err := r.db.QueryContext(ctx, query, userID)
-	if err != nil {
-		return nil, fmt.Errorf("repo.GetUserEnrolledPathsForRec query failed: %w", err)
-	}
-	defer rows.Close()
-
-	var paths []model.RecommendedPath
-	for rows.Next() {
-		var p model.RecommendedPath
-		if err := rows.Scan(&p.PathID, &p.Title, &p.Description); err != nil {
-			return nil, fmt.Errorf("repo.GetUserEnrolledPathsForRec scan failed: %w", err)
-		}
-		paths = append(paths, p)
-	}
-	return paths, nil
-}
-
 func (r *repositoryImpl) GetTopPopularPaths(ctx context.Context) ([]model.RecommendedPath, error) {
 	query := `
-		SELECT TOP 5 
-			CONVERT(VARCHAR(36), lp.path_id) as path_id, 
-			ISNULL(lp.title, 'null') as title, 
-			ISNULL(lp.cover_img_url, 'null') as cover_img_url, 
-			ISNULL(lp.objective, 'null') as objective, 
+		SELECT TOP 5
+			CONVERT(VARCHAR(36), lp.path_id) as path_id,
+			ISNULL(lp.title, 'null') as title,
+			ISNULL(lp.cover_img_url, 'null') as cover_img_url,
+			ISNULL(lp.objective, 'null') as objective,
+			ISNULL(lp.description, 'null') as description,
+			ISNULL(lp.avg_rating, 0) as avg_rating,
+			ISNULL(lp.publish_status, 'null') as publish_status,
+			lp.create_at,
+			lp.update_at,
+			CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
+			ISNULL(u.first_name, '') as creator_name,
+			ISNULL(u.username, '') as creator_username,
+			ISNULL(u.first_name, '') as instructor,
+			ISNULL(n_count.total_nodes, 0) as modules,
+			ISNULL(pe_count.total_students, 0) as student,
 			ISNULL(lp.avg_rating, 0) as recommendation_score
 		FROM dbo.Learning_Path lp
+		JOIN dbo.users u ON lp.creator_id = u.user_id
 		LEFT JOIN (
-			SELECT path_id, COUNT(enroll_id) as total_students 
-			FROM dbo.Path_Enroll 
+			SELECT path_id, COUNT(node_id) as total_nodes
+			FROM dbo.Node
+			GROUP BY path_id
+		) AS n_count ON lp.path_id = n_count.path_id
+		LEFT JOIN (
+			SELECT path_id, COUNT(enroll_id) as total_students
+			FROM dbo.Path_Enroll
 			GROUP BY path_id
 		) AS pe_count ON lp.path_id = pe_count.path_id
 		WHERE lp.publish_status = 'published'
@@ -61,7 +51,24 @@ func (r *repositoryImpl) GetTopPopularPaths(ctx context.Context) ([]model.Recomm
 	var paths []model.RecommendedPath
 	for rows.Next() {
 		var p model.RecommendedPath
-		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.RecommendationScore); err != nil {
+		if err := rows.Scan(
+			&p.PathID,
+			&p.Title,
+			&p.CoverImgURL,
+			&p.Objective,
+			&p.Description,
+			&p.Rating,
+			&p.Publish_status,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+			&p.CreatorID,
+			&p.CreatorName,
+			&p.CreatorUsername,
+			&p.Instructor,
+			&p.Modules,
+			&p.Students,
+			&p.RecommendationScore,
+		); err != nil {
 			return nil, fmt.Errorf("repo.GetTopPopularPaths scan failed: %w", err)
 		}
 		p.Reason = "Popular learning path based on ratings and enrollments."
@@ -182,13 +189,34 @@ func (r *repositoryImpl) GetSavedHomeRecommendations(ctx context.Context, userID
 			ISNULL(lp.cover_img_url, 'null') as cover_img_url,
 			ISNULL(lp.objective, 'null') as objective,
 			ISNULL(lp.description, 'null') as description,
+			ISNULL(lp.avg_rating, 0) as avg_rating,
+			ISNULL(lp.publish_status, 'null') as publish_status,
+			lp.create_at,
+			lp.update_at,
+			CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
+			ISNULL(u.first_name, '') as creator_name,
+			ISNULL(u.username, '') as creator_username,
+			ISNULL(u.first_name, '') as instructor,
+			ISNULL(n_count.total_nodes, 0) as modules,
+			ISNULL(pe_count.total_students, 0) as student,
 			ISNULL(r.score, 0) as recommendation_score
 		FROM dbo.Recommendation r
 		JOIN dbo.Learning_Path lp ON r.path_id = lp.path_id
+		JOIN dbo.users u ON lp.creator_id = u.user_id
+		LEFT JOIN (
+			SELECT path_id, COUNT(node_id) as total_nodes
+			FROM dbo.Node
+			GROUP BY path_id
+		) AS n_count ON lp.path_id = n_count.path_id
+		LEFT JOIN (
+			SELECT path_id, COUNT(enroll_id) as total_students
+			FROM dbo.Path_Enroll
+			GROUP BY path_id
+		) AS pe_count ON lp.path_id = pe_count.path_id
 		WHERE r.user_id = @p1 AND lp.publish_status = 'published'
 		ORDER BY r.rank_order ASC
 	`
-	
+
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("repo.GetSavedHomeRecommendations query failed: %w", err)
@@ -198,7 +226,24 @@ func (r *repositoryImpl) GetSavedHomeRecommendations(ctx context.Context, userID
 	var paths []model.RecommendedPath
 	for rows.Next() {
 		var p model.RecommendedPath
-		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.Objective, &p.Description, &p.RecommendationScore); err != nil {
+		if err := rows.Scan(
+			&p.PathID,
+			&p.Title,
+			&p.CoverImgURL,
+			&p.Objective,
+			&p.Description,
+			&p.Rating,
+			&p.Publish_status,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+			&p.CreatorID,
+			&p.CreatorName,
+			&p.CreatorUsername,
+			&p.Instructor,
+			&p.Modules,
+			&p.Students,
+			&p.RecommendationScore,
+		); err != nil {
 			return nil, fmt.Errorf("repo.GetSavedHomeRecommendations scan failed: %w", err)
 		}
 		p.Reason = "Recommended for you based on your interests and learning history."
