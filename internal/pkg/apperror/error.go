@@ -1,6 +1,7 @@
 package apperror
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -107,4 +108,18 @@ func IsForeignKeyError(err error) bool {
 	return strings.Contains(errMsg, "foreign key constraint") ||
 		strings.Contains(errMsg, "the delete statement conflicted with the reference constraint") ||
 		strings.Contains(errMsg, "reference constraint")
+}
+
+// IsNotFound ใช้เช็คว่า error ที่ได้รับมาเป็นประเภท NotFound หรือไม่
+func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.Code == fiber.StatusNotFound
+	}
+	
+	return false
 }

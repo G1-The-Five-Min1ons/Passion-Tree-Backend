@@ -16,8 +16,8 @@ const (
 	DefaultContainerProfile   = "profile-imgs"
 	DefaultContainerReflect   = "reflect"
 	DefaultContainerMaterials = "materials-nodes"
-	DefaultJWTAccessTTL       = "1"   // 1 hour
-	DefaultJWTRefreshTTL      = "168" // 7 days
+	DefaultJWTAccessTTL       = "30m" // 30 minutes
+	DefaultJWTRefreshTTL      = "720" // 30 days
 	DefaultJWTRefreshAbsolute = "720" // 30 days
 	DefaultMobileAppScheme    = "passiontree"
 	DefaultMobileAppPackage   = "com.example.passion_tree_frontend"
@@ -96,9 +96,9 @@ type Config struct {
 
 	// JWT settings
 	JWTSecret          string
-	JWTAccessTTL       string // in hours
-	JWTRefreshTTL      string // in hours (sliding window)
-	JWTRefreshAbsolute string // in hours (absolute maximum)
+	JWTAccessTTL       string // duration (e.g. 30m) or legacy hours (e.g. 1)
+	JWTRefreshTTL      string // duration (e.g. 720h) or legacy hours (e.g. 720); sliding window
+	JWTRefreshAbsolute string // duration (e.g. 720h) or legacy hours (e.g. 720); absolute maximum
 
 	// Mobile App settings
 	MobileAppScheme  string
@@ -137,12 +137,12 @@ func LoadDBConfig() (*Config, error) {
 		MobileAppScheme:  getEnvOrDefault(EnvMobileAppScheme, DefaultMobileAppScheme),
 		MobileAppPackage: getEnvOrDefault(EnvMobileAppPackage, DefaultMobileAppPackage),
 
-		SMTPHost:         os.Getenv(EnvSMTPHost),
-		SMTPPort:         getEnvOrDefault(EnvSMTPPort, "587"),
-		SMTPUsername:     os.Getenv(EnvSMTPUsername),
-		SMTPPassword:     os.Getenv(EnvSMTPPassword),
-		SMTPFromEmail:    os.Getenv(EnvSMTPFromEmail),
-		AppURL:           getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
+		SMTPHost:      os.Getenv(EnvSMTPHost),
+		SMTPPort:      getEnvOrDefault(EnvSMTPPort, "587"),
+		SMTPUsername:  os.Getenv(EnvSMTPUsername),
+		SMTPPassword:  os.Getenv(EnvSMTPPassword),
+		SMTPFromEmail: os.Getenv(EnvSMTPFromEmail),
+		AppURL:        getEnvOrDefault(EnvAppURL, "http://localhost:5000"),
 
 		GmailEmail:       os.Getenv(EnvGmailEmail),
 		GmailAppPassword: os.Getenv(EnvGmailAppPassword),

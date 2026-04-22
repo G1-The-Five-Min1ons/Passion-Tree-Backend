@@ -285,25 +285,48 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	})
 }
 
-// Logout revokes all refresh tokens for the authenticated user
+// Logout revokes one refresh token when provided, otherwise revokes all refresh tokens.
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
 		return h.handleError(c, apperror.NewUnauthorized("invalid session"))
 	}
 
+	var req model.LogoutRequest
+	
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&req); err != nil {
+			return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	if err := h.userSvc.Logout(ctx, userID); err != nil {
-		return h.handleError(c, err)
+	var logoutErr error
+	finalMessage := "Logged out successfully"
+	logoutType := "all_sessions"
+
+	if req.RefreshToken != "" {
+		logoutErr = h.userSvc.LogoutByRefreshToken(ctx, userID, req.RefreshToken)
+		finalMessage = "Specific session revoked successfully"
+		logoutType = "specific_session"
+	} else {
+		logoutErr = h.userSvc.Logout(ctx, userID)
+		finalMessage = "All sessions logged out successfully"
 	}
 
-	h.logger.InfoContext(ctx, "user logged out successfully", "user_id", userID)
+	if logoutErr != nil {
+		if !apperror.IsNotFound(logoutErr) {
+			return h.handleError(c, logoutErr)
+		}
+	}
+
+	h.logger.InfoContext(ctx, "user logout activity recorded", "user_id", userID, "type", logoutType)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "Logged out successfully",
+		"message": finalMessage,
 	})
 }
 
@@ -371,6 +394,7 @@ func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 	var req struct {
 		CurrentRefreshToken string `json:"current_refresh_token"`
 	}
+
 	_ = c.BodyParser(&req)
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
