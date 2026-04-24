@@ -91,9 +91,10 @@ func (s *serviceImpl) RecommendPathsForUser(ctx context.Context, userID string, 
 		return s.getFallbackPopularPaths(ctx, "Could not fetch specific paths. Showing top popular paths.")
 	}
 
+	// Normalize keys so lookup below (strings.ToUpper) matches regardless of DB casing.
 	pathMap := make(map[string]pathmodel.LearningPath)
 	for _, p := range paths {
-		pathMap[p.PathID] = p
+		pathMap[strings.ToUpper(p.PathID)] = p
 	}
 
 	var finalRecommendations []model.RecommendedPath
