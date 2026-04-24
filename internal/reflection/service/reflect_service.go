@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 	"database/sql"
-	"time"
+	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/utils"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
-	missionModel "passiontree/internal/mission/model"
+	"time"
 )
 
 func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateReflectionRequest, userID string) (*model.ReflectionResponse, error) {
@@ -21,6 +21,9 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	}
 	if req.TreeNodeID == "" {
 		return nil, apperror.NewBadRequest("tree_node_id is required")
+	}
+	if userID == "" {
+		return nil, apperror.NewUnauthorized("user authentication is required")
 	}
 
 	treeNode, err := s.refRepo.GetTreeNodeByID(ctx, req.TreeNodeID)
@@ -41,6 +44,18 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 		}
 		return nil, apperror.NewInternal("failed to load tree state: %w", err)
 	}
+	if tree == nil {
+		return nil, apperror.NewInternal("failed to load tree state: empty result")
+	}
+
+	isOwnedByUser, err := s.refRepo.IsTreeOwnedByUser(ctx, tree.TreeID, userID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to verify tree ownership: %w", err)
+	}
+	if !isOwnedByUser {
+		return nil, apperror.NewForbidden("you do not have permission to reflect on this tree")
+	}
+
 	if tree.IsReflectionClosed {
 		return nil, apperror.NewForbidden("this reflection tree has already been ended")
 	}
@@ -64,7 +79,7 @@ func (s *serviceImpl) CreateReflection(ctx context.Context, req model.CreateRefl
 	sentimentResp, err := s.aiClient.AnalyzeSentiment(ctx, *sentimentReq)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "AI sentiment analysis failed", "error", err)
-		return nil, apperror.NewInternal("failed to analyze reflection: %v", err)
+		return nil, apperror.NewInternal("failed to analyze reflection: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "AI analysis successful",
