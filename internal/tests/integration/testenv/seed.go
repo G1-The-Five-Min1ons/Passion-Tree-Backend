@@ -91,8 +91,8 @@ func SeedRecommendationData(db connection.Database, userID string) (string, func
 	}
 
 	_, err = sqlDB.ExecContext(ctx, `
-		INSERT INTO dbo.Tree_Album (album_id, user_id) 
-		VALUES (@p1, @p2)`,
+		INSERT INTO dbo.Tree_Album (album_id, album_name, user_id) 
+		VALUES (@p1, 'Test Album', @p2)`,
 		albumID, userID)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to insert mock tree_album: %w", err)

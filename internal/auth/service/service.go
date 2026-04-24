@@ -75,8 +75,8 @@ type SocialAuthService interface {
 	GetDiscordAuthURL(state string) string
 	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
-	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
-	HandleNativeDiscordSignIn(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
+	HandleNativeGoogleSignIn(ctx context.Context, idToken, deviceInfo, ipAddress, userAgent string) (*model.User, string, string, error)
+	HandleNativeDiscordSignIn(ctx context.Context, code, deviceInfo, ipAddress, userAgent string) (*model.User, string, string, *model.LinkConfirmationNeeded, error)
 	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 

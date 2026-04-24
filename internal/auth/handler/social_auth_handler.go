@@ -144,8 +144,12 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("ID token is required"))
 	}
 
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
 	// Verify and authenticate user
-	user, token, err := h.socialAuthSvc.HandleNativeGoogleSignIn(c.UserContext(), req.IDToken)
+	user, accessToken, refreshToken, err := h.socialAuthSvc.HandleNativeGoogleSignIn(c.UserContext(), req.IDToken, deviceInfo, ipAddress, userAgent)
 	if err != nil {
 		h.logger.Error("native google signin failed", "error", err)
 		return h.handleError(c, err)
@@ -154,9 +158,10 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 	h.logger.Info("native google signin successful", "user_id", user.UserID, "email", user.Email, "name", user.Username)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
-		"message": "Login successful",
-		"token":   token,
+		"success":       true,
+		"message":       "Login successful",
+		"token":         accessToken,
+		"refresh_token": refreshToken,
 		"data": fiber.Map{
 			"user_id":    user.UserID,
 			"username":   user.Username,
@@ -183,8 +188,12 @@ func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("Authorization code is required"))
 	}
 
+	deviceInfo := c.Get("User-Agent", "Unknown Device")
+	ipAddress := c.IP()
+	userAgent := c.Get("User-Agent", "Unknown")
+
 	// Verify and authenticate user
-	user, token, linkConfirm, err := h.socialAuthSvc.HandleNativeDiscordSignIn(c.UserContext(), req.Code)
+	user, accessToken, refreshToken, linkConfirm, err := h.socialAuthSvc.HandleNativeDiscordSignIn(c.UserContext(), req.Code, deviceInfo, ipAddress, userAgent)
 	if err != nil {
 		h.logger.Error("native discord signin failed", "error", err)
 		return h.handleError(c, err)
@@ -197,9 +206,10 @@ func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
 	h.logger.Info("native discord signin successful", "user_id", user.UserID, "email", user.Email, "name", user.Username)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
-		"message": "Login successful",
-		"token":   token,
+		"success":       true,
+		"message":       "Login successful",
+		"token":         accessToken,
+		"refresh_token": refreshToken,
 		"data": fiber.Map{
 			"user_id":    user.UserID,
 			"username":   user.Username,
