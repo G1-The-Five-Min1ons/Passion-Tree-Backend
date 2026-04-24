@@ -329,7 +329,13 @@ func (r *repositoryImpl) DeleteLearningPath(ctx context.Context, path_id string)
 		return fmt.Errorf("repo.DeleteLearningPath delete ratings failed: %w", err)
 	}
 
-	// ── 14. Delete the learning_path itself ──
+	// ── 14. Delete Recommendation ──
+	_, err = tx.ExecContext(ctx, `DELETE FROM Recommendation WHERE path_id = @p1`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete recommendations failed: %w", err)
+	}
+
+	// ── 15. Delete the learning_path itself ──
 	res, err := tx.ExecContext(ctx, `DELETE FROM learning_path WHERE path_id = @p1`, path_id)
 	if err != nil {
 		return fmt.Errorf("repo.DeleteLearningPath delete path failed [id=%s]: %w", path_id, err)
@@ -340,7 +346,7 @@ func (r *repositoryImpl) DeleteLearningPath(ctx context.Context, path_id string)
 		return sql.ErrNoRows
 	}
 
-	// ── 15. Commit ──
+	// ── 16. Commit ──
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("repo.DeleteLearningPath commit failed: %w", err)
 	}

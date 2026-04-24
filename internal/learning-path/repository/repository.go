@@ -87,6 +87,10 @@ type RepositoryXP interface {
 	AddXPAndRecalcLevel(ctx context.Context, userID string, xpAmount int) error
 }
 
+type RepositoryStreak interface {
+	UpdateStreak(ctx context.Context, userID string) error
+}
+
 type DBTX interface {
 	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
@@ -109,6 +113,7 @@ type Repository interface {
 	RepositoryHistory
 	RepositoryResume
 	RepositoryXP
+	RepositoryStreak
 }
 
 type repositoryImpl struct {

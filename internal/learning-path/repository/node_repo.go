@@ -39,7 +39,7 @@ func (r *repositoryImpl) GetNodesByPathID(ctx context.Context, pathID string, us
 			ISNULL(n.sequence, 0) as sequence,
 			CASE WHEN @p2 IS NULL THEN 'locked' ELSE ISNULL(Progress.status, 'locked') END as status,
 			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(Progress.complete, 'null') END as complete,
-			CASE WHEN @p2 IS NULL THEN 'null' ELSE ISNULL(n.link_vdo, 'null') END as link_vdo
+			ISNULL(n.link_vdo, 'null') as link_vdo
 		FROM node n
 		LEFT JOIN (
 			SELECT node_id, user_id, 
