@@ -74,7 +74,10 @@ func main() {
 	app := createFiberApp(myLogger)
 	emailService := authservice.NewEmailService(cfg, myLogger)
 	cronJob, notificationWorker := initializeBackgroundJobs(db, storageClient, emailService, aiClient, myLogger)
-	routes.Setup(app, db, aiClient, storageClient, notificationWorker, myLogger)
+	if err := routes.Setup(app, db, aiClient, storageClient, notificationWorker, myLogger); err != nil {
+		myLogger.Error("failed to setup routes", "error", err)
+		os.Exit(1)
+	}
 	defer cronJob.Stop()
 
 	port := getPort()
