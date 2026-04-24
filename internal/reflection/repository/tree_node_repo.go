@@ -92,7 +92,7 @@ func (r *repositoryImpl) AddSingleTreeNode(ctx context.Context, req model.Create
 func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error) {
 	query := `
 		SELECT CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
-		       tn.node_title,
+		       COALESCE(n.title, tn.node_title) as node_title,
 		       ISNULL(CONVERT(VARCHAR(36), tn.node_id), '') as node_id,
 		       tn.node_score,
 		       tn.create_at,
@@ -145,7 +145,7 @@ func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string
 func (r *repositoryImpl) GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
 	query := `
 		SELECT CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
-		       tn.node_title,
+		       COALESCE(n.title, tn.node_title) as node_title,
 		       ISNULL(CONVERT(VARCHAR(36), tn.node_id), '') as node_id,
 		       tn.node_score,
 		       tn.create_at,
