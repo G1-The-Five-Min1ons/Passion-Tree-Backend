@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"context"
+	"time"
 
 	"passiontree/internal/reflection/model"
 )
@@ -22,15 +23,20 @@ type Repository struct {
 	DeleteAlbumFunc       func(ctx context.Context, albumID string) error
 
 	// Tree methods
-	CreateTreeFunc                 func(ctx context.Context, req model.CreateTreeRequest) (string, error)
-	GetTreeByIDFunc                func(ctx context.Context, treeID string) (*model.Tree, error)
-	GetTreesByAlbumIDFunc          func(ctx context.Context, albumID string) ([]model.Tree, error)
-	GetTreesWithNodesByAlbumIDFunc func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
-	UpdateTreeStatusFunc           func(ctx context.Context, treeID string, status string) error
-	CloseTreeReflectionFunc        func(ctx context.Context, treeID string, status string) error
-	UpdateTreeFunc                 func(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
-	DeleteTreeFunc                 func(ctx context.Context, treeID string) error
-	PauseTreeFunc                  func(ctx context.Context, treeID string, isPause bool) error
+	CreateTreeFunc                  func(ctx context.Context, req model.CreateTreeRequest) (string, error)
+	GetTreeByIDFunc                 func(ctx context.Context, treeID string) (*model.Tree, error)
+	IsTreeOwnedByUserFunc           func(ctx context.Context, treeID string, userID string) (bool, error)
+	GetTreesByAlbumIDFunc           func(ctx context.Context, albumID string) ([]model.Tree, error)
+	GetTreesWithNodesByAlbumIDFunc  func(ctx context.Context, albumID string, userID string) ([]model.TreeResponse, error)
+	UpdateTreeStatusFunc            func(ctx context.Context, treeID string, status string) error
+	CloseTreeReflectionFunc         func(ctx context.Context, treeID string, status string) error
+	UpdateTreeFunc                  func(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
+	DeleteTreeFunc                  func(ctx context.Context, treeID string) error
+	RetrieveTreeFunc                func(ctx context.Context, treeID string, userID string, heartCost int) (int, error)
+	PauseTreeFunc                   func(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error)
+	TryActivateScheduledPauseFunc   func(ctx context.Context, treeID string) (bool, *time.Time, error)
+	DeactivateActivePauseWindowFunc func(ctx context.Context, treeID string) error
+	UnpauseTreeFunc                 func(ctx context.Context, treeID string, userID string) error
 	CalculateAndUpdateTreeScoreFunc func(ctx context.Context, treeID string) (*float64, error)
 
 	// Tree Node methods
@@ -121,6 +127,12 @@ func (m *Repository) GetTreeByID(ctx context.Context, treeID string) (*model.Tre
 	}
 	return nil, nil
 }
+func (m *Repository) IsTreeOwnedByUser(ctx context.Context, treeID string, userID string) (bool, error) {
+	if m.IsTreeOwnedByUserFunc != nil {
+		return m.IsTreeOwnedByUserFunc(ctx, treeID, userID)
+	}
+	return false, nil
+}
 func (m *Repository) GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error) {
 	if m.GetTreesByAlbumIDFunc != nil {
 		return m.GetTreesByAlbumIDFunc(ctx, albumID)
@@ -157,9 +169,33 @@ func (m *Repository) DeleteTree(ctx context.Context, treeID string) error {
 	}
 	return nil
 }
-func (m *Repository) PauseTree(ctx context.Context, treeID string, isPause bool) error {
+func (m *Repository) RetrieveTree(ctx context.Context, treeID string, userID string, heartCost int) (int, error) {
+	if m.RetrieveTreeFunc != nil {
+		return m.RetrieveTreeFunc(ctx, treeID, userID, heartCost)
+	}
+	return 0, nil
+}
+func (m *Repository) PauseTree(ctx context.Context, treeID string, userID string, pauseFrom time.Time, pausedAt time.Time) (int, error) {
 	if m.PauseTreeFunc != nil {
-		return m.PauseTreeFunc(ctx, treeID, isPause)
+		return m.PauseTreeFunc(ctx, treeID, userID, pauseFrom, pausedAt)
+	}
+	return 0, nil
+}
+func (m *Repository) TryActivateScheduledPause(ctx context.Context, treeID string) (bool, *time.Time, error) {
+	if m.TryActivateScheduledPauseFunc != nil {
+		return m.TryActivateScheduledPauseFunc(ctx, treeID)
+	}
+	return false, nil, nil
+}
+func (m *Repository) DeactivateActivePauseWindow(ctx context.Context, treeID string) error {
+	if m.DeactivateActivePauseWindowFunc != nil {
+		return m.DeactivateActivePauseWindowFunc(ctx, treeID)
+	}
+	return nil
+}
+func (m *Repository) UnpauseTree(ctx context.Context, treeID string, userID string) error {
+	if m.UnpauseTreeFunc != nil {
+		return m.UnpauseTreeFunc(ctx, treeID, userID)
 	}
 	return nil
 }

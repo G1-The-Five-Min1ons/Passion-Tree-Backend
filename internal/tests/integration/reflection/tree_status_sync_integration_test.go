@@ -27,7 +27,7 @@ func TestTreeStatusSyncOnGetTreeByID_Integration(t *testing.T) {
 
 	repo := repository.NewRepository(db)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	svc := service.NewService(repo, nil, logger)
+	svc := service.NewService(repo, nil, nil, logger)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()

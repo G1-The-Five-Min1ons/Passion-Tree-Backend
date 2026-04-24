@@ -72,7 +72,7 @@ func TestGetUserHistory(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			history, err := svc.GetUserHistory(context.Background(), tt.userID)
 			if tt.expectedError == "" {
@@ -163,7 +163,7 @@ func TestGetResumeNode(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetResumeNode(context.Background(), tt.userID, tt.pathID)
 			if tt.expectedError == "" {
@@ -182,7 +182,7 @@ func TestGetResumeNode(t *testing.T) {
 func TestSearchLearningPaths(t *testing.T) {
 	t.Run("EmptyQuery", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(nil, nil, logger)
+		svc := service.NewService(nil, nil, nil, logger)
 		_, err := svc.SearchLearningPaths(context.Background(), model.SearchPathRequest{Query: ""})
 		if err == nil || !strings.Contains(err.Error(), "search query cannot be empty") {
 			t.Errorf("Expected error about empty query, got %v", err)
@@ -192,7 +192,7 @@ func TestSearchLearningPaths(t *testing.T) {
 	t.Run("AIFailure", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		aiClient := aiclient.NewAIClient("http://mock-ai") // This will fail network req
-		svc := service.NewService(nil, aiClient, logger)
+		svc := service.NewService(nil, nil, aiClient, logger)
 		_, err := svc.SearchLearningPaths(context.Background(), model.SearchPathRequest{Query: "Go"})
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected AI network failure, got %v", err)
@@ -202,7 +202,7 @@ func TestSearchLearningPaths(t *testing.T) {
 	t.Run("SuccessEmptyMockFallback", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		aiClient := aiclient.NewAIClient("http://mock-ai")
-		svc := service.NewService(nil, aiClient, logger)
+		svc := service.NewService(nil, nil, aiClient, logger)
 		_, _ = svc.SearchLearningPaths(context.Background(), model.SearchPathRequest{Query: "Go"})
 	})
 }
@@ -210,7 +210,7 @@ func TestSearchLearningPaths(t *testing.T) {
 func TestGetCollectionInfo(t *testing.T) {
 	t.Run("EmptyName", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(nil, nil, logger)
+		svc := service.NewService(nil, nil, nil, logger)
 		_, err := svc.GetCollectionInfo("")
 		if err == nil || !strings.Contains(err.Error(), "collection name cannot be empty") {
 			t.Errorf("Expected error about empty name, got %v", err)
@@ -220,7 +220,7 @@ func TestGetCollectionInfo(t *testing.T) {
 	t.Run("AIFailure", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		aiClient := aiclient.NewAIClient("http://mock-ai")
-		svc := service.NewService(nil, aiClient, logger)
+		svc := service.NewService(nil, nil, aiClient, logger)
 		_, err := svc.GetCollectionInfo("learning_paths")
 		if err == nil || (!strings.Contains(err.Error(), "failed to get collection info") && !strings.Contains(err.Error(), "internal server error")) {
 			t.Errorf("Expected collection info failure, got %v", err)
@@ -270,7 +270,7 @@ func TestSyncLearningPath(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.SyncLearningPath(context.Background(), tt.pathID)
 			if tt.expectedError == "" {

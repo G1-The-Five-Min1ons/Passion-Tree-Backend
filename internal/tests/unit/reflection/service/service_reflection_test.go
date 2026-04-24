@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
 
 	"passiontree/internal/reflection/model"
@@ -62,11 +63,20 @@ func TestGetReflectionByID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestGetReflectionByID case: %s\033[0m", tt.name)
 			mock := &repository_test.Repository{}
+			mock.GetTreeNodeByIDFunc = func(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
+				return &model.TreeNode{TreeNodeID: treeNodeID, TreeID: "tree-1"}, nil
+			}
+			mock.GetTreeByIDFunc = func(ctx context.Context, treeID string) (*model.Tree, error) {
+				return &model.Tree{TreeID: treeID, IsReflectionClosed: false}, nil
+			}
+			mock.IsTreeOwnedByUserFunc = func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
+			}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetReflectionByID(context.Background(), tt.reflectID)
 
@@ -94,7 +104,7 @@ func TestGetAllReflections(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		res, err := svc.GetAllReflections(context.Background(), model.GetReflectionsFilter{})
 		if err != nil || len(res) == 0 {
@@ -110,7 +120,7 @@ func TestGetAllReflections(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		_, err := svc.GetAllReflections(context.Background(), model.GetReflectionsFilter{})
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
@@ -128,7 +138,7 @@ func TestUpdateReflection(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		req := model.UpdateReflectionRequest{LearningReflect: "Test", MoodReflect: "Happy"}
 		err := svc.UpdateReflection(context.Background(), "r1", req)
@@ -139,7 +149,7 @@ func TestUpdateReflection(t *testing.T) {
 
 	t.Run("EmptyBody", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(nil, nil, logger)
+		svc := service.NewService(nil, nil, nil, logger)
 
 		err := svc.UpdateReflection(context.Background(), "ref-1", model.UpdateReflectionRequest{})
 		if err == nil || !strings.Contains(err.Error(), "learning_reflect is required") {
@@ -155,7 +165,7 @@ func TestUpdateReflection(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		req := model.UpdateReflectionRequest{LearningReflect: "Test", MoodReflect: "Happy"}
 		err := svc.UpdateReflection(context.Background(), "r2", req)
@@ -172,7 +182,7 @@ func TestUpdateReflection(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		req := model.UpdateReflectionRequest{LearningReflect: "Test", MoodReflect: "Happy"}
 		err := svc.UpdateReflection(context.Background(), "r3", req)
@@ -189,7 +199,7 @@ func TestUpdateReflection(t *testing.T) {
 		}
 
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(mock, nil, logger)
+		svc := service.NewService(mock, nil, nil, logger)
 
 		req := model.UpdateReflectionRequest{LearningReflect: "Test", MoodReflect: "Happy"}
 		err := svc.UpdateReflection(context.Background(), "r4", req)
@@ -200,7 +210,7 @@ func TestUpdateReflection(t *testing.T) {
 
 	t.Run("MissingReflectID", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(nil, nil, logger)
+		svc := service.NewService(nil, nil, nil, logger)
 
 		err := svc.UpdateReflection(context.Background(), "", model.UpdateReflectionRequest{
 			LearningReflect: "Good",
@@ -212,7 +222,7 @@ func TestUpdateReflection(t *testing.T) {
 
 	t.Run("MissingMoodReflect", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(nil, nil, logger)
+		svc := service.NewService(nil, nil, nil, logger)
 
 		err := svc.UpdateReflection(context.Background(), "r1", model.UpdateReflectionRequest{
 			LearningReflect: "Good",
@@ -280,11 +290,20 @@ func TestDeleteReflection(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestDeleteReflection case: %s\033[0m", tt.name)
 			mock := &repository_test.Repository{}
+			mock.GetTreeNodeByIDFunc = func(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
+				return &model.TreeNode{TreeNodeID: treeNodeID, TreeID: "tree-1"}, nil
+			}
+			mock.GetTreeByIDFunc = func(ctx context.Context, treeID string) (*model.Tree, error) {
+				return &model.Tree{TreeID: treeID, IsReflectionClosed: false}, nil
+			}
+			mock.IsTreeOwnedByUserFunc = func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
+			}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.DeleteReflection(context.Background(), tt.reflectID)
 
@@ -427,6 +446,15 @@ func TestCreateReflection(t *testing.T) {
 			defer ts.Close()
 
 			mock := &repository_test.Repository{}
+			mock.GetTreeNodeByIDFunc = func(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
+				return &model.TreeNode{TreeNodeID: treeNodeID, TreeID: "tree-1"}, nil
+			}
+			mock.GetTreeByIDFunc = func(ctx context.Context, treeID string) (*model.Tree, error) {
+				return &model.Tree{TreeID: treeID, IsReflectionClosed: false}, nil
+			}
+			mock.IsTreeOwnedByUserFunc = func(ctx context.Context, treeID string, userID string) (bool, error) {
+				return true, nil
+			}
 			if tt.mockSetup != nil {
 				tt.mockSetup(mock)
 			}
@@ -437,16 +465,24 @@ func TestCreateReflection(t *testing.T) {
 				ai = aiclient.NewAIClient(ts.URL)
 			}
 
-			svc := service.NewService(mock, ai, logger)
+			svc := service.NewService(mock, nil, ai, logger)
 
-			_, err := svc.CreateReflection(context.Background(), tt.req)
+			_, err := svc.CreateReflection(context.Background(), tt.req, "user1")
 			if tt.expectedError == "" {
 				if err != nil {
-					t.Errorf("Expected no error, got %v", err)
+					if appErr, ok := err.(*apperror.AppError); ok {
+						t.Errorf("Expected no error, got %v (log=%v)", err, appErr.Log)
+					} else {
+						t.Errorf("Expected no error, got %v", err)
+					}
 				}
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.expectedError) {
-					t.Errorf("Expected error containing '%s', got '%v'", tt.expectedError, err)
+					if appErr, ok := err.(*apperror.AppError); ok {
+						t.Errorf("Expected error containing '%s', got '%v' (log=%v)", tt.expectedError, err, appErr.Log)
+					} else {
+						t.Errorf("Expected error containing '%s', got '%v'", tt.expectedError, err)
+					}
 				}
 			}
 		})

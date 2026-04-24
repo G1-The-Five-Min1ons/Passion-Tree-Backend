@@ -17,10 +17,14 @@ func (s *serviceImpl) GeneratePresignedURL(ctx context.Context, req model.Upload
 		req.Folder = "general"
 	}
 
-	if !strings.HasSuffix(strings.ToLower(req.Filename), ".jpg") &&
-		!strings.HasSuffix(strings.ToLower(req.Filename), ".png") &&
-		!strings.HasSuffix(strings.ToLower(req.Filename), ".jpeg") {
-		return nil, apperror.NewBadRequest("Only JPEG and PNG images are allowed")
+	lowerFilename := strings.ToLower(req.Filename)
+	isValidFile := strings.HasSuffix(lowerFilename, ".jpg") ||
+		strings.HasSuffix(lowerFilename, ".png") ||
+		strings.HasSuffix(lowerFilename, ".jpeg") ||
+		strings.HasSuffix(lowerFilename, ".pdf")
+
+	if !isValidFile {
+		return nil, apperror.NewBadRequest("Only JPEG, PNG, and PDF files are allowed")
 	}
 
 	s.logger.InfoContext(ctx, "generating presigned URL", "filename", req.Filename, "folder", req.Folder)

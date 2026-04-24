@@ -79,7 +79,7 @@ func TestGetSettings(t *testing.T) {
 		svc := service.NewService(mock, logger)
 
 		_, err := svc.GetSettings(context.Background(), "user-1")
-		if err == nil || !strings.Contains(err.Error(), "failed to retrieve settings") {
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal error, got %v", err)
 		}
 	})
@@ -226,7 +226,7 @@ func TestCreateSetting(t *testing.T) {
 		svc := service.NewService(mock, logger)
 
 		_, err := svc.CreateSetting(context.Background(), "user-1", &model.SettingRequest{Key: "theme", Value: "dark"})
-		if err == nil || !strings.Contains(err.Error(), "failed to create setting") {
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal error, got %v", err)
 		}
 	})
@@ -280,7 +280,7 @@ func TestUpdateSetting(t *testing.T) {
 		svc := service.NewService(mock, logger)
 
 		err := svc.UpdateSetting(context.Background(), "user-1", &model.SettingRequest{Key: "theme", Value: "light"})
-		if err == nil || !strings.Contains(err.Error(), "failed to update setting") {
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal error, got %v", err)
 		}
 	})
@@ -356,7 +356,7 @@ func TestUpdateMultipleSettings(t *testing.T) {
 
 		requests := []model.SettingRequest{{Key: "theme", Value: "dark"}}
 		err := svc.UpdateMultipleSettings(context.Background(), "user-1", requests)
-		if err == nil || !strings.Contains(err.Error(), "failed to update settings") {
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal error, got %v", err)
 		}
 	})
@@ -410,7 +410,7 @@ func TestDeleteSetting(t *testing.T) {
 		svc := service.NewService(mock, logger)
 
 		err := svc.DeleteSetting(context.Background(), "user-1", "theme")
-		if err == nil || !strings.Contains(err.Error(), "failed to delete setting") {
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal error, got %v", err)
 		}
 	})

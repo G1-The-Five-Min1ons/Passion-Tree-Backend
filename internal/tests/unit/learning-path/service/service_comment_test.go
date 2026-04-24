@@ -84,7 +84,7 @@ func TestAddComment(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.AddComment(context.Background(), tt.req)
 			if tt.expectedError == "" {
@@ -139,7 +139,7 @@ func TestGetNodeComments(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			comments, err := svc.GetNodeComments(context.Background(), tt.nodeID)
 			if tt.expectedError == "" {
@@ -197,7 +197,7 @@ func TestRemoveComment(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.RemoveComment(context.Background(), tt.userID, tt.commentID)
 			if tt.expectedError == "" {
@@ -267,7 +267,7 @@ func TestUpdateComment(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.UpdateComment(context.Background(), tt.userID, tt.commentID, tt.message)
 			if tt.expectedError == "" {
@@ -319,7 +319,7 @@ func TestAddReaction(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.ToggleReaction(context.Background(), tt.req)
 			if tt.expectedError == "" {
@@ -371,7 +371,7 @@ func TestAddMention(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.AddMention(context.Background(), tt.req)
 			if tt.expectedError == "" {
