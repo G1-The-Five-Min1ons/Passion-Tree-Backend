@@ -42,14 +42,42 @@ func (h *Handler) GetMyMissions(c *fiber.Ctx) error {
 	if err != nil {
 		return h.handleError(c, err)
 	}
+	clientRequestID := c.Get("X-Client-Request-Id")
 
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
+	startedAt := time.Now()
+
+	h.logger.InfoContext(ctx, "mission fetch request received",
+		"user_id", userID,
+		"client_request_id", clientRequestID,
+		"method", c.Method(),
+		"path", c.Path(),
+		"ip", c.IP(),
+		"request_id", c.GetRespHeader("X-Request-ID"),
+	)
 
 	missions, err := h.missionSvc.GetMyMissions(ctx, userID)
 	if err != nil {
+		h.logger.ErrorContext(ctx, "mission fetch failed",
+			"user_id", userID,
+			"client_request_id", clientRequestID,
+			"elapsed_ms", time.Since(startedAt).Milliseconds(),
+			"error", err,
+		)
 		return h.handleError(c, err)
 	}
+	if clientRequestID != "" {
+		c.Set("X-Client-Request-Id", clientRequestID)
+	}
+
+	h.logger.InfoContext(ctx, "mission fetch response sent",
+		"user_id", userID,
+		"client_request_id", clientRequestID,
+		"missions_count", len(missions),
+		"status", fiber.StatusOK,
+		"elapsed_ms", time.Since(startedAt).Milliseconds(),
+	)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,

@@ -42,6 +42,11 @@ func (s *serviceImpl) CreateTemplate(ctx context.Context, req model.CreateTempla
 }
 
 func (s *serviceImpl) GetMyMissions(ctx context.Context, userID string) ([]model.UserMission, error) {
+	startedAt := time.Now()
+	s.logger.InfoContext(ctx, "service.GetMyMissions request",
+		"user_id", userID,
+	)
+
 	missions, err := s.repo.GetUserActiveMissions(ctx, userID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to fetch user missions", "error", err, "user_id", userID)
@@ -50,6 +55,13 @@ func (s *serviceImpl) GetMyMissions(ctx context.Context, userID string) ([]model
 	if missions == nil {
 		missions = []model.UserMission{}
 	}
+
+	s.logger.InfoContext(ctx, "service.GetMyMissions response",
+		"user_id", userID,
+		"missions_count", len(missions),
+		"elapsed_ms", time.Since(startedAt).Milliseconds(),
+	)
+
 	return missions, nil
 }
 
