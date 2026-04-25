@@ -12,6 +12,7 @@ import (
 type RepositoryMission interface {
 	// Admin (Template)
 	CreateTemplate(ctx context.Context, req model.CreateTemplateRequest) (string, error)
+	DeleteTemplate(ctx context.Context, missionID string) error
 	GetActiveTemplates(ctx context.Context) ([]model.MissionTemplate, error)
 
 	// User (Transaction)

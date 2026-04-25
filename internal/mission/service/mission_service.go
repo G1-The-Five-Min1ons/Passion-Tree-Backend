@@ -34,6 +34,27 @@ func (s *serviceImpl) CreateTemplate(ctx context.Context, req model.CreateTempla
 	return id, nil
 }
 
+func (s *serviceImpl) DeleteTemplate(ctx context.Context, missionID string, userID string) error {
+	user, _, err := s.repoUser.GetUserByID(ctx, userID)
+	if err != nil {
+		return apperror.NewInternal("failed to get user by ID: %w", err)
+	}
+	if user == nil {
+		return apperror.NewNotFound("user with id '%s' not found", userID)
+	}
+	if user.Role != "admin" {
+		return apperror.NewUnauthorized("User not admin")
+	}
+
+	if err := s.repo.DeleteTemplate(ctx, missionID); err != nil {
+		s.logger.ErrorContext(ctx, "failed to delete mission template", "mission_id", missionID, "error", err)
+		return apperror.NewNotFound("mission template not found or already inactive")
+	}
+
+	s.logger.InfoContext(ctx, "mission template deleted", "mission_id", missionID)
+	return nil
+}
+
 func (s *serviceImpl) GetMyMissions(ctx context.Context, userID string) ([]model.UserMission, error) {
 	missions, err := s.repo.GetUserActiveMissions(ctx, userID)
 	if err != nil {

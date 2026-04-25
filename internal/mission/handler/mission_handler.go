@@ -37,6 +37,30 @@ func (h *Handler) CreateTemplate(c *fiber.Ctx) error {
 	})
 }
 
+func (h *Handler) DeleteTemplate(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	missionID := c.Params("id")
+	if missionID == "" {
+		return h.handleError(c, apperror.NewBadRequest("mission id is required"))
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	if err := h.missionSvc.DeleteTemplate(ctx, missionID, userID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Mission template deleted successfully",
+	})
+}
+
 func (h *Handler) GetMyMissions(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

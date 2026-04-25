@@ -25,6 +25,33 @@ func (r *repositoryImpl) CreateTemplate(ctx context.Context, req model.CreateTem
 	return newID, nil
 }
 
+func (r *repositoryImpl) DeleteTemplate(ctx context.Context, missionID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteTemplate begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM user_mission WHERE mission_id = @p1`, missionID)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteTemplate delete user_mission: %w", err)
+	}
+
+	result, err := tx.ExecContext(ctx, `DELETE FROM mission WHERE mission_id = @p1`, missionID)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteTemplate delete mission: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("repo.DeleteTemplate rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("template not found: %s", missionID)
+	}
+
+	return tx.Commit()
+}
+
 func (r *repositoryImpl) GetActiveTemplates(ctx context.Context) ([]model.MissionTemplate, error) {
 	query := `
 		SELECT CONVERT(VARCHAR(36), mission_id), title, detail, reward_xp, reward_heart, condition_type, target_value 
