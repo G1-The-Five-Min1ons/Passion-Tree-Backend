@@ -1038,7 +1038,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			pw.pause_to as pause_to,
 			COALESCE(t.paused_at, pw.pause_to) as paused_at,
 			CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
-			tn.node_title,
+			COALESCE(n.title, tn.node_title) as node_title,
 			CONVERT(VARCHAR(36), tn.node_id) as node_id,
 			tn.create_at as node_create_at,
 			CASE WHEN @p2 IS NULL THEN NULL ELSE np.status END as node_status,
