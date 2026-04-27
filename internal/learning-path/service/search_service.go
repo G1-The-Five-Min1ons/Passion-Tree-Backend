@@ -46,8 +46,12 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 	// Call AI service to get results with payload
 	aiResp, err := s.aiClient.Search(ctx, aiReq)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to search via AI service", "error", err, "query", req.Query)
-		return nil, apperror.NewInternal("failed to search via AI service: %w", err)
+		s.logger.WarnContext(ctx, "AI search unavailable, returning empty search results", "error", err, "query", req.Query)
+		return &model.SearchPathResponse{
+			Query:   req.Query,
+			Total:   0,
+			Results: []model.SearchPathResult{},
+		}, nil
 	}
 
 	// If no results, return empty response
