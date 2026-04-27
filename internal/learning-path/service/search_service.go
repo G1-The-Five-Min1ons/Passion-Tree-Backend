@@ -8,9 +8,12 @@ import (
 	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/platform/aiclient"
 	"strconv"
+	"strings"
 )
 
 func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchPathRequest) (*model.SearchPathResponse, error) {
+	req.Query = strings.TrimSpace(req.Query)
+
 	s.logger.InfoContext(ctx, "searching learning paths",
 		"query", req.Query,
 		"top_k", req.TopK,
@@ -24,6 +27,8 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 	// Set default TopK
 	if req.TopK == 0 {
 		req.TopK = 10
+	} else if req.TopK < 0 {
+		return nil, apperror.NewBadRequest("top_k must be greater than 0")
 	}
 
 	aiReq := aiclient.SearchRequest{
@@ -94,8 +99,8 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 			if rating, ok := aiResult.Payload["avg_rating"].(float64); ok {
 				result.AvgRating = rating
 			}
-			if Publish_status, ok := aiResult.Payload["publish_status"].(string); ok {
-				result.Publish_status = Publish_status
+			if publishStatus, ok := aiResult.Payload["publish_status"].(string); ok {
+				result.Publish_status = publishStatus
 			}
 			if creator, ok := aiResult.Payload["creator_id"].(string); ok {
 				result.CreatorID = creator
@@ -103,7 +108,7 @@ func (s *serviceImpl) SearchLearningPaths(ctx context.Context, req model.SearchP
 		}
 
 		// If critical fields are missing from payload, query database
-		if result.Title == "" {
+		if hasIncompleteSearchPayload(result) {
 			s.logger.WarnContext(ctx, "incomplete payload in vector db, fetching from SQL", "path_id", pathID)
 			path, err := s.pathRepo.GetLearningPathByID(ctx, pathID)
 			if err != nil {
@@ -192,7 +197,7 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 		"cover_img_url":    path.CoverImgURL,
 		"objective":        path.Objective,
 		"avg_rating":       path.Rating,
-		"publish_status ":  path.Publish_status,
+		"publish_status":   path.Publish_status,
 		"creator_id":       path.CreatorID,
 		"creator_name":     path.CreatorName,
 		"creator_username": path.CreatorUsername,
@@ -236,6 +241,10 @@ func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*mod
 		Message: syncResp.Message,
 		PathID:  syncResp.PathID,
 	}, nil
+}
+
+func hasIncompleteSearchPayload(result model.SearchPathResult) bool {
+	return result.Title == "" || result.Description == "" || result.Publish_status == "" || result.CreatorID == ""
 }
 
 // buildSyncRequest converts a LearningPath row into the payload expected by the AI sync endpoint.
@@ -351,12 +360,13 @@ func (s *serviceImpl) ReconcileLearningPaths(ctx context.Context) (*model.Reconc
 
 	// Missing: in SQL but not in Qdrant — bulk upsert
 	missing := make([]aiclient.SyncLearningPathRequest, 0)
+	missingIDs := make([]string, 0)
 	for id, p := range sqlIDs {
 		if _, ok := qdrantSet[id]; ok {
 			continue
 		}
 		missing = append(missing, buildSyncRequest(p))
-		report.MissingSynced = append(report.MissingSynced, id)
+		missingIDs = append(missingIDs, id)
 	}
 	if len(missing) > 0 {
 		resp, err := s.aiClient.BulkSyncLearningPaths(ctx, aiclient.BulkSyncRequest{
@@ -368,7 +378,10 @@ func (s *serviceImpl) ReconcileLearningPaths(ctx context.Context) (*model.Reconc
 			report.Errors = append(report.Errors, fmt.Sprintf("bulk upsert: %v", err))
 		} else if resp.Failed > 0 {
 			report.Success = false
+			report.Errors = append(report.Errors, fmt.Sprintf("bulk upsert partially failed: succeeded=%d failed=%d", resp.Succeeded, resp.Failed))
 			report.Errors = append(report.Errors, resp.Errors...)
+		} else {
+			report.MissingSynced = append(report.MissingSynced, missingIDs...)
 		}
 	}
 

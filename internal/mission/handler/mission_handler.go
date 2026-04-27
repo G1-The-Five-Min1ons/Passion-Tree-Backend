@@ -83,10 +83,15 @@ func (h *Handler) GetMyMissions(c *fiber.Ctx) error {
 }
 
 func (h *Handler) TriggerAutoAssign(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 60*time.Second)
 	defer cancel()
 
-	if err := h.missionSvc.AutoAssignWeeklyMissions(ctx); err != nil {
+	if err := h.missionSvc.AutoAssignWeeklyMissionsByUser(ctx, userID); err != nil {
 		return h.handleError(c, err)
 	}
 

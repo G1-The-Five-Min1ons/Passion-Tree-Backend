@@ -35,12 +35,20 @@ func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 }
 
 func (h *Handler) TriggerBatchRecommendation(c *fiber.Ctx) error {
+	role, err := middleware.GetRoleFromContext(c)
+	if err != nil || role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error":   "admin access required",
+		})
+	}
+
 	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Minute)
 	defer cancel()
 
 	h.logger.InfoContext(ctx, "manual trigger for recommendation batch started")
 
-	err := h.recSvc.RunDailyRecommendationBatch(ctx)
+	err = h.recSvc.RunDailyRecommendationBatch(ctx)
 	if err != nil {
 		return h.handleError(c, err)
 	}

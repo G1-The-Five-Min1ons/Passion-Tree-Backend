@@ -46,7 +46,7 @@ func (r *repositoryImpl) DeleteTemplate(ctx context.Context, missionID string) e
 		return fmt.Errorf("repo.DeleteTemplate rows affected: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("template not found: %s", missionID)
+		return sql.ErrNoRows
 	}
 
 	return tx.Commit()

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"passiontree/internal/learning-path/model"
@@ -16,11 +17,12 @@ func (h *Handler) Search(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
 
-	h.logger.InfoContext(ctx, "received learning path search request", "query", req.Query)
-
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
+
+	req.Query = strings.TrimSpace(req.Query)
+	h.logger.InfoContext(ctx, "received learning path search request", "query", req.Query)
 
 	if req.Query == "" {
 		return h.handleError(c, apperror.NewBadRequest("search query is required"))

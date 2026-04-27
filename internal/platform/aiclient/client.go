@@ -35,6 +35,9 @@ func (c *AIClient) DebugClientPointer() {
 
 // Search performs a semantic search via AI service
 func (c *AIClient) Search(ctx context.Context, req SearchRequest) (*SearchResponse, error) {
+	if req.TopK < 0 {
+		return nil, fmt.Errorf("top_k must be >= 1, got %d", req.TopK)
+	}
 	if req.TopK == 0 {
 		req.TopK = 7
 	}

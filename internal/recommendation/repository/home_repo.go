@@ -3,20 +3,21 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"passiontree/internal/recommendation/model"
+
+	"github.com/google/uuid"
 )
 
 func (r *repositoryImpl) GetTopPopularPaths(ctx context.Context) ([]model.RecommendedPath, error) {
 	query := `
 		SELECT TOP 5
 			CONVERT(VARCHAR(36), lp.path_id) as path_id,
-			ISNULL(lp.title, 'null') as title,
-			ISNULL(lp.cover_img_url, 'null') as cover_img_url,
-			ISNULL(lp.objective, 'null') as objective,
-			ISNULL(lp.description, 'null') as description,
+			ISNULL(lp.title, '') as title,
+			ISNULL(lp.cover_img_url, '') as cover_img_url,
+			ISNULL(lp.objective, '') as objective,
+			ISNULL(lp.description, '') as description,
 			ISNULL(lp.avg_rating, 0) as avg_rating,
-			ISNULL(lp.publish_status, 'null') as publish_status,
+			ISNULL(lp.publish_status, '') as publish_status,
 			lp.create_at,
 			lp.update_at,
 			CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
@@ -74,6 +75,9 @@ func (r *repositoryImpl) GetTopPopularPaths(ctx context.Context) ([]model.Recomm
 		p.Reason = "Popular learning path based on ratings and enrollments."
 		paths = append(paths, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetTopPopularPaths row iteration failed: %w", err)
+	}
 	return paths, nil
 }
 
@@ -110,6 +114,9 @@ func (r *repositoryImpl) GetBatchInteractions(ctx context.Context) ([]model.User
 		}
 		interactions = append(interactions, i)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate interactions: %w", err)
+	}
 	return interactions, nil
 }
 
@@ -139,6 +146,9 @@ func (r *repositoryImpl) GetBatchProfiles(ctx context.Context) ([]model.UserProf
 			return nil, fmt.Errorf("failed to scan profile: %w", err)
 		}
 		profiles = append(profiles, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate profiles: %w", err)
 	}
 	return profiles, nil
 }
@@ -185,12 +195,12 @@ func (r *repositoryImpl) GetSavedHomeRecommendations(ctx context.Context, userID
 	query := `
 		SELECT
 			CONVERT(VARCHAR(36), lp.path_id) as path_id,
-			ISNULL(lp.title, 'null') as title,
-			ISNULL(lp.cover_img_url, 'null') as cover_img_url,
-			ISNULL(lp.objective, 'null') as objective,
-			ISNULL(lp.description, 'null') as description,
+			ISNULL(lp.title, '') as title,
+			ISNULL(lp.cover_img_url, '') as cover_img_url,
+			ISNULL(lp.objective, '') as objective,
+			ISNULL(lp.description, '') as description,
 			ISNULL(lp.avg_rating, 0) as avg_rating,
-			ISNULL(lp.publish_status, 'null') as publish_status,
+			ISNULL(lp.publish_status, '') as publish_status,
 			lp.create_at,
 			lp.update_at,
 			CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
@@ -248,6 +258,9 @@ func (r *repositoryImpl) GetSavedHomeRecommendations(ctx context.Context, userID
 		}
 		p.Reason = "Recommended for you based on your interests and learning history."
 		paths = append(paths, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetSavedHomeRecommendations row iteration failed: %w", err)
 	}
 	return paths, nil
 }

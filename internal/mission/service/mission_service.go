@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"passiontree/internal/mission/model"
@@ -9,8 +11,16 @@ import (
 )
 
 func (s *serviceImpl) CreateTemplate(ctx context.Context, req model.CreateTemplateRequest, userID string) (string, error) {
-	if req.Title == "" || req.RewardXP <= 0 {
+	if req.Title == "" || req.RewardXP <= 0 || req.TargetValue <= 0 || req.RewardHeart < 0 {
 		return "", apperror.NewBadRequest("invalid template parameters")
+	}
+
+	if req.ConditionType != model.ConditionCompleteNode &&
+		req.ConditionType != model.ConditionWriteReflect &&
+		req.ConditionType != model.ConditionEnrollPath &&
+		req.ConditionType != model.ConditionCompletePath &&
+		req.ConditionType != model.ConditionCommon {
+		return "", apperror.NewBadRequest("invalid condition_type")
 	}
 
 	user, _, err := s.repoUser.GetUserByID(ctx, userID)
@@ -48,7 +58,10 @@ func (s *serviceImpl) DeleteTemplate(ctx context.Context, missionID string, user
 
 	if err := s.repo.DeleteTemplate(ctx, missionID); err != nil {
 		s.logger.ErrorContext(ctx, "failed to delete mission template", "mission_id", missionID, "error", err)
-		return apperror.NewNotFound("mission template not found or already inactive")
+		if errors.Is(err, sql.ErrNoRows) {
+			return apperror.NewNotFound("mission template not found or already inactive")
+		}
+		return apperror.NewInternal("failed to delete mission template: %w", err)
 	}
 
 	s.logger.InfoContext(ctx, "mission template deleted", "mission_id", missionID)
@@ -62,6 +75,21 @@ func (s *serviceImpl) GetMyMissions(ctx context.Context, userID string) ([]model
 		return nil, apperror.NewInternal("failed to fetch user missions")
 	}
 	return missions, nil
+}
+
+func (s *serviceImpl) AutoAssignWeeklyMissionsByUser(ctx context.Context, userID string) error {
+	user, _, err := s.repoUser.GetUserByID(ctx, userID)
+	if err != nil {
+		return apperror.NewInternal("failed to get user by ID: %w", err)
+	}
+	if user == nil {
+		return apperror.NewNotFound("user with id '%s' not found", userID)
+	}
+	if user.Role != "admin" {
+		return apperror.NewUnauthorized("User not admin")
+	}
+
+	return s.AutoAssignWeeklyMissions(ctx)
 }
 
 func (s *serviceImpl) AutoAssignWeeklyMissions(ctx context.Context) error {
