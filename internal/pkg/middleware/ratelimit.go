@@ -23,3 +23,21 @@ func RateLimitMiddleware() fiber.Handler {
 		},
 	})
 }
+
+// RateLimitMaintenanceMiddleware is a stricter limiter for heavy admin operations
+// (BulkSync, Reconcile) — max 3 triggers per hour per IP.
+func RateLimitMaintenanceMiddleware() fiber.Handler {
+	return limiter.New(limiter.Config{
+		Max:        3,
+		Expiration: 1 * time.Hour,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return "limit:maintenance:" + c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"success": false,
+				"error":   "Too many maintenance requests from this IP. Please wait 1 hour.",
+			})
+		},
+	})
+}

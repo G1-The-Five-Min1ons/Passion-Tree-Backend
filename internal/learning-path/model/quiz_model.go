@@ -33,3 +33,14 @@ type QuestionChoice struct {
 	Reasoning  string `json:"reasoning"`
 	QuestionID string `json:"question_id"`
 }
+
+type UpdateQuestionRequest struct {
+	QuestionText string `json:"question_text"`
+	Type         string `json:"type"`
+}
+
+type UpdateChoiceRequest struct {
+	ChoiceText *string `json:"choice_text"`
+	IsCorrect  *bool   `json:"is_correct"`
+	Reasoning  *string `json:"reasoning"`
+}

@@ -152,3 +152,67 @@ func (r *repositoryImpl) DeleteChoice(ctx context.Context, choiceID string) erro
 	}
 	return nil
 }
+
+func (r *repositoryImpl) GetQuestionByID(ctx context.Context, questionID string) (*model.NodeQuestion, error) {
+	query := `SELECT CONVERT(VARCHAR(36), question_id), question_text, type, CONVERT(VARCHAR(36), node_id) FROM node_question WHERE question_id = @p1`
+	var q model.NodeQuestion
+	err := r.db.QueryRowContext(ctx, query, questionID).Scan(&q.QuestionID, &q.QuestionText, &q.Type, &q.NodeID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("repo.GetQuestionByID scan failed: %w", err)
+	}
+	return &q, nil
+}
+
+func (r *repositoryImpl) UpdateQuestion(ctx context.Context, questionID string, req model.UpdateQuestionRequest) error {
+	query := `UPDATE node_question SET question_text=@p1, type=@p2 WHERE question_id=@p3`
+	res, err := r.db.ExecContext(ctx, query, req.QuestionText, req.Type, questionID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdateQuestion exec failed [id=%s]: %w", questionID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *repositoryImpl) GetChoiceByID(ctx context.Context, choiceID string) (*model.QuestionChoice, error) {
+	query := `SELECT CONVERT(VARCHAR(36), choice_id), choice_text, is_correct, reasoning, CONVERT(VARCHAR(36), question_id) FROM question_choice WHERE choice_id = @p1`
+	var c model.QuestionChoice
+	err := r.db.QueryRowContext(ctx, query, choiceID).Scan(&c.ChoiceID, &c.ChoiceText, &c.IsCorrect, &c.Reasoning, &c.QuestionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("repo.GetChoiceByID scan failed: %w", err)
+	}
+	return &c, nil
+}
+
+func (r *repositoryImpl) UpdateChoice(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error {
+	query := `UPDATE question_choice SET choice_text=@p1, is_correct=@p2, reasoning=@p3 WHERE choice_id=@p4`
+	
+	choiceText := ""
+	if req.ChoiceText != nil { choiceText = *req.ChoiceText }
+	
+	isCorrect := false
+	if req.IsCorrect != nil { isCorrect = *req.IsCorrect }
+	
+	reasoning := ""
+	if req.Reasoning != nil { reasoning = *req.Reasoning }
+
+	res, err := r.db.ExecContext(ctx, query, choiceText, isCorrect, reasoning, choiceID)
+	if err != nil {
+		return fmt.Errorf("repo.UpdateChoice exec failed [id=%s]: %w", choiceID, err)
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}

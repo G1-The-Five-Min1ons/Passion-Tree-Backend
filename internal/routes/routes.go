@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"log/slog"
 
 	"passiontree/internal/connection"
@@ -13,17 +14,19 @@ import (
 
 	auth "passiontree/internal/auth"
 	learningpath "passiontree/internal/learning-path"
+	onboarding "passiontree/internal/onboarding"
 	recommendation "passiontree/internal/recommendation"
 	reflection "passiontree/internal/reflection"
 	setting "passiontree/internal/setting"
 	upload "passiontree/internal/upload"
 	dashboard "passiontree/internal/dashboards"
+	mission "passiontree/internal/mission"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // Setup configures all routes for the application
-func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, storageClient *storage.BlobService, notificationWorker *worker.EmailNotificationWorker, logger *slog.Logger) {
+func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, storageClient *storage.BlobService, notificationWorker *worker.EmailNotificationWorker, logger *slog.Logger) error {
 	// Health check endpoint
 	api := app.Group("/api/v1")
 
@@ -31,7 +34,7 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 	cfg, err := config.LoadDBConfig()
 	if err != nil {
 		logger.Error("startup_failed", "error", err)
-		panic("Failed to load configuration: " + err.Error())
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
 	// Initialize JWT service
@@ -41,13 +44,19 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 		return healthCheck(c, db, storageClient)
 	})
 
-	auth.RegisterRoutes(api, db, logger)
+	if err := auth.RegisterRoutes(api, db, logger); err != nil {
+		return fmt.Errorf("failed to register auth routes: %w", err)
+	}
 	learningpath.RegisterRoutes(api, db, aiClient, jwtService, logger, storageClient)
 	reflection.RegisterRoutes(api, db, aiClient, jwtService, logger)
 	upload.RegisterRoutes(api, jwtService, logger, storageClient)
 	recommendation.RegisterRoutes(api, db, aiClient, jwtService, logger, storageClient)
 	setting.RegisterRoutes(api, db, jwtService, notificationWorker, logger)
 	dashboard.RegisterRoutes(api, db, jwtService, logger)
+	onboarding.RegisterRoutes(api, db, jwtService, logger)
+	mission.RegisterRoutes(api, db, jwtService, logger)
+
+	return nil
 }
 
 // healthCheck returns the service health status

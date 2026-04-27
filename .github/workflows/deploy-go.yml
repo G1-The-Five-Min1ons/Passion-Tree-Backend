@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  ACR_NAME: passiontreecontainerregistry
+  ACR_NAME: passiontreeacr
   IMAGE_NAME: backend-app
   CONTAINER_APP_NAME: backend-go
   RESOURCE_GROUP: Passion-Tree
@@ -39,53 +39,45 @@ jobs:
           docker tag $IMAGE_TAG ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
-      - name: Debug - Print Environment Variables
+      - name: Deploy to Azure Container App
         run: |
-          echo "GITHUB_SHA: $GITHUB_SHA"
-          echo "ACR_NAME: ${{ env.ACR_NAME }}"
-          echo "IMAGE_NAME: ${{ env.IMAGE_NAME }}"
-          echo "CONTAINER_APP_NAME: ${{ env.CONTAINER_APP_NAME }}"
-          echo "RESOURCE_GROUP: ${{ env.RESOURCE_GROUP }}"
-          echo "APP_URL: ${{ secrets.APP_URL }}"
-          echo "AZURESQL_SERVER: ${{ secrets.AZURESQL_SERVER }}"
-          echo "AI_SERVICE_URL: ${{ secrets.AI_SERVICE_URL }}"
-          echo "--- List all env ---"
-          printenv
+          if ! az containerapp show --name ${{ env.CONTAINER_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} &>/dev/null; then
+            echo "Container App not yet created by Terraform — skipping deploy"
+            exit 0
+          fi
 
-      - name: Set Container App Secrets
-        run: |
           az containerapp secret set \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --secrets \
-              "azuresql-password=${{ secrets.AZURESQL_PASSWORD }}" \
-              "azure-storage-conn=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-              "smtp-password=${{ secrets.SMTP_PASSWORD }}" \
-              "mailersend-api-key=${{ secrets.MAILERSEND_API_KEY }}"
+              "db-password=${{ secrets.AZURESQL_PASSWORD }}" \
+              "storage-conn=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              "storage-key=${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}" \
+              "smtp-user=${{ secrets.SMTP_USERNAME }}" \
+              "smtp-pass=${{ secrets.SMTP_PASSWORD }}" \
+              "mailersend-key=${{ secrets.MAILERSEND_API_KEY }}"
 
-      - name: Deploy to Azure Container App
-        run: |
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --image "${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
             --set-env-vars \
-              "APP_ENV=${{ secrets.APP_ENV }}" \
-              "APP_URL=${{ secrets.APP_URL }}" \
-              "BACKEND_PORT=${{ secrets.BACKEND_PORT }}" \
-              "AI_PORT=${{ secrets.AI_PORT }}" \
+              "APP_ENV=production" \
+              "APP_URL=https://api.passion-tree.org" \
               "AZURESQL_SERVER=${{ secrets.AZURESQL_SERVER }}" \
               "AZURESQL_PORT=${{ secrets.AZURESQL_PORT }}" \
               "AZURESQL_USER=${{ secrets.AZURESQL_USER }}" \
               "AZURESQL_DATABASE=${{ secrets.AZURESQL_DATABASE }}" \
-              "AI_SERVICE_URL=${{ secrets.AI_SERVICE_URL }}" \
+              "AI_SERVICE_URL=http://passion-tree-ai-service" \
+              "AZURE_STORAGE_ACCOUNT_NAME=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}" \
               "CONTAINER_LEARNING_PATH=${{ secrets.CONTAINER_LEARNING_PATH }}" \
               "CONTAINER_PROFILE=${{ secrets.CONTAINER_PROFILE }}" \
               "SMTP_HOST=${{ secrets.SMTP_HOST }}" \
               "SMTP_PORT=${{ secrets.SMTP_PORT }}" \
-              "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" \
               "SMTP_FROM_EMAIL=${{ secrets.SMTP_FROM_EMAIL }}" \
-              "AZURESQL_PASSWORD=secretref:azuresql-password" \
-              "AZURE_STORAGE_CONNECTION_STRING=secretref:azure-storage-conn" \
-              "SMTP_PASSWORD=secretref:smtp-password" \
-              "MAILERSEND_API_KEY=secretref:mailersend-api-key"
+              "AZURESQL_PASSWORD=secretref:db-password" \
+              "AZURE_STORAGE_CONNECTION_STRING=secretref:storage-conn" \
+              "AZURE_STORAGE_ACCOUNT_KEY=secretref:storage-key" \
+              "SMTP_USERNAME=secretref:smtp-user" \
+              "SMTP_PASSWORD=secretref:smtp-pass" \
+              "MAILERSEND_API_KEY=secretref:mailersend-key"

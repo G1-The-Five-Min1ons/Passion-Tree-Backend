@@ -49,17 +49,42 @@ func (r *repositoryImpl) CreateStandaloneNode(ctx context.Context, title string)
 // AddSingleTreeNode creates a single tree node record (use when adding one custom node)
 func (r *repositoryImpl) AddSingleTreeNode(ctx context.Context, req model.CreateTreeNodeRequest) (string, error) {
 	treeNodeID := uuid.New().String()
-	
-	query := `
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin transaction failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	insertQuery := `
 		INSERT INTO Tree_Node (tree_node_id, node_title, node_id, tree_id, child_node, create_at)
 		VALUES (@p1, @p2, @p3, @p4, @p5, GETDATE())
 	`
-	
-	_, err := r.db.ExecContext(ctx, query, treeNodeID, req.NodeTitle, req.NodeID, req.TreeID, req.ChildNode)
+
+	_, err = tx.ExecContext(ctx, insertQuery, treeNodeID, req.NodeTitle, req.NodeID, req.TreeID, req.ChildNode)
 	if err != nil {
 		return "", fmt.Errorf("failed to create tree_node: %w", err)
 	}
-	
+
+	updateCountQuery := `
+		UPDATE tree
+		SET node_count = (
+			SELECT COUNT(*)
+			FROM Tree_Node
+			WHERE tree_id = @p1
+		),
+		last_update = GETDATE()
+		WHERE tree_id = @p1
+	`
+
+	if _, err = tx.ExecContext(ctx, updateCountQuery, req.TreeID); err != nil {
+		return "", fmt.Errorf("failed to update tree node_count: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit transaction failed: %w", err)
+	}
+
 	return treeNodeID, nil
 }
 
@@ -67,8 +92,8 @@ func (r *repositoryImpl) AddSingleTreeNode(ctx context.Context, req model.Create
 func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string) ([]model.TreeNode, error) {
 	query := `
 		SELECT CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
-		       tn.node_title,
-		       CONVERT(VARCHAR(36), tn.node_id) as node_id,
+		       COALESCE(n.title, tn.node_title) as node_title,
+		       ISNULL(CONVERT(VARCHAR(36), tn.node_id), '') as node_id,
 		       tn.node_score,
 		       tn.create_at,
 		       CONVERT(VARCHAR(36), tn.tree_id) as tree_id,
@@ -120,8 +145,8 @@ func (r *repositoryImpl) GetTreeNodesByTreeID(ctx context.Context, treeID string
 func (r *repositoryImpl) GetTreeNodeByID(ctx context.Context, treeNodeID string) (*model.TreeNode, error) {
 	query := `
 		SELECT CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
-		       tn.node_title,
-		       CONVERT(VARCHAR(36), tn.node_id) as node_id,
+		       COALESCE(n.title, tn.node_title) as node_title,
+		       ISNULL(CONVERT(VARCHAR(36), tn.node_id), '') as node_id,
 		       tn.node_score,
 		       tn.create_at,
 		       CONVERT(VARCHAR(36), tn.tree_id) as tree_id,

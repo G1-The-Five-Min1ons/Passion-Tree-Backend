@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"log/slog"
+	missionService "passiontree/internal/mission/service"
 	"passiontree/internal/platform/aiclient"
 	"passiontree/internal/reflection/model"
 	"passiontree/internal/reflection/repository"
 )
 
 type ReflectionService interface {
-	CreateReflection(ctx context.Context, req model.CreateReflectionRequest) (*model.ReflectionResponse, error)
+	CreateReflection(ctx context.Context, req model.CreateReflectionRequest, userID string) (*model.ReflectionResponse, error)
 	GetReflectionByID(ctx context.Context, reflectID string) (*model.Reflection, error)
 	GetAllReflections(ctx context.Context, filter model.GetReflectionsFilter) ([]model.Reflection, error)
 	GetReflectionStats(ctx context.Context) (*model.ReflectionStats, error)
@@ -24,12 +25,14 @@ type ReflectionService interface {
 	DeleteAlbum(ctx context.Context, albumID string) error
 
 	// Tree methods
-	CreateTree(ctx context.Context, req model.CreateTreeRequest) (*model.TreeResponse, error)
+	CreateTree(ctx context.Context, req model.CreateTreeRequest, userID string) (*model.TreeResponse, error)
 	GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error)
 	GetTreesByAlbumID(ctx context.Context, albumID string, includeNodes bool, userID string) (interface{}, error)
-	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest) error
-	DeleteTree(ctx context.Context, treeID string) error
-	PauseTree(ctx context.Context, treeID string, req model.PauseTreeRequest) (bool, error)
+	UpdateTree(ctx context.Context, treeID string, req model.UpdateTreeRequest, userID string) error
+	EndReflecting(ctx context.Context, treeID string, userID string) (*model.TreeResponse, error)
+	RetrieveTree(ctx context.Context, treeID string, userID string) (*model.RetrieveTreeResponse, error)
+	DeleteTree(ctx context.Context, treeID string, userID string) error
+	PauseTree(ctx context.Context, treeID string, userID string, req model.PauseTreeRequest) (*model.PauseTreeResponse, error)
 	// CalculateAndUpdateTreeScore computes the average weighted_reflection_score
 	// for all reflected nodes in the tree on a 0-10 scale,
 	// and persists it to tree.tree_score.
@@ -44,15 +47,17 @@ type ReflectionService interface {
 }
 
 type serviceImpl struct {
-	refRepo  repository.RepositoryReflection
-	aiClient *aiclient.AIClient
-	logger   *slog.Logger
+	refRepo    repository.RepositoryReflection
+	missionSvc missionService.ServiceMission
+	aiClient   *aiclient.AIClient
+	logger     *slog.Logger
 }
 
-func NewService(repo repository.RepositoryReflection, aiClient *aiclient.AIClient, logger *slog.Logger) ReflectionService {
+func NewService(repo repository.RepositoryReflection, ms missionService.ServiceMission, aiClient *aiclient.AIClient, logger *slog.Logger) ReflectionService {
 	return &serviceImpl{
-		refRepo:  repo,
-		aiClient: aiClient,
-		logger:   logger,
+		refRepo:    repo,
+		missionSvc: ms,
+		aiClient:   aiClient,
+		logger:     logger,
 	}
 }

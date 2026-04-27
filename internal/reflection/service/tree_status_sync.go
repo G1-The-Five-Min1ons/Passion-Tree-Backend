@@ -14,7 +14,38 @@ func (s *serviceImpl) syncTreeStatus(
 	lastReflectAt *time.Time,
 	isPause bool,
 	pausedAt *time.Time,
+	isReflectionClosed bool,
 ) string {
+	if isReflectionClosed {
+		return normalizeTreeStatus(currentStatus)
+	}
+
+	if !isPause {
+		activated, activatedPausedAt, err := s.refRepo.TryActivateScheduledPause(ctx, treeID)
+		if err != nil {
+			s.logger.WarnContext(ctx, "failed to activate scheduled pause",
+				"tree_id", treeID,
+				"error", err,
+			)
+		} else if activated {
+			isPause = true
+			pausedAt = activatedPausedAt
+		}
+	}
+
+	if isPause && pausedAt != nil && !time.Now().Before(*pausedAt) {
+		if err := s.refRepo.UnpauseTree(ctx, treeID, ""); err != nil {
+			s.logger.WarnContext(ctx, "failed to auto-unpause tree",
+				"tree_id", treeID,
+				"paused_at", pausedAt,
+				"error", err,
+			)
+		} else {
+			isPause = false
+			pausedAt = nil
+		}
+	}
+
 	computedStatus := normalizeTreeStatus(computeTreeStatus(difficulties, lastReflectAt, isPause, pausedAt))
 	storedStatus := strings.TrimSpace(strings.ToLower(currentStatus))
 

@@ -59,6 +59,16 @@ type RepositoryQuiz interface {
 	CreateChoice(ctx context.Context, req model.CreateChoiceRequest) (string, error)
 	GetChoicesByQuestionID(ctx context.Context, questionID string) ([]model.QuestionChoice, error)
 	DeleteChoice(ctx context.Context, choiceID string) error
+	GetQuestionByID(ctx context.Context, questionID string) (*model.NodeQuestion, error)
+	UpdateQuestion(ctx context.Context, questionID string, req model.UpdateQuestionRequest) error
+	GetChoiceByID(ctx context.Context, choiceID string) (*model.QuestionChoice, error)
+	UpdateChoice(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error
+}
+
+type RepositoryRating interface {
+	UpsertLearningPathRating(ctx context.Context, rating *model.LearningPathRating) error
+	GetRatingByUser(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error)
+	DeleteLearningPathRating(ctx context.Context, pathID string, userID string) error
 }
 
 type RepositoryProgress interface {
@@ -71,6 +81,14 @@ type RepositoryHistory interface {
 
 type RepositoryResume interface {
 	GetNextNodeID(ctx context.Context, userID string, pathID string) (string, error)
+}
+
+type RepositoryXP interface {
+	AddXPAndRecalcLevel(ctx context.Context, userID string, xpAmount int) error
+}
+
+type RepositoryStreak interface {
+	UpdateStreak(ctx context.Context, userID string) error
 }
 
 type DBTX interface {
@@ -90,9 +108,12 @@ type Repository interface {
 	RepositoryNode
 	RepositoryComment
 	RepositoryQuiz
+	RepositoryRating
 	RepositoryProgress
 	RepositoryHistory
 	RepositoryResume
+	RepositoryXP
+	RepositoryStreak
 }
 
 type repositoryImpl struct {

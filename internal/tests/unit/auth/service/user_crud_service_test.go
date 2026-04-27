@@ -61,14 +61,14 @@ func TestCreateUser(t *testing.T) {
 			user:    &model.User{Username: "farloss", Email: "thirapatth@gmail.com", FirstName: "Thiraphat", LastName: "Panthong", Password: "securepassword"},
 			profile: &model.Profile{},
 			setup:   nil,
-			expectedError: "role is required (student, teacher, or pending)",
+			expectedError: "role is required",
 		},
 		{
 			name:    "RoleInvalid",
 			user:    &model.User{Username: "farloss", Email: "thirapatth@gmail.com", FirstName: "Thiraphat", LastName: "Panthong", Password: "securepassword", Role: "invalidrole"},
 			profile: &model.Profile{},
 			setup:   nil,
-			expectedError: "role must be either 'student', 'teacher', or 'pending'",
+			expectedError: "role must be one of 'student', 'teacher', 'admin', 'pending', 'user', or 'moderator'",
 		},
 		{
 			name:    "RegisterSuccess",

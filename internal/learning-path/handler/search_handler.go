@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"passiontree/internal/learning-path/model"
@@ -10,17 +11,20 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+const maintenanceTaskTimeout = 10 * time.Minute
+
 // Search handles search learning paths via AI service
 func (h *Handler) Search(c *fiber.Ctx) error {
 	var req model.SearchPathRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
 	defer cancel()
 
-	h.logger.InfoContext(ctx, "received learning path search request", "query", req.Query)
-
 	if err := c.BodyParser(&req); err != nil {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
+
+	req.Query = strings.TrimSpace(req.Query)
+	h.logger.InfoContext(ctx, "received learning path search request", "query", req.Query)
 
 	if req.Query == "" {
 		return h.handleError(c, apperror.NewBadRequest("search query is required"))
@@ -59,6 +63,95 @@ func (h *Handler) DebugCollection(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Collection info retrieved successfully",
 		"data":    info,
+	})
+}
+
+// BulkSyncLearningPaths pushes every path in SQL to Qdrant in one call.
+func (h *Handler) BulkSyncLearningPaths(c *fiber.Ctx) error {
+	const taskType = "bulk_sync"
+
+	task, ok := h.tasks.create(taskType)
+	if !ok {
+		return h.handleError(c, apperror.NewConflict("A bulk sync task is already in progress"))
+	}
+
+	h.logger.InfoContext(c.UserContext(), "bulk sync started", "task_id", task.TaskID)
+
+	go func(taskID string) {
+		ctx, cancel := context.WithTimeout(context.Background(), maintenanceTaskTimeout)
+		defer cancel()
+
+		resp, err := h.searchSvc.BulkSyncLearningPaths(ctx)
+		if err != nil {
+			h.tasks.fail(taskID, err.Error())
+			return
+		}
+
+		h.tasks.complete(taskID, resp)
+	}(task.TaskID)
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"success": true,
+		"message": "Bulk sync started",
+		"data": fiber.Map{
+			"task_id": task.TaskID,
+			"status":  task.Status,
+		},
+	})
+}
+
+// ReconcileLearningPaths aligns Qdrant with SQL (delete stale, sync missing).
+func (h *Handler) ReconcileLearningPaths(c *fiber.Ctx) error {
+	const taskType = "reconcile"
+
+	task, ok := h.tasks.create(taskType)
+	if !ok {
+		return h.handleError(c, apperror.NewConflict("A reconcile task is already in progress"))
+	}
+
+	h.logger.InfoContext(c.UserContext(), "reconcile Qdrant↔SQL requested", "task_id", task.TaskID)
+
+	go func(taskID string) {
+		ctx, cancel := context.WithTimeout(context.Background(), maintenanceTaskTimeout)
+		defer cancel()
+
+		resp, err := h.searchSvc.ReconcileLearningPaths(ctx)
+		if err != nil {
+			h.tasks.fail(taskID, err.Error())
+			h.logger.ErrorContext(ctx, "reconcile task failed", "task_id", taskID, "error", err)
+			return
+		}
+
+		h.tasks.complete(taskID, resp)
+		h.logger.InfoContext(ctx, "reconcile task completed", "task_id", taskID, "success", resp.Success)
+	}(task.TaskID)
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"success": true,
+		"message": "Reconcile started",
+		"data": fiber.Map{
+			"task_id": task.TaskID,
+			"status":  task.Status,
+		},
+	})
+}
+
+// GetSyncTaskStatus returns status/result for an async sync/reconcile task.
+func (h *Handler) GetSyncTaskStatus(c *fiber.Ctx) error {
+	taskID := strings.TrimSpace(c.Params("task_id"))
+	if taskID == "" {
+		return h.handleError(c, apperror.NewBadRequest("task_id is required"))
+	}
+
+	task, ok := h.tasks.get(taskID)
+	if !ok {
+		return h.handleError(c, apperror.NewNotFound("task not found"))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Task status retrieved successfully",
+		"data":    task,
 	})
 }
 

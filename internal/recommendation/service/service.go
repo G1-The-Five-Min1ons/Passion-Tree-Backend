@@ -14,12 +14,15 @@ import (
 type ServiceRecommendation interface {
 	RecommendPathsForUser(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error)
 	RecommendHomePathsForUser(ctx context.Context, userID string) (*model.RecommendPathResponse, error)
-	getFallbackPopularPaths(ctx context.Context, message string) (*model.RecommendPathResponse, error)
-	extractPathID(id any) (string, bool)
+}
+
+type SaveBatchRecommendations interface{
+	RunDailyRecommendationBatch(ctx context.Context) error
 }
 
 type Service interface {
 	ServiceRecommendation
+	SaveBatchRecommendations
 }
 
 type serviceImpl struct {

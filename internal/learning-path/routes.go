@@ -5,10 +5,13 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	repoUser "passiontree/internal/auth/repository"
 	"passiontree/internal/connection"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
 	"passiontree/internal/learning-path/service"
+	missionRepo "passiontree/internal/mission/repository"
+	missionService "passiontree/internal/mission/service"
 	"passiontree/internal/pkg/jwt"
 	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/pkg/storage"
@@ -16,8 +19,12 @@ import (
 )
 
 func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.AIClient, jwtService *jwt.Service, logger *slog.Logger, storageClient *storage.BlobService) {
+	missionRepo := missionRepo.NewRepository(db)
+	repouser := repoUser.NewRepository(db)
+	missionSvc := missionService.NewService(missionRepo, repouser, logger)
+
 	repo := repository.NewRepository(db)
-	svc := service.NewService(repo, aiClient, logger)
+	svc := service.NewService(repo, missionSvc, aiClient, logger)
 	h := handler.NewHandler(svc, logger, storageClient)
 
 	// All reflection routes require JWT authentication
@@ -32,6 +39,20 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Put("/uploadimg", h.UpdateCoverImage)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
+		paths.Post("/sync/bulk",
+			middleware.RbacMiddleware(logger, "admin"),
+			middleware.RateLimitMaintenanceMiddleware(),
+			h.BulkSyncLearningPaths,
+		)
+		paths.Post("/sync/reconcile",
+			middleware.RbacMiddleware(logger, "admin"),
+			middleware.RateLimitMaintenanceMiddleware(),
+			h.ReconcileLearningPaths,
+		)
+		paths.Get("/sync/tasks/:task_id",
+			middleware.RbacMiddleware(logger, "admin"),
+			h.GetSyncTaskStatus,
+		)
 		paths.Post("/sync/:path_id", h.SyncLearningPath)
 		paths.Get("/:path_id", h.GetOne)
 		paths.Put("/:path_id", h.Update)
@@ -43,6 +64,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Put("/:path_id/nodes/reorder", h.ReorderNodes)
 		paths.Get("/:path_id/comments", h.GetPathComments)
 		paths.Post("/:path_id/comments", h.CreatePathComment)
+		paths.Post("/:path_id/ratings", h.SubmitRating)
+		paths.Get("/:path_id/ratings", h.GetMyRating)
+		paths.Delete("/:path_id/ratings", h.DeleteRating)
 	}
 
 	nodes := protected.Group("/learningpaths/nodes")
@@ -58,16 +82,14 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		nodes.Get("/:node_id/questions", h.GetQuestions)
 		nodes.Post("/:node_id/questions", h.CreateQuestion)
 		nodes.Delete("/materials/:material_id", h.DeleteMaterial)
-
-		// Node progress routes
-		nodes.Put("/:node_id/start", h.StartNodeStatus)
-		nodes.Put("/:node_id/complete", h.CompleteNodeStatus)
 	}
 
 	questions := protected.Group("/learningpaths/questions")
 	{
+		questions.Put("/:question_id", h.UpdateQuestion)
 		questions.Delete("/:question_id", h.DeleteQuestion)
 		questions.Post("/:question_id/choices", h.CreateChoice)
+		questions.Put("/choices/:choice_id", h.UpdateChoice)
 		questions.Delete("/choices/:choice_id", h.DeleteChoice)
 	}
 

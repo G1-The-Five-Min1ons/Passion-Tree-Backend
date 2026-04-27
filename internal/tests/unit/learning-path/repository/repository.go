@@ -56,10 +56,22 @@ type Repopository struct {
 	CreateChoiceFunc           func(ctx context.Context, req model.CreateChoiceRequest) (string, error)
 	GetChoicesByQuestionIDFunc func(ctx context.Context, questionID string) ([]model.QuestionChoice, error)
 	DeleteChoiceFunc           func(ctx context.Context, choiceID string) error
+	GetQuestionByIDFunc        func(ctx context.Context, questionID string) (*model.NodeQuestion, error)
+	UpdateQuestionFunc         func(ctx context.Context, questionID string, req model.UpdateQuestionRequest) error
+	GetChoiceByIDFunc          func(ctx context.Context, choiceID string) (*model.QuestionChoice, error)
+	UpdateChoiceFunc           func(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error
+
+	// Mock hooks for Rating
+	UpsertLearningPathRatingFunc  func(ctx context.Context, rating *model.LearningPathRating) error
+	GetRatingByUserFunc           func(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error)
+	DeleteLearningPathRatingFunc  func(ctx context.Context, pathID string, userID string) error
 
 	// Mock hooks for History & Resume
 	GetHistoryByUserIDFunc func(ctx context.Context, userID string) ([]model.HistoryResponse, error)
 	GetNextNodeIDFunc      func(ctx context.Context, userID string, pathID string) (string, error)
+
+	// Mock hooks for XP
+	AddXPAndRecalcLevelFunc func(ctx context.Context, userID string, xpAmount int) error
 }
 
 func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
@@ -320,6 +332,51 @@ func (m *Repopository) DeleteChoice(ctx context.Context, choiceID string) error 
 	return nil
 }
 
+func (m *Repopository) GetQuestionByID(ctx context.Context, questionID string) (*model.NodeQuestion, error) {
+	if m.GetQuestionByIDFunc != nil {
+		return m.GetQuestionByIDFunc(ctx, questionID)
+	}
+	return nil, nil
+}
+func (m *Repopository) UpdateQuestion(ctx context.Context, questionID string, req model.UpdateQuestionRequest) error {
+	if m.UpdateQuestionFunc != nil {
+		return m.UpdateQuestionFunc(ctx, questionID, req)
+	}
+	return nil
+}
+func (m *Repopository) GetChoiceByID(ctx context.Context, choiceID string) (*model.QuestionChoice, error) {
+	if m.GetChoiceByIDFunc != nil {
+		return m.GetChoiceByIDFunc(ctx, choiceID)
+	}
+	return nil, nil
+}
+func (m *Repopository) UpdateChoice(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error {
+	if m.UpdateChoiceFunc != nil {
+		return m.UpdateChoiceFunc(ctx, choiceID, req)
+	}
+	return nil
+}
+
+// Implement RepositoryRating
+func (m *Repopository) UpsertLearningPathRating(ctx context.Context, rating *model.LearningPathRating) error {
+	if m.UpsertLearningPathRatingFunc != nil {
+		return m.UpsertLearningPathRatingFunc(ctx, rating)
+	}
+	return nil
+}
+func (m *Repopository) GetRatingByUser(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error) {
+	if m.GetRatingByUserFunc != nil {
+		return m.GetRatingByUserFunc(ctx, pathID, userID)
+	}
+	return nil, nil
+}
+func (m *Repopository) DeleteLearningPathRating(ctx context.Context, pathID string, userID string) error {
+	if m.DeleteLearningPathRatingFunc != nil {
+		return m.DeleteLearningPathRatingFunc(ctx, pathID, userID)
+	}
+	return nil
+}
+
 // Implement RepositoryHistory
 func (m *Repopository) GetHistoryByUserID(ctx context.Context, userID string) ([]model.HistoryResponse, error) {
 	if m.GetHistoryByUserIDFunc != nil {
@@ -334,4 +391,12 @@ func (m *Repopository) GetNextNodeID(ctx context.Context, userID string, pathID 
 		return m.GetNextNodeIDFunc(ctx, userID, pathID)
 	}
 	return "", nil
+}
+
+// Implement RepositoryXP
+func (m *Repopository) AddXPAndRecalcLevel(ctx context.Context, userID string, xpAmount int) error {
+	if m.AddXPAndRecalcLevelFunc != nil {
+		return m.AddXPAndRecalcLevelFunc(ctx, userID, xpAmount)
+	}
+	return nil
 }

@@ -66,24 +66,23 @@ func (r *repositoryImpl) GetWeeklyMissions(ctx context.Context, userID string) (
 }
 
 func (r *repositoryImpl) GetCurrentPaths(ctx context.Context, userID string) ([]model.CurrentPathItem, error) {
-	// คำนวณ Progress แบบคร่าวๆ (Nodes completed / Total Nodes)
 	query := `
-		SELECT 
+		SELECT
 			CONVERT(VARCHAR(36), lp.path_id), lp.title, ISNULL(lp.cover_img_url, ''),
-			CASE 
+			CASE
 				WHEN ISNULL(TotalNodes.cnt, 0) = 0 THEN 0.0
-				ELSE ROUND((CAST(ISNULL(CompletedNodes.cnt, 0) AS FLOAT) / CAST(TotalNodes.cnt.cnt AS FLOAT)) * 100, 2)
+				ELSE ROUND((CAST(ISNULL(CompletedNodes.cnt, 0) AS FLOAT) / CAST(TotalNodes.cnt AS FLOAT)) * 100, 2)
 			END as progress_percent
 		FROM Path_Enroll pe
 		JOIN Learning_Path lp ON pe.path_id = lp.path_id
 		OUTER APPLY (
-			SELECT COUNT(node_id) as cnt 
-			FROM Node n 
+			SELECT COUNT(node_id) as cnt
+			FROM Node n
 			WHERE n.path_id = lp.path_id
 		) AS TotalNodes
 		OUTER APPLY (
 			SELECT COUNT(DISTINCT np.node_id) as cnt
-			FROM Node_progress np 
+			FROM Node_progress np
 			JOIN Node n ON np.node_id = n.node_id
 			WHERE n.path_id = lp.path_id AND np.user_id = pe.user_id AND np.complete = 'true'
 		) AS CompletedNodes
@@ -99,13 +98,13 @@ func (r *repositoryImpl) GetCurrentPaths(ctx context.Context, userID string) ([]
 	for rows.Next() {
 		var p model.CurrentPathItem
 		if err := rows.Scan(&p.PathID, &p.Title, &p.CoverImgURL, &p.ProgressPercent); err != nil {
-			return nil, fmt.Errorf("repo.QueryContext scan failed: %w", err)
+			return nil, fmt.Errorf("repo.GetCurrentPaths scan failed: %w", err)
 		}
 		paths = append(paths, p)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("repo.QueryContext row iteration failed: %w", err)
+		return nil, fmt.Errorf("repo.GetCurrentPaths row iteration failed: %w", err)
 	}
 
 	return paths, nil
@@ -198,7 +197,7 @@ func (r *repositoryImpl) GetActivityHeatmap(ctx context.Context, userID string) 
 
 func (r *repositoryImpl) GetTreeCounterStats(ctx context.Context, userID string) (*model.TreeCounterStats, error) {
 	query := `
-		SELECT 
+		SELECT
 			COUNT(t.tree_id) AS total_trees_planted,
 			ISNULL(SUM(t.node_count), 0) AS total_nodes_unlocked
 		FROM Tree t

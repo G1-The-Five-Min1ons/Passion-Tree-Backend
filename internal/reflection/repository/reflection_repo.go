@@ -117,6 +117,7 @@ func (r *repositoryImpl) CreateReflection(ctx context.Context, req model.CreateR
 		) calc
 		WHERE tn.tree_node_id = @p1
 		  AND t.is_pause = 0
+		  AND ISNULL(t.is_reflection_closed, 0) = 0
 	`
 	if _, err = tx.ExecContext(ctx, syncQuery, req.TreeNodeID); err != nil {
 		return "", fmt.Errorf("repo.CreateReflection sync last_reflect_at failed: %w", err)

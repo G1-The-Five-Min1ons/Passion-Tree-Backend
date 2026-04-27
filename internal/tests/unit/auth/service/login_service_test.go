@@ -222,8 +222,8 @@ func TestLogin(t *testing.T) {
 				r.DeleteTokensByUserAndTypeFunc = func(ctx context.Context, uid, tType string) error { return nil }
 				r.CreateTokenFunc = func(ctx context.Context, token *model.Token) error { return nil }
 				e.SendVerificationEmailFunc = func(ctx context.Context, email, token string) error {
-                    return errors.New("smtp server down")
-                }
+					return errors.New("smtp server down")
+				}
 			},
 			expectedError: "internal server error",
 		},
@@ -496,7 +496,7 @@ func TestRefreshAccessToken(t *testing.T) {
 					return &model.User{UserID: id, Email: "victim@test.com"}, nil, nil
 				}
 			},
-			expectedError: "token reuse detected", //
+			expectedError: "security violation detected - all sessions terminated", //
 		},
 		{
 			name:         "AbsoluteExpiration_Exceeded",

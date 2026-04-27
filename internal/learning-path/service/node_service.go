@@ -4,7 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"passiontree/internal/learning-path/model"
+	"passiontree/internal/learning-path/repository"
+	missionModel "passiontree/internal/mission/model"
 	"passiontree/internal/pkg/apperror"
+	"passiontree/internal/pkg/utils"
+	"time"
 )
 
 func (s *serviceImpl) AddNode(ctx context.Context, req model.CreateNodeRequest) (string, error) {
@@ -39,8 +43,8 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 	if nodeID == "" {
 		return apperror.NewBadRequest("node_id is required")
 	}
-	if req.Title == "" && req.Description == "" {
-		return apperror.NewBadRequest("at least one field (title or description) is required for update")
+	if req.Title == "" && req.Description == "" && req.Link_vdo == "" && req.Materials == nil {
+		return apperror.NewBadRequest("at least one field (title, description, link_vdo, or materials) is required for update")
 	}
 
 	existingNode, err := s.nodeRepo.GetNodeByID(ctx, nodeID, "")
@@ -60,6 +64,9 @@ func (s *serviceImpl) EditNode(ctx context.Context, nodeID string, req model.Upd
 	}
 	if req.Description == "" {
 		req.Description = existingNode.Description
+	}
+	if req.Link_vdo == "" {
+		req.Link_vdo = existingNode.Link_vdo
 	}
 
 	if err := s.nodeRepo.UpdateNode(ctx, nodeID, req); err != nil {
@@ -220,6 +227,23 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 		return apperror.NewInternal("failed to complete node: %w", err)
 	}
 
+	// Award XP for completing a node
+	if err := s.xpRepo.AddXPAndRecalcLevel(ctx, userID, repository.XPPerNodeComplete); err != nil {
+		s.logger.ErrorContext(ctx, "failed to award XP for node completion", "error", err, "node_id", nodeID, "user_id", userID)
+		// Don't return error - XP award failure should not block node completion
+	} else {
+		s.logger.InfoContext(ctx, "XP awarded for node completion", "node_id", nodeID, "user_id", userID, "xp", repository.XPPerNodeComplete)
+	}
+
+	utils.SafeGo(ctx, s.logger, "Mission_CompleteNode", 10*time.Second, func(bgCtx context.Context) error {
+		return s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompleteNode)
+	})
+
+	// Update learning streak (fire-and-forget)
+	utils.SafeGo(ctx, s.logger, "UpdateStreak", 5*time.Second, func(bgCtx context.Context) error {
+		return s.streakRepo.UpdateStreak(bgCtx, userID)
+	})
+
 	// Fetch node details to get pathID
 	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err == nil && node != nil {
@@ -231,7 +255,17 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 				if err := s.pathRepo.UpdatePathEnrollmentCompletion(ctx, node.PathID, userID); err != nil {
 					s.logger.ErrorContext(ctx, "failed to update path enrollment completion", "error", err, "path_id", node.PathID, "user_id", userID)
 				} else {
+					utils.SafeGo(ctx, s.logger, "Mission_CompletePath", 10*time.Second, func(bgCtx context.Context) error {
+						return s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompletePath)
+					})
 					s.logger.InfoContext(ctx, "path fully completed", "path_id", node.PathID, "user_id", userID)
+
+					// Award bonus XP for completing entire path
+					if err := s.xpRepo.AddXPAndRecalcLevel(ctx, userID, repository.XPPerPathComplete); err != nil {
+						s.logger.ErrorContext(ctx, "failed to award bonus XP for path completion", "error", err, "path_id", node.PathID, "user_id", userID)
+					} else {
+						s.logger.InfoContext(ctx, "bonus XP awarded for path completion", "path_id", node.PathID, "user_id", userID, "xp", repository.XPPerPathComplete)
+					}
 				}
 			}
 		}

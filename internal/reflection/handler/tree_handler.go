@@ -20,7 +20,12 @@ func (h *Handler) CreateTree(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	resp, err := h.reflectSvc.CreateTree(ctx, req)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp, err := h.reflectSvc.CreateTree(ctx, req, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -110,7 +115,12 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	err := h.reflectSvc.UpdateTree(ctx, treeID, req)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	err = h.reflectSvc.UpdateTree(ctx, treeID, req, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -126,13 +136,68 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 	})
 }
 
+// RetrieveTree handles retrieving a dead tree by spending hearts
+func (h *Handler) RetrieveTree(c *fiber.Ctx) error {
+	treeID := c.Params("tree_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp, err := h.reflectSvc.RetrieveTree(ctx, treeID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "tree retrieved successfully", "tree_id", treeID, "user_id", userID, "remaining_hearts", resp.HeartCount)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "tree retrieved successfully",
+		"data":    resp,
+	})
+}
+
+// EndReflecting handles freezing a tree's reflection status.
+func (h *Handler) EndReflecting(c *fiber.Ctx) error {
+	treeID := c.Params("tree_id")
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp, err := h.reflectSvc.EndReflecting(ctx, treeID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	h.logger.InfoContext(ctx, "tree reflection ended successfully", "tree_id", treeID, "user_id", userID)
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "tree reflection ended successfully",
+		"data":    resp,
+	})
+}
+
 // DeleteTree handles deleting a tree
 func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	err := h.reflectSvc.DeleteTree(ctx, treeID)
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	err = h.reflectSvc.DeleteTree(ctx, treeID, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -155,28 +220,33 @@ func (h *Handler) PauseTree(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
 
-	// Body is optional since we're toggling
-	_ = c.BodyParser(&req)
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&req); err != nil {
+			return h.handleError(c, apperror.NewBadRequest("invalid request body"))
+		}
+	}
 
-	isPause, err := h.reflectSvc.PauseTree(ctx, treeID, req)
+	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
 		return h.handleError(c, err)
 	}
 
-	statusMsg := "paused"
-	if !isPause {
-		statusMsg = "unpaused"
+	resp, err := h.reflectSvc.PauseTree(ctx, treeID, userID, req)
+	if err != nil {
+		return h.handleError(c, err)
 	}
 
-	h.logger.InfoContext(ctx, "tree "+statusMsg+" successfully", "tree_id", treeID, "is_pause", isPause)
+	action := "paused"
+	if !resp.IsPause {
+		action = "resumed"
+	}
+
+	h.logger.InfoContext(ctx, "tree state updated successfully", "action", action, "tree_id", treeID, "user_id", userID, "paused_at", resp.PausedAt, "remaining_hearts", resp.HeartCount)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
-		"message": "tree " + statusMsg + " successfully",
-		"data": fiber.Map{
-			"tree_id":  treeID,
-			"is_pause": isPause,
-		},
+		"message": "tree " + action + " successfully",
+		"data":    resp,
 	})
 }
 

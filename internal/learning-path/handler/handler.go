@@ -15,10 +15,12 @@ type Handler struct {
 	nodeSvc    service.ServiceNode
 	commentSvc service.ServiceComment
 	quizSvc    service.ServiceQuiz
+	ratingSvc  service.ServiceRating
 	historySvc service.ServiceHistory
 	resumeSvc  service.ServiceResume
 	logger     *slog.Logger
 	storage    *storage.BlobService
+	tasks      *TaskStore
 }
 
 func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobService) *Handler {
@@ -28,10 +30,12 @@ func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobS
 		nodeSvc:    svc,
 		commentSvc: svc,
 		quizSvc:    svc,
+		ratingSvc:  svc,
 		historySvc: svc,
 		resumeSvc:  svc,
 		logger:     logger,
 		storage:    storage,
+		tasks:      newTaskStore(),
 	}
 }
 

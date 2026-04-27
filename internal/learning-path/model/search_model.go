@@ -46,3 +46,14 @@ type SyncPathResponse struct {
 	Message string `json:"message"`
 	PathID  string `json:"path_id,omitempty"`
 }
+
+// ReconcileResponse is returned after a Qdrant↔SQL reconciliation run.
+type ReconcileResponse struct {
+	Success       bool     `json:"success"`
+	Message       string   `json:"message"`
+	SQLTotal      int      `json:"sql_total"`
+	QdrantTotal   int      `json:"qdrant_total"`
+	StaleDeleted  []string `json:"stale_deleted"`
+	MissingSynced []string `json:"missing_synced"`
+	Errors        []string `json:"errors"`
+}

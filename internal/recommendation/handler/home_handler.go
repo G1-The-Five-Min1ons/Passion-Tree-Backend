@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
@@ -22,7 +24,7 @@ func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 
 	h.logger.InfoContext(ctx, "received request for home path recommendations", "user_id", userID)
 
-	response, err := h.recreflectSvc.RecommendHomePathsForUser(ctx, userID)
+	response, err := h.recSvc.RecommendHomePathsForUser(ctx, userID)
 	if err != nil {
 		return h.handleError(c, err)
 	}
@@ -31,5 +33,50 @@ func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Recommendations retrieved successfully",
 		"data":    response,
+	})
+}
+
+func (h *Handler) TriggerBatchRecommendation(c *fiber.Ctx) error {
+	role, err := middleware.GetRoleFromContext(c)
+	if err != nil || role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error":   "admin access required",
+		})
+	}
+
+	const taskType = "recommendation_batch"
+
+	// 2. 🚦 ด่านตรวจ: กันการรันซ้อน (Idempotency)
+	task, ok := h.tasks.Create(taskType)
+	if !ok {
+		return h.handleError(c, apperror.NewConflict("Recommendation batch is already running"))
+	}
+
+	h.logger.InfoContext(c.UserContext(), "manual trigger for recommendation batch started", "task_id", task.TaskID)
+
+	go func(taskID string) {
+		// ใช้ Background Context เพราะงานอาจยาวกว่า 5 นาที และไม่ควรผูกกับ HTTP Request
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
+
+		err := h.recSvc.RunDailyRecommendationBatch(ctx)
+		if err != nil {
+			h.tasks.Fail(taskID, taskType, err.Error())
+			h.logger.ErrorContext(ctx, "batch recommendation failed", "task_id", taskID, "error", err)
+			return
+		}
+
+		h.tasks.Complete(taskID, taskType, "Recommendation batch finished successfully")
+		h.logger.InfoContext(ctx, "batch recommendation completed", "task_id", taskID)
+	}(task.TaskID)
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"success": true,
+		"message": "Recommendation batch triggered in background",
+		"data": fiber.Map{
+			"task_id": task.TaskID,
+			"status":  task.Status,
+		},
 	})
 }

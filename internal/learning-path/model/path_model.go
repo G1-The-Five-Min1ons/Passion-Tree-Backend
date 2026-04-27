@@ -63,3 +63,17 @@ type EnrolledPathResponse struct {
 	ProgressStatus   string     `json:"progress_status"`
 	LastAccessedAt   *time.Time `json:"last_accessed_at"`
 }
+
+type RatingRequest struct {
+	RatingContent  int `json:"rating_content" binding:"required"`
+	RatingInstruct int `json:"rating_instruct" binding:"required"`
+}
+
+type LearningPathRating struct {
+	RatingID       string  `json:"rating_id"`
+	RatingContent  int     `json:"rating_content"`
+	RatingInstruct int     `json:"rating_instruct"`
+	RatingOverall  float64 `json:"rating_overall"`
+	UserID         string  `json:"user_id"`
+	PathID         string  `json:"path_id"`
+}

@@ -12,7 +12,6 @@ import (
 	"passiontree/internal/config"
 	"passiontree/internal/pkg/jwt"
 
-	"github.com/mailersend/mailersend-go"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -44,6 +43,7 @@ type UserService interface {
 	Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (accessToken, refreshToken string, err error)
 	RefreshAccessToken(ctx context.Context, refreshToken string, deviceInfo, ipAddress, userAgent string) (newAccessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, userID string) error
+	LogoutByRefreshToken(ctx context.Context, userID, refreshToken string) error
 	ValidateToken(ctx context.Context, token string) (*model.User, error)
 	VerifyEmail(ctx context.Context, vToken string, deviceInfo, ip, ua string) (accessToken string, refreshToken string, err error)
 	ResendVerificationEmail(ctx context.Context, email string) error
@@ -75,8 +75,8 @@ type SocialAuthService interface {
 	GetDiscordAuthURL(state string) string
 	HandleGoogleCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
 	HandleDiscordCallback(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
-	HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error)
-	HandleNativeDiscordSignIn(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error)
+	HandleNativeGoogleSignIn(ctx context.Context, idToken, deviceInfo, ipAddress, userAgent string) (*model.User, string, string, error)
+	HandleNativeDiscordSignIn(ctx context.Context, code, deviceInfo, ipAddress, userAgent string) (*model.User, string, string, *model.LinkConfirmationNeeded, error)
 	ConfirmAccountLink(ctx context.Context, linkToken string, confirm bool) (*model.User, string, error)
 }
 
@@ -100,10 +100,9 @@ type emailTemplates struct {
 	notification  *template.Template
 }
 type emailServiceImpl struct {
-	mailersendClient *mailersend.Mailersend
-	templates        *emailTemplates
-	config           *config.Config
-	logger           *slog.Logger
+	templates *emailTemplates
+	config    *config.Config
+	logger    *slog.Logger
 }
 
 // --- Constructors ---
@@ -125,7 +124,6 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 	notificationTmpl := template.Must(template.New("notification").Parse(notificationTemplate))
 
 	return &emailServiceImpl{
-		mailersendClient: mailersend.NewMailersend(cfg.MailerSendAPIKey),
 		templates: &emailTemplates{
 			verification:  verificationTmpl,
 			passwordReset: passwordResetTmpl,
