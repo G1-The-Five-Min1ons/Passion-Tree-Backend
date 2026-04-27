@@ -68,8 +68,14 @@ func (h *Handler) DebugCollection(c *fiber.Ctx) error {
 
 // BulkSyncLearningPaths pushes every path in SQL to Qdrant in one call.
 func (h *Handler) BulkSyncLearningPaths(c *fiber.Ctx) error {
-	task := h.tasks.create()
-	h.logger.InfoContext(c.UserContext(), "bulk sync learning paths requested", "task_id", task.TaskID)
+	const taskType = "bulk_sync"
+
+	task, ok := h.tasks.create(taskType)
+	if !ok {
+		return h.handleError(c, apperror.NewConflict("A bulk sync task is already in progress"))
+	}
+
+	h.logger.InfoContext(c.UserContext(), "bulk sync started", "task_id", task.TaskID)
 
 	go func(taskID string) {
 		ctx, cancel := context.WithTimeout(context.Background(), maintenanceTaskTimeout)
@@ -78,12 +84,10 @@ func (h *Handler) BulkSyncLearningPaths(c *fiber.Ctx) error {
 		resp, err := h.searchSvc.BulkSyncLearningPaths(ctx)
 		if err != nil {
 			h.tasks.fail(taskID, err.Error())
-			h.logger.ErrorContext(ctx, "bulk sync task failed", "task_id", taskID, "error", err)
 			return
 		}
 
 		h.tasks.complete(taskID, resp)
-		h.logger.InfoContext(ctx, "bulk sync task completed", "task_id", taskID, "success", resp.Success)
 	}(task.TaskID)
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
@@ -98,7 +102,13 @@ func (h *Handler) BulkSyncLearningPaths(c *fiber.Ctx) error {
 
 // ReconcileLearningPaths aligns Qdrant with SQL (delete stale, sync missing).
 func (h *Handler) ReconcileLearningPaths(c *fiber.Ctx) error {
-	task := h.tasks.create()
+	const taskType = "reconcile"
+
+	task, ok := h.tasks.create(taskType)
+	if !ok {
+		return h.handleError(c, apperror.NewConflict("A reconcile task is already in progress"))
+	}
+
 	h.logger.InfoContext(c.UserContext(), "reconcile Qdrant↔SQL requested", "task_id", task.TaskID)
 
 	go func(taskID string) {

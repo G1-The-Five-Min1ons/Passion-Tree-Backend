@@ -4,8 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"passiontree/internal/pkg/apperror"
 	"passiontree/internal/pkg/middleware"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
@@ -43,18 +45,38 @@ func (h *Handler) TriggerBatchRecommendation(c *fiber.Ctx) error {
 		})
 	}
 
-	ctx, cancel := context.WithTimeout(c.UserContext(), 5*time.Minute)
-	defer cancel()
+	const taskType = "recommendation_batch"
 
-	h.logger.InfoContext(ctx, "manual trigger for recommendation batch started")
-
-	err = h.recSvc.RunDailyRecommendationBatch(ctx)
-	if err != nil {
-		return h.handleError(c, err)
+	// 2. 🚦 ด่านตรวจ: กันการรันซ้อน (Idempotency)
+	task, ok := h.tasks.Create(taskType)
+	if !ok {
+		return h.handleError(c, apperror.NewConflict("Recommendation batch is already running"))
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+	h.logger.InfoContext(c.UserContext(), "manual trigger for recommendation batch started", "task_id", task.TaskID)
+
+	go func(taskID string) {
+		// ใช้ Background Context เพราะงานอาจยาวกว่า 5 นาที และไม่ควรผูกกับ HTTP Request
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
+
+		err := h.recSvc.RunDailyRecommendationBatch(ctx)
+		if err != nil {
+			h.tasks.Fail(taskID, taskType, err.Error())
+			h.logger.ErrorContext(ctx, "batch recommendation failed", "task_id", taskID, "error", err)
+			return
+		}
+
+		h.tasks.Complete(taskID, taskType, "Recommendation batch finished successfully")
+		h.logger.InfoContext(ctx, "batch recommendation completed", "task_id", taskID)
+	}(task.TaskID)
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"success": true,
-		"message": "Batch recommendation triggered and completed successfully!",
+		"message": "Recommendation batch triggered in background",
+		"data": fiber.Map{
+			"task_id": task.TaskID,
+			"status":  task.Status,
+		},
 	})
 }

@@ -54,7 +54,7 @@ func (c *AIClient) Search(ctx context.Context, req SearchRequest) (*SearchRespon
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("search cancelled or timed out: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("failed to send request: %v", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
@@ -72,7 +72,7 @@ func (c *AIClient) Ping(ctx context.Context) error {
 		SetContext(ctx).
 		Get(c.baseURL)
 	if err != nil {
-		return fmt.Errorf("failed to ping AI service: %v", err)
+		return fmt.Errorf("failed to ping AI service: %w", err)
 	}
 	if resp.StatusCode() != 200 && resp.StatusCode() != 404 {
 		return fmt.Errorf("AI service returned unexpected status: %d", resp.StatusCode())
@@ -92,7 +92,7 @@ func (c *AIClient) GenerateLearningPath(ctx context.Context, topic string) (*mod
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("generation cancelled or timed out: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("connection error: %v", err)
+		return nil, fmt.Errorf("connection error: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status: %d body: %s", resp.StatusCode(), resp.String())
@@ -115,7 +115,7 @@ func (c *AIClient) AnalyzeSentiment(ctx context.Context, req SentimentRequest) (
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("sentiment analysis cancelled or timed out: %w", ctx.Err())
 		}
-		return nil, fmt.Errorf("connection error: %v", err)
+		return nil, fmt.Errorf("connection error: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status: %d body: %s", resp.StatusCode(), resp.String())
@@ -133,7 +133,7 @@ func (c *AIClient) GetCollectionInfo(collectionName string) (*CollectionInfoResp
 	resp, err := c.client.R().
 		Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %v", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
@@ -155,7 +155,7 @@ func (c *AIClient) SyncLearningPath(ctx context.Context, req SyncLearningPathReq
 		SetBody(req).
 		Post(c.baseURL + "/api/v1/search/sync")
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %v", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
@@ -172,20 +172,26 @@ func (c *AIClient) SyncDeletePath(ctx context.Context, pathID string, collection
 	if collectionName == "" {
 		collectionName = "learning_paths"
 	}
+
+	url := fmt.Sprintf("%s/api/v1/search/sync/%s", c.baseURL, pathID)
+
 	resp, err := c.client.R().
 		SetContext(ctx).
 		SetQueryParam("collection_name", collectionName).
-		Delete(fmt.Sprintf("%s/api/v1/search/sync/%s", c.baseURL, pathID))
+		Delete(url)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to send delete request: %v", err)
+		return nil, fmt.Errorf("failed to send delete request: %w", err) // ใช้ %w
 	}
-	if resp.StatusCode() != 200 {
+
+	if resp.IsError() { // เช็ค Status code แบบครอบคลุม
 		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
 	}
+
 	var syncResp SyncLearningPathResponse
 	if err := json.Unmarshal(resp.Body(), &syncResp); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal delete response: %w", err)
-	}
+	}	
 	return &syncResp, nil
 }
 
@@ -200,7 +206,7 @@ func (c *AIClient) BulkSyncLearningPaths(ctx context.Context, req BulkSyncReques
 		SetBody(req).
 		Post(c.baseURL + "/api/v1/search/sync/bulk")
 	if err != nil {
-		return nil, fmt.Errorf("failed to send bulk sync request: %v", err)
+		return nil, fmt.Errorf("failed to send bulk sync request: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
@@ -221,7 +227,7 @@ func (c *AIClient) ListCollectionIDs(ctx context.Context, collectionName string)
 		SetContext(ctx).
 		Get(fmt.Sprintf("%s/api/v1/search/ids/%s", c.baseURL, collectionName))
 	if err != nil {
-		return nil, fmt.Errorf("failed to send list ids request: %v", err)
+		return nil, fmt.Errorf("failed to send list ids request: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())
@@ -241,7 +247,7 @@ func (c *AIClient) ComputeBatchRecommendations(ctx context.Context, payload batc
 		Post(c.baseURL + "/api/v1/recommend/batch-compute")
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to send batch request: %v", err)
+		return nil, fmt.Errorf("failed to send batch request: %w", err)
 	}
 	if resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("AI service returned status %d: %s", resp.StatusCode(), resp.String())

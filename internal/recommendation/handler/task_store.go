@@ -16,19 +16,19 @@ const (
 )
 
 type Task struct {
-	TaskID    string     `json:"task_id"`
-	Type      string     `json:"type"`
-	Status    TaskStatus `json:"status"`
-	StartedAt time.Time  `json:"started_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	TaskID    string      `json:"task_id"`
+	Type      string      `json:"type"`
+	Status    TaskStatus  `json:"status"`
+	StartedAt time.Time   `json:"started_at"`
+	UpdatedAt time.Time   `json:"updated_at"`
 	Result    interface{} `json:"result,omitempty"`
-	Error     string     `json:"error,omitempty"`
+	Error     string      `json:"error,omitempty"`
 }
 
 type TaskStore struct {
 	mu          sync.RWMutex
 	tasks       map[string]*Task
-	activeTypes map[string]bool 
+	activeTypes map[string]bool
 }
 
 func newTaskStore() *TaskStore {
@@ -37,16 +37,14 @@ func newTaskStore() *TaskStore {
 		activeTypes: make(map[string]bool),
 	}
 
-	go ts.startCleanupWorker(1 * time.Hour) 
+	go ts.startCleanupWorker(1 * time.Hour)
 	return ts
 }
 
-
-func (ts *TaskStore) create(taskType string) (*Task, bool) {
+func (ts *TaskStore) Create(taskType string) (*Task, bool) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
-	// ถ้าประเภทงานนี้กำลังรันอยู่ (เช่น BulkSync รันค้างไว้) ให้ปฏิเสธการสร้าง
 	if ts.activeTypes[taskType] {
 		return nil, false
 	}
@@ -58,49 +56,43 @@ func (ts *TaskStore) create(taskType string) (*Task, bool) {
 		StartedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	
+
 	ts.tasks[t.TaskID] = t
 	ts.activeTypes[taskType] = true
 	return t, true
 }
 
-func (ts *TaskStore) get(id string) (*Task, bool) {
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-	t, ok := ts.tasks[id]
-	return t, ok
-}
-
-func (ts *TaskStore) complete(id string, result interface{}) {
+func (ts *TaskStore) Complete(id string, taskType string, result interface{}) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
-	
+
 	if t, ok := ts.tasks[id]; ok {
 		t.Status = TaskDone
 		t.Result = result
 		t.UpdatedAt = time.Now()
-		delete(ts.activeTypes, t.Type)
+		delete(ts.activeTypes, taskType)
 	}
 }
 
-func (ts *TaskStore) fail(id string, errMsg string) {
+func (ts *TaskStore) Fail(id string, taskType string, errMsg string) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
+
 	if t, ok := ts.tasks[id]; ok {
 		t.Status = TaskFailed
 		t.Error = errMsg
 		t.UpdatedAt = time.Now()
-		delete(ts.activeTypes, t.Type) // Remove the task type from active types
+		delete(ts.activeTypes, taskType)
 	}
 }
 
 func (ts *TaskStore) startCleanupWorker(retention time.Duration) {
-	ticker := time.NewTicker(30 * time.Minute) // ตรวจทุก 30 นาที
+	ticker := time.NewTicker(30 * time.Minute)
 	for range ticker.C {
 		ts.mu.Lock()
 		for id, t := range ts.tasks {
 			if t.Status != TaskProcessing && time.Since(t.UpdatedAt) > retention {
-                delete(ts.tasks, id)
+				delete(ts.tasks, id)
 			}
 		}
 		ts.mu.Unlock()

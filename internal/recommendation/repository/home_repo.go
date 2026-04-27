@@ -85,19 +85,22 @@ func (r *repositoryImpl) GetBatchInteractions(ctx context.Context) ([]model.User
 	//Enroll=2, Complete Path=5, Active Node=+1, Complete Node=+2
 	query := `
 		SELECT 
-			CONVERT(VARCHAR(36), pe.user_id) AS user_id,
-			CONVERT(VARCHAR(36), pe.path_id) AS path_id,
-			(
-				CASE WHEN pe.enrollment_status = 'completed' THEN 5.0 ELSE 2.0 END
-				+
-				ISNULL((
-					SELECT SUM(CASE WHEN np.complete = 'true' THEN 2.0 ELSE 1.0 END)
-					FROM dbo.Node_progress np
-					JOIN dbo.Node n ON np.node_id = n.node_id
-					WHERE np.user_id = pe.user_id AND n.path_id = pe.path_id
-				), 0)
-			) AS score
-		FROM dbo.Path_Enroll pe
+    		CONVERT(VARCHAR(36), pe.user_id) AS user_id,
+    		CONVERT(VARCHAR(36), pe.path_id) AS path_id,
+    			(
+        		CASE WHEN pe.enrollment_status = 'completed' THEN 5.0 ELSE 2.0 END +
+        		ISNULL(np_agg.node_score, 0)
+    			) AS score
+			FROM dbo.Path_Enroll pe
+			LEFT JOIN (
+    		SELECT 
+        		np.user_id, 
+        		n.path_id, 
+        		SUM(CASE WHEN np.complete = 'true' THEN 2.0 ELSE 1.0 END) as node_score
+    		FROM dbo.Node_progress np
+    		JOIN dbo.Node n ON np.node_id = n.node_id
+    		GROUP BY np.user_id, n.path_id
+			) AS np_agg ON pe.user_id = np_agg.user_id AND pe.path_id = np_agg.path_id
 	`
 
 	rows, err := r.db.QueryContext(ctx, query)

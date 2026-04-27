@@ -171,75 +171,34 @@ func (s *serviceImpl) GetCollectionInfo(collectionName string) (*aiclient.Collec
 
 // SyncLearningPath syncs a single learning path from Azure DB to Qdrant vector database
 func (s *serviceImpl) SyncLearningPath(ctx context.Context, pathID string) (*model.SyncPathResponse, error) {
-	s.logger.DebugContext(ctx, "SyncLearningPath called",
-		"path_id", pathID,
-		"ai_client_nil", s.aiClient == nil,
-	)
-
-	if s.aiClient != nil {
-		s.aiClient.DebugClientPointer()
+	if s.aiClient == nil {
+		return nil, apperror.NewInternal("ai client is not initialized")
 	}
-	// Validate pathID
+
 	if pathID == "" {
 		return nil, apperror.NewBadRequest("path ID cannot be empty")
 	}
 
-	// Get learning path from database
 	path, err := s.pathRepo.GetLearningPathByID(ctx, pathID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			s.logger.WarnContext(ctx, "sync failed: path not found", "path_id", pathID)
 			return nil, apperror.NewNotFound("learning path not found")
 		}
-		return nil, apperror.NewInternal("failed to fetch learning path from database: %w", err)
+		return nil, apperror.NewInternal("failed to fetch learning path: %w", err)
+	}
+	if path == nil {
+		return nil, apperror.NewNotFound("learning path not found")
 	}
 
-	// Prepare metadata for filtering
-	metadata := map[string]interface{}{
-		"title":            path.Title,
-		"description":      path.Description,
-		"cover_img_url":    path.CoverImgURL,
-		"objective":        path.Objective,
-		"avg_rating":       path.Rating,
-		"publish_status":   path.Publish_status,
-		"creator_id":       path.CreatorID,
-		"creator_name":     path.CreatorName,
-		"creator_username": path.CreatorUsername,
-		"instructor":       path.Instructor,
-		"modules":          path.Modules,
-		"student":          path.Students,
-	}
-
-	// Handle nullable time fields
-	if path.CreatedAt != nil {
-		metadata["created_at"] = path.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
-	}
-	if path.UpdatedAt != nil {
-		metadata["updated_at"] = path.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")
-	}
-
-	// Create sync request for AI service
-	syncReq := aiclient.SyncLearningPathRequest{
-		PathID:         pathID,
-		Title:          path.Title,
-		Description:    path.Description,
-		Metadata:       metadata,
-		CollectionName: "learning_paths",
-	}
-
-	// Call AI service to sync to Qdrant
-	if s.aiClient == nil {
-		s.logger.ErrorContext(ctx, "sync aborted: AI client is nil")
-		return nil, apperror.NewInternal("ai client is not initialized")
-	}
+	syncReq := buildSyncRequest(*path)
 
 	syncResp, err := s.aiClient.SyncLearningPath(ctx, syncReq)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "vector sync failed", "error", err, "path_id", pathID)
-		return nil, apperror.NewInternal("failed to sync learning path to Qdrant: %w", err)
+		return nil, apperror.NewInternal("failed to sync to vector db: %w", err)
 	}
 
-	s.logger.InfoContext(ctx, "sync completed successfully", "path_id", pathID, "msg", syncResp.Message)
+	s.logger.InfoContext(ctx, "sync completed successfully", "path_id", pathID)
 	return &model.SyncPathResponse{
 		Success: syncResp.Success,
 		Message: syncResp.Message,

@@ -13,6 +13,7 @@ type Handler struct {
 	recSvc  service.Service
 	logger  *slog.Logger
 	storage *storage.BlobService
+	tasks   *TaskStore
 }
 
 func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobService) *Handler {
@@ -20,6 +21,7 @@ func NewHandler(svc service.Service, logger *slog.Logger, storage *storage.BlobS
 		recSvc:  svc,
 		logger:  logger,
 		storage: storage,
+		tasks:   newTaskStore(),
 	}
 }
 
