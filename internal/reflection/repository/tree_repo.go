@@ -24,8 +24,8 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 	normalizedDifficulties := strings.ToLower(strings.TrimSpace(req.Difficulties))
 
 	query := `
-		INSERT INTO tree (tree_id, title, difficulties, path_id, status, is_pause, node_count, create_at, last_update, album_id)
-		VALUES (@p1, @p2, @p3, @p4, 'growing', 0, 0, GETDATE(), GETDATE(), @p5)
+		INSERT INTO tree (tree_id, title, difficulties, path_id, status, is_pause, is_reflection_closed, node_count, create_at, last_update, album_id)
+		VALUES (@p1, @p2, @p3, @p4, 'growing', 0, 0, 0, GETDATE(), GETDATE(), @p5)
 	`
 
 	_, err = tx.ExecContext(ctx, query, treeID, req.Title, normalizedDifficulties, req.PathID, req.AlbumID)
@@ -102,7 +102,8 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 	// Update node_count in tree
 	updateTreeQuery := `
 		UPDATE tree
-		SET node_count = @p1
+		SET node_count = @p1,
+		    last_update = GETDATE()
 		WHERE tree_id = @p2
 	`
 	_, err = tx.ExecContext(ctx, updateTreeQuery, nodeCount, treeID)
@@ -132,7 +133,7 @@ func (r *repositoryImpl) CreateTree(ctx context.Context, req model.CreateTreeReq
 func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model.Tree, error) {
 	query := `
 		SELECT CONVERT(VARCHAR(36), tree_id) as tree_id, title, difficulties,
-		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause,
+		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause, is_reflection_closed,
 		       ISNULL(node_count, 0) as node_count,
 		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id,
 		       last_reflect_at,
@@ -163,6 +164,7 @@ func (r *repositoryImpl) GetTreeByID(ctx context.Context, treeID string) (*model
 		&tree.PathID,
 		&tree.Status,
 		&tree.IsPause,
+		&tree.IsReflectionClosed,
 		&tree.NodeCount,
 		&tree.CreatedAt,
 		&tree.LastUpdate,
@@ -223,7 +225,7 @@ func (r *repositoryImpl) IsTreeOwnedByUser(ctx context.Context, treeID string, u
 func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) ([]model.Tree, error) {
 	query := `
 		SELECT CONVERT(VARCHAR(36), tree_id) as tree_id, title, difficulties,
-		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause,
+		       CONVERT(VARCHAR(36), path_id) as path_id, status, is_pause, is_reflection_closed,
 		       ISNULL(node_count, 0) as node_count,
 		       create_at, last_update, CONVERT(VARCHAR(36), album_id) as album_id,
 		       last_reflect_at,
@@ -263,6 +265,7 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 			&tree.PathID,
 			&tree.Status,
 			&tree.IsPause,
+			&tree.IsReflectionClosed,
 			&tree.NodeCount,
 			&tree.CreatedAt,
 			&tree.LastUpdate,
@@ -301,17 +304,35 @@ func (r *repositoryImpl) GetTreesByAlbumID(ctx context.Context, albumID string) 
 	return trees, nil
 }
 
-// UpdateTreeStatus persists the computed status without changing last_update,
-// so read-driven status refreshes do not reorder trees unexpectedly.
+// UpdateTreeStatus persists the computed status and refreshes last_update.
 func (r *repositoryImpl) UpdateTreeStatus(ctx context.Context, treeID string, status string) error {
 	query := `
 		UPDATE tree
-		SET status = @p1
+		SET status = @p1,
+		    last_update = GETDATE()
 		WHERE tree_id = @p2
+		  AND ISNULL(is_reflection_closed, 0) = 0
 	`
 
 	if _, err := r.db.ExecContext(ctx, query, status, treeID); err != nil {
 		return fmt.Errorf("failed to update tree status: %w", err)
+	}
+
+	return nil
+}
+
+// CloseTreeReflection freezes the tree status and marks it as ended.
+func (r *repositoryImpl) CloseTreeReflection(ctx context.Context, treeID string, status string) error {
+	query := `
+		UPDATE tree
+		SET status = @p1,
+		    is_reflection_closed = 1,
+		    last_update = GETDATE()
+		WHERE tree_id = @p2
+	`
+
+	if _, err := r.db.ExecContext(ctx, query, status, treeID); err != nil {
+		return fmt.Errorf("failed to close tree reflection: %w", err)
 	}
 
 	return nil
@@ -558,6 +579,7 @@ func (r *repositoryImpl) RetrieveTree(ctx context.Context, treeID string, userID
 		INNER JOIN tree_album a ON a.album_id = t.album_id
 		WHERE t.tree_id = @p1
 		  AND a.user_id = CAST(@p2 AS UNIQUEIDENTIFIER)
+		  AND ISNULL(t.is_reflection_closed, 0) = 0
 	`
 
 	result, err := tx.ExecContext(ctx, reviveTreeQuery, treeID, userID)
@@ -625,6 +647,7 @@ func (r *repositoryImpl) PauseTree(ctx context.Context, treeID string, userID st
 		WHERE t.tree_id = @p1
 		  AND a.user_id = CAST(@p2 AS UNIQUEIDENTIFIER)
 		  AND t.is_pause = 0
+		  AND ISNULL(t.is_reflection_closed, 0) = 0
 	`
 
 	result, err := tx.ExecContext(ctx, pauseTreeQuery, treeID, userID, pausedAt, pauseFrom)
@@ -1005,6 +1028,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			CONVERT(VARCHAR(36), t.path_id) as path_id,
 			t.status,
 			t.is_pause,
+			t.is_reflection_closed,
 			ISNULL(t.node_count, 0) as node_count,
 			t.create_at,
 			t.last_update,
@@ -1014,7 +1038,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 			pw.pause_to as pause_to,
 			COALESCE(t.paused_at, pw.pause_to) as paused_at,
 			CONVERT(VARCHAR(36), tn.tree_node_id) as tree_node_id,
-			tn.node_title,
+			COALESCE(n.title, tn.node_title) as node_title,
 			CONVERT(VARCHAR(36), tn.node_id) as node_id,
 			tn.create_at as node_create_at,
 			CASE WHEN @p2 IS NULL THEN NULL ELSE np.status END as node_status,
@@ -1053,7 +1077,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 
 	for rows.Next() {
 		var treeID, title, difficulties, pathID, status, treeAlbumID string
-		var isPause bool
+		var isPause, isReflectionClosed bool
 		var nodeCount int
 		var createdAt, lastUpdate time.Time
 		var lastReflectAt, pauseFrom, pauseTo, pausedAt sql.NullTime
@@ -1068,7 +1092,7 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		var treeScore sql.NullFloat64
 
 		err := rows.Scan(
-			&treeID, &title, &difficulties, &pathID, &status, &isPause, &nodeCount,
+			&treeID, &title, &difficulties, &pathID, &status, &isPause, &isReflectionClosed, &nodeCount,
 			&createdAt, &lastUpdate, &treeAlbumID,
 			&lastReflectAt,
 			&pauseFrom,
@@ -1088,17 +1112,18 @@ func (r *repositoryImpl) GetTreesWithNodesByAlbumID(ctx context.Context, albumID
 		// If tree not yet in map, add it
 		if _, exists := treeMap[treeID]; !exists {
 			tr := &model.TreeResponse{
-				TreeID:       treeID,
-				Title:        title,
-				Difficulties: difficulties,
-				PathID:       pathID,
-				Status:       status,
-				IsPause:      isPause,
-				NodeCount:    nodeCount,
-				AlbumID:      treeAlbumID,
-				CreatedAt:    createdAt,
-				LastUpdate:   lastUpdate,
-				Nodes:        []model.TreeNode{},
+				TreeID:             treeID,
+				Title:              title,
+				Difficulties:       difficulties,
+				PathID:             pathID,
+				Status:             status,
+				IsPause:            isPause,
+				IsReflectionClosed: isReflectionClosed,
+				NodeCount:          nodeCount,
+				AlbumID:            treeAlbumID,
+				CreatedAt:          createdAt,
+				LastUpdate:         lastUpdate,
+				Nodes:              []model.TreeNode{},
 			}
 			if lastReflectAt.Valid {
 				tr.LastReflectAt = &lastReflectAt.Time

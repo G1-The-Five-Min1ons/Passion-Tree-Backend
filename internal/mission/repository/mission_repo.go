@@ -142,8 +142,8 @@ func (r *repositoryImpl) AssignMissionsToUser(ctx context.Context, userID string
 
 func (r *repositoryImpl) GetUserActiveMissions(ctx context.Context, userID string) ([]model.UserMission, error) {
 	query := `
-		SELECT 
-			CONVERT(VARCHAR(36), um.user_mission_id), um.mission_id, m.title, m.detail, 
+		SELECT
+			CONVERT(VARCHAR(36), um.user_mission_id), CONVERT(VARCHAR(36), um.mission_id), m.title, m.detail,
 			m.reward_xp, m.reward_heart, um.current_value, m.target_value, um.status, um.expire_at
 		FROM user_mission um
 		JOIN mission m ON um.mission_id = m.mission_id
@@ -198,14 +198,14 @@ func (r *repositoryImpl) GetAllActiveUsers(ctx context.Context) ([]string, error
 
 func (r *repositoryImpl) GetActiveMissionsByCondition(ctx context.Context, userID string, conditionType string) ([]model.UserMission, error) {
 	query := `
-		SELECT 
-			CONVERT(VARCHAR(36), um.user_mission_id), um.mission_id, m.title, 
+		SELECT
+			CONVERT(VARCHAR(36), um.user_mission_id), CONVERT(VARCHAR(36), um.mission_id), m.title, m.detail,
 			m.reward_xp, m.reward_heart, um.current_value, m.target_value, um.status
 		FROM user_mission um
 		JOIN mission m ON um.mission_id = m.mission_id
-		WHERE um.user_id = @p1 
-		  AND m.condition_type = @p2 
-		  AND um.status = 'active' 
+		WHERE um.user_id = @p1
+		  AND m.condition_type = @p2
+		  AND um.status = 'active'
 		  AND um.expire_at > GETDATE()`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, conditionType)
@@ -217,7 +217,7 @@ func (r *repositoryImpl) GetActiveMissionsByCondition(ctx context.Context, userI
 	var missions []model.UserMission
 	for rows.Next() {
 		var m model.UserMission
-		if err := rows.Scan(&m.UserMissionID, &m.MissionID, &m.Title, &m.RewardXP, &m.RewardHeart, &m.CurrentValue, &m.TargetValue, &m.Status); err != nil {
+		if err := rows.Scan(&m.UserMissionID, &m.MissionID, &m.Title, &m.Description, &m.RewardXP, &m.RewardHeart, &m.CurrentValue, &m.TargetValue, &m.Status); err != nil {
 			return nil, err
 		}
 		missions = append(missions, m)

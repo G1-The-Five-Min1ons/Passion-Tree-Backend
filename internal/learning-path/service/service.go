@@ -101,6 +101,7 @@ type serviceImpl struct {
 	resumeRepo   repository.RepositoryResume
 	progressRepo repository.RepositoryProgress
 	xpRepo       repository.RepositoryXP
+	streakRepo   repository.RepositoryStreak
 	missionSvc   missionService.ServiceMission
 	logger       *slog.Logger
 	aiClient     *aiclient.AIClient
@@ -123,6 +124,7 @@ func NewService(repo repository.Repository, ms missionService.ServiceMission, ai
 		resumeRepo:   repo,
 		progressRepo: repo,
 		xpRepo:       repo,
+		streakRepo:   repo,
 		missionSvc:   ms,
 		logger:       logger,
 		aiClient:     aiClient,

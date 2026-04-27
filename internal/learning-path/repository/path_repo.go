@@ -202,15 +202,155 @@ func (r *repositoryImpl) UpdateLearningPath(ctx context.Context, path_id string,
 }
 
 func (r *repositoryImpl) DeleteLearningPath(ctx context.Context, path_id string) error {
-	res, err := r.db.ExecContext(ctx, "DELETE FROM learning_path WHERE path_id = @p1", path_id)
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("repo.DeleteLearningPath failed [id=%s]: %w", path_id, err)
+		return fmt.Errorf("repo.DeleteLearningPath begin tx failed: %w", err)
+	}
+	defer tx.Rollback()
+
+	// ── 1. Delete comment_reaction for node-level comments ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM comment_reaction 
+		WHERE comment_id IN (
+			SELECT c.comment_id FROM Node_Comment c
+			JOIN node n ON c.node_id = n.node_id
+			WHERE n.path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete node comment reactions failed: %w", err)
+	}
+
+	// ── 2. Delete Comment_Mention for node-level comments ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM Comment_Mention 
+		WHERE comment_id IN (
+			SELECT c.comment_id FROM Node_Comment c
+			JOIN node n ON c.node_id = n.node_id
+			WHERE n.path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete node comment mentions failed: %w", err)
+	}
+
+	// ── 3. Delete comment_reaction for path-level comments ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM comment_reaction 
+		WHERE comment_id IN (
+			SELECT comment_id FROM Node_Comment WHERE path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete path comment reactions failed: %w", err)
+	}
+
+	// ── 4. Delete Comment_Mention for path-level comments ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM Comment_Mention 
+		WHERE comment_id IN (
+			SELECT comment_id FROM Node_Comment WHERE path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete path comment mentions failed: %w", err)
+	}
+
+	// ── 5. Delete node-level comments ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM Node_Comment 
+		WHERE node_id IN (
+			SELECT node_id FROM node WHERE path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete node comments failed: %w", err)
+	}
+
+	// ── 6. Delete path-level comments ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM Node_Comment WHERE path_id = @p1`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete path comments failed: %w", err)
+	}
+
+	// ── 7. Delete question_choice ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM question_choice 
+		WHERE question_id IN (
+			SELECT q.question_id FROM node_question q
+			JOIN node n ON q.node_id = n.node_id
+			WHERE n.path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete question choices failed: %w", err)
+	}
+
+	// ── 8. Delete node_question ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM node_question 
+		WHERE node_id IN (
+			SELECT node_id FROM node WHERE path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete node questions failed: %w", err)
+	}
+
+	// ── 9. Delete node_material ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM node_material 
+		WHERE node_id IN (
+			SELECT node_id FROM node WHERE path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete node materials failed: %w", err)
+	}
+
+	// ── 10. Delete node_progress ──
+	_, err = tx.ExecContext(ctx, `
+		DELETE FROM node_progress 
+		WHERE node_id IN (
+			SELECT node_id FROM node WHERE path_id = @p1
+		)`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete node progress failed: %w", err)
+	}
+
+	// ── 11. Delete nodes ──
+	_, err = tx.ExecContext(ctx, `DELETE FROM node WHERE path_id = @p1`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete nodes failed: %w", err)
+	}
+
+	// ── 12. Delete path_enroll ──
+	_, err = tx.ExecContext(ctx, `DELETE FROM path_enroll WHERE path_id = @p1`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete enrollments failed: %w", err)
+	}
+
+	// ── 13. Delete Learning_Path_Rating ──
+	_, err = tx.ExecContext(ctx, `DELETE FROM Learning_Path_Rating WHERE path_id = @p1`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete ratings failed: %w", err)
+	}
+
+	// ── 14. Delete Recommendation ──
+	_, err = tx.ExecContext(ctx, `DELETE FROM Recommendation WHERE path_id = @p1`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete recommendations failed: %w", err)
+	}
+
+	// ── 15. Delete the learning_path itself ──
+	res, err := tx.ExecContext(ctx, `DELETE FROM learning_path WHERE path_id = @p1`, path_id)
+	if err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath delete path failed [id=%s]: %w", path_id, err)
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
 		return sql.ErrNoRows
 	}
+
+	// ── 16. Commit ──
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("repo.DeleteLearningPath commit failed: %w", err)
+	}
+
 	return nil
 }
 

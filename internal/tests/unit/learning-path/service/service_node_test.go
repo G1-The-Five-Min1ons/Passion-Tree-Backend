@@ -78,7 +78,7 @@ func TestAddNode(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.AddNode(context.Background(), tt.req)
 			if tt.expectedError == "" {
@@ -150,7 +150,7 @@ func TestEditNode(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.EditNode(context.Background(), tt.nodeID, tt.req)
 			if tt.expectedError == "" {
@@ -208,7 +208,7 @@ func TestRemoveNode(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.RemoveNode(context.Background(), tt.nodeID)
 			if tt.expectedError == "" {
@@ -262,7 +262,7 @@ func TestAddMaterial(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.AddMaterial(context.Background(), tt.req)
 			if tt.expectedError == "" {
@@ -321,7 +321,7 @@ func TestRemoveMaterial(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.RemoveMaterial(context.Background(), tt.materialID)
 			if tt.expectedError == "" {
@@ -372,7 +372,7 @@ func TestReorderNodes(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.ReorderNodes(context.Background(), tt.pathID, tt.req)
 			if tt.expectedError == "" {
@@ -430,7 +430,7 @@ func TestGetNodeDetails(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetNodeDetails(context.Background(), tt.nodeID, "u1")
 			if tt.expectedError == "" {
@@ -491,7 +491,7 @@ func TestGetNodesByPathID(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			nodes, err := svc.GetNodesByPathID(context.Background(), tt.pathID, "u1")
 			if tt.expectedError == "" {

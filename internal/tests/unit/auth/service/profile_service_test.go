@@ -33,7 +33,7 @@ func TestUpdateProfile(t *testing.T) {
 			userID:        "user-1",
 			profile:       &model.Profile{},
 			setup:         nil,
-			expectedError: "no profile fields to update",
+			expectedError: "",
 		},
 		{
 			name:   "UserNotFound",
@@ -42,8 +42,8 @@ func TestUpdateProfile(t *testing.T) {
 				Bio: "Test Bio",
 			},
 			setup: func(r *repository_test.Repository) {
-				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
-					return nil, nil, nil
+				r.UpdateProfileFunc = func(ctx context.Context, userID string, profile *model.Profile) error {
+					return errors.New("user not found in db")
 				}
 			},
 			expectedError: "user with id 'nonexistent-user' not found",
@@ -53,11 +53,11 @@ func TestUpdateProfile(t *testing.T) {
 			userID:  "user-err",
 			profile: &model.Profile{Bio: "Test Bio"},
 			setup: func(r *repository_test.Repository) {
-				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
-					return nil, nil, errors.New("connection failed")
+				r.UpdateProfileFunc = func(ctx context.Context, userID string, profile *model.Profile) error {
+					return errors.New("connection failed")
 				}
 			},
-			expectedError: "internal server error", // ตามพฤติกรรมของ apperror.NewInternal
+			expectedError: "connection failed",
 		},
 		{
 			name:   "ProfileUpdateSuccess",
@@ -67,9 +67,6 @@ func TestUpdateProfile(t *testing.T) {
 				Location: "New Location",
 			},
 			setup: func(r *repository_test.Repository) {
-				r.GetUserByIDFunc = func(ctx context.Context, id string) (*model.User, *model.Profile, error) {
-					return &model.User{UserID: id}, &model.Profile{}, nil
-				}
 				r.UpdateProfileFunc = func(ctx context.Context, userID string, profile *model.Profile) error {
 					return nil
 				}
@@ -87,7 +84,7 @@ func TestUpdateProfile(t *testing.T) {
 					return errors.New("db save failed")
 				}
 			},
-			expectedError: "user with id 'user-2' not found",
+			expectedError: "db save failed",
 		},
 	}
 

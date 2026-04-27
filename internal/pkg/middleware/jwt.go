@@ -42,8 +42,8 @@ func JWTMiddleware(jwtService *jwt.Service, logger *slog.Logger) fiber.Handler {
 
 		tokenString := parts[1]
 
-		// Validate token
-		claims, err := jwtService.ValidateToken(tokenString)
+		// Validate token and ensure only access tokens can call protected APIs.
+		claims, err := jwtService.ValidateAccessToken(tokenString)
 		if err != nil {
 			logger.WarnContext(c.UserContext(), "security_anomaly",
 				"reason", "invalid_or_expired_token",

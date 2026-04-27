@@ -129,6 +129,10 @@ type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 type UserWithProfile struct {
 	User
 	Profile *Profile `json:"profile,omitempty"`

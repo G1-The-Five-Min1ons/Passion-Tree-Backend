@@ -76,7 +76,7 @@ func TestCreatePath(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			aiClient := aiclient.NewAIClient("http://mock-ai")
 
-			svc := service.NewService(mock, aiClient, logger)
+			svc := service.NewService(mock, nil, aiClient, logger)
 			id, err := svc.CreatePath(context.Background(), tt.req)
 
 			if tt.expectedError == "" {
@@ -136,7 +136,7 @@ func TestGetPaths(t *testing.T) {
 			}
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			paths, err := svc.GetPaths(context.Background())
 
@@ -198,7 +198,7 @@ func TestGetPathDetails(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetPathDetails(context.Background(), tt.pathID)
 			if tt.expectedError == "" {
@@ -263,7 +263,7 @@ func TestUpdatePath(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.UpdatePath(context.Background(), tt.pathID, tt.req)
 			if tt.expectedError == "" {
@@ -331,7 +331,7 @@ func TestDeletePath(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.DeletePath(context.Background(), tt.pathID)
 			if tt.expectedError == "" {
@@ -389,7 +389,7 @@ func TestStartPath(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.StartPath(context.Background(), tt.pathID, tt.userID)
 			if tt.expectedError == "" {
@@ -451,7 +451,7 @@ func TestGetEnrollmentStatus(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetEnrollmentStatus(context.Background(), tt.pathID, tt.userID)
 			if tt.expectedError == "" {
@@ -502,7 +502,7 @@ func TestGetPathProgress(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetPathProgress(context.Background(), tt.pathID, tt.userID)
 			if tt.expectedError == "" {
@@ -521,7 +521,7 @@ func TestGetPathProgress(t *testing.T) {
 func TestGeneratePathWithAI(t *testing.T) {
 	t.Run("EmptyTopic", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		svc := service.NewService(nil, nil, logger)
+		svc := service.NewService(nil, nil, nil, logger)
 		_, err := svc.GeneratePathWithAI(context.Background(), "")
 		if err == nil || !strings.Contains(err.Error(), "topic is required") {
 			t.Errorf("Expected 'topic is required' error, got %v", err)
@@ -531,7 +531,7 @@ func TestGeneratePathWithAI(t *testing.T) {
 	t.Run("AIFailure", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		aiClient := aiclient.NewAIClient("http://mock-ai") // This will fail network req
-		svc := service.NewService(nil, aiClient, logger)
+		svc := service.NewService(nil, nil, aiClient, logger)
 		_, err := svc.GeneratePathWithAI(context.Background(), "Go Lang")
 		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected generation failed error, got %v", err)
@@ -569,7 +569,7 @@ func TestUpdatePathCoverImage(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("\033[36mExecuting TestUpdatePathCoverImage case: %s\033[0m", tt.name)
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(nil, nil, logger)
+			svc := service.NewService(nil, nil, nil, logger)
 
 			err := svc.UpdatePathCoverImage(context.Background(), tt.pathID, tt.url)
 			if err == nil || !strings.Contains(err.Error(), tt.expectedError) {

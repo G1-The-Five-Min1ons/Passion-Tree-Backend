@@ -89,7 +89,7 @@ func TestAddQuestion(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.AddQuestion(context.Background(), tt.req)
 			if tt.expectedError == "" {
@@ -150,7 +150,7 @@ func TestGetQuestions(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			questions, err := svc.GetQuestions(context.Background(), tt.nodeID)
 			if tt.expectedError == "" {
@@ -221,7 +221,7 @@ func TestRemoveQuestion(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.RemoveQuestion(context.Background(), tt.questionID)
 			if tt.expectedError == "" {
@@ -289,7 +289,7 @@ func TestAddChoice(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.AddChoice(context.Background(), tt.req)
 			if tt.expectedError == "" {
@@ -347,7 +347,7 @@ func TestRemoveChoice(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.RemoveChoice(context.Background(), tt.choiceID)
 			if tt.expectedError == "" {

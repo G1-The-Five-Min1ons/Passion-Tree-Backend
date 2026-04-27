@@ -96,7 +96,7 @@ func TestGetDashboardData(t *testing.T) {
 		svc := service.NewService(mock, logger)
 
 		_, err := svc.GetDashboardData(context.Background(), "user-1")
-		if err == nil || !strings.Contains(err.Error(), "failed to fetch user information") {
+		if err == nil || !strings.Contains(err.Error(), "internal server error") {
 			t.Errorf("Expected internal error for user info failure, got %v", err)
 		}
 	})

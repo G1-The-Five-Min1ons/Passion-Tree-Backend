@@ -108,7 +108,7 @@ func TestCreateAlbum(t *testing.T) {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.CreateAlbum(context.Background(), tt.req)
 
@@ -178,7 +178,7 @@ func TestGetAlbumByID(t *testing.T) {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetAlbumByID(context.Background(), tt.albumID)
 
@@ -258,7 +258,7 @@ func TestGetAlbumsByUserID(t *testing.T) {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			_, err := svc.GetAlbumsByUserID(context.Background(), tt.userID)
 
@@ -340,7 +340,7 @@ func TestUpdateAlbum(t *testing.T) {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.UpdateAlbum(context.Background(), tt.albumID, tt.req)
 
@@ -410,7 +410,7 @@ func TestDeleteAlbum(t *testing.T) {
 				tt.mockSetup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, logger)
+			svc := service.NewService(mock, nil, nil, logger)
 
 			err := svc.DeleteAlbum(context.Background(), tt.albumID)
 

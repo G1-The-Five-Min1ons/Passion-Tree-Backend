@@ -167,10 +167,6 @@ func (s *serviceImpl) DeletePath(ctx context.Context, path_id string) error {
 		if err == sql.ErrNoRows {
 			return apperror.NewNotFound("learning path not found")
 		}
-		if apperror.IsForeignKeyError(err) {
-			s.logger.WarnContext(ctx, "deletion blocked by dependencies", "path_id", path_id)
-			return apperror.NewConflict("cannot delete path: there are existing enrollments or nodes associated with this path")
-		}
 
 		s.logger.ErrorContext(ctx, "database error during path deletion", "error", err, "path_id", path_id)
 		return apperror.NewInternal("database error during path deletion: %w", err)

@@ -29,6 +29,7 @@ type Repository struct {
 	GetUserByUsernameFunc                func(ctx context.Context, username string) (*model.User, error)
 	ResetFailedLoginFunc                 func(ctx context.Context, userID string) error
 	MarkTokenAsRotatedFunc               func(ctx context.Context, tokenValue string, tokenType string) error
+	RotateRefreshTokenFunc               func(ctx context.Context, oldTokenValue string, newToken *model.Token) error
 	SetRequire2FANextLoginFunc           func(ctx context.Context, userID string, require2FA bool) error
 	GetTeacherVerificationStatusFunc     func(ctx context.Context, userID string) (*model.TeacherVerificationStatus, error)
 	UpsertTeacherApplicationFunc         func(ctx context.Context, userID, phoneNumber, reason, teachingHistory string) error
@@ -230,6 +231,12 @@ func (m *Repository) DeleteExpiredTokens(ctx context.Context) error { return nil
 func (m *Repository) MarkTokenAsRotated(ctx context.Context, tokenValue string, tokenType string) error {
 	if m.MarkTokenAsRotatedFunc != nil {
 		return m.MarkTokenAsRotatedFunc(ctx, tokenValue, tokenType)
+	}
+	return nil
+}
+func (m *Repository) RotateRefreshToken(ctx context.Context, oldTokenValue string, newToken *model.Token) error {
+	if m.RotateRefreshTokenFunc != nil {
+		return m.RotateRefreshTokenFunc(ctx, oldTokenValue, newToken)
 	}
 	return nil
 }

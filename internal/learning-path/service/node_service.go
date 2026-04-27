@@ -239,6 +239,11 @@ func (s *serviceImpl) CompleteNode(ctx context.Context, nodeID string, userID st
 		return s.missionSvc.ProcessMissionEvent(bgCtx, userID, missionModel.ConditionCompleteNode)
 	})
 
+	// Update learning streak (fire-and-forget)
+	utils.SafeGo(ctx, s.logger, "UpdateStreak", 5*time.Second, func(bgCtx context.Context) error {
+		return s.streakRepo.UpdateStreak(bgCtx, userID)
+	})
+
 	// Fetch node details to get pathID
 	node, err := s.nodeRepo.GetNodeByID(ctx, nodeID, userID)
 	if err == nil && node != nil {

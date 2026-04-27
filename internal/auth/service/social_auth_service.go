@@ -58,13 +58,30 @@ func (s *userServiceImpl) HandleDiscordCallback(ctx context.Context, code string
 	return s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord")
 }
 
-// HandleNativeDiscordSignIn processes native Discord Sign-In from mobile apps
-func (s *userServiceImpl) HandleNativeDiscordSignIn(ctx context.Context, code string) (*model.User, string, *model.LinkConfirmationNeeded, error) {
+// HandleNativeDiscordSignIn processes native Discord Sign-In from mobile apps.
+// It returns (user, accessToken, refreshToken, linkConfirm, err). When linkConfirm
+// is non-nil, tokens will be empty — the caller is expected to prompt the user
+// to confirm account linking via the web OAuth flow.
+func (s *userServiceImpl) HandleNativeDiscordSignIn(ctx context.Context, code, deviceInfo, ipAddress, userAgent string) (*model.User, string, string, *model.LinkConfirmationNeeded, error) {
 	// For native Discord login, the authorization request used the backend's
 	nativeRedirectUri := s.config.DiscordNativeRedirectURL
 	nativeRedirectUriOpt := oauth2.SetAuthURLParam("redirect_uri", nativeRedirectUri)
 
-	return s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord", nativeRedirectUriOpt)
+	user, _, linkConfirm, err := s.handleOAuthCallback(ctx, code, s.discordConfig, s.fetchDiscordUserInfo, "discord", nativeRedirectUriOpt)
+	if err != nil {
+		return nil, "", "", nil, err
+	}
+
+	if linkConfirm != nil {
+		return nil, "", "", linkConfirm, nil
+	}
+
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user, deviceInfo, ipAddress, userAgent)
+	if err != nil {
+		return nil, "", "", nil, err
+	}
+
+	return user, accessToken, refreshToken, nil, nil
 }
 
 // fetchGoogleUserInfo retrieves user information from Google API
@@ -405,29 +422,32 @@ func getStringClaim(claims jwt.MapClaims, key string) string {
 	return ""
 }
 
-// HandleNativeGoogleSignIn processes native Google Sign-In from mobile apps
-func (s *userServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken string) (*model.User, string, error) {
+// HandleNativeGoogleSignIn processes native Google Sign-In from mobile apps.
+// Returns (user, accessToken, refreshToken, err). Unlike the web flow, native
+// Google Sign-In auto-links to an existing local account if the email already
+// exists, so this never returns a LinkConfirmationNeeded.
+func (s *userServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken, deviceInfo, ipAddress, userAgent string) (*model.User, string, string, error) {
 	userInfo, err := s.verifyGoogleIDToken(ctx, idToken)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
-	user, jwtToken, linkConfirm, err := s.findOrCreateUser(ctx, userInfo)
+	user, _, linkConfirm, err := s.findOrCreateUser(ctx, userInfo)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	// Native SSO doesn't support link confirmation dialog - auto-link the account
 	if linkConfirm != nil {
 		existingUser, _, err := s.repo.GetUserByID(ctx, linkConfirm.ExistingUser.UserID)
 		if err != nil || existingUser == nil {
-			return nil, "", apperror.NewInternal("failed to get existing user: %w", err)
+			return nil, "", "", apperror.NewInternal("failed to get existing user: %w", err)
 		}
 
 		// Auto-link the social account to the existing user
 		err = s.repo.LinkSocialAccount(ctx, existingUser.UserID, userInfo.Provider, userInfo.ProviderUserID)
 		if err != nil {
-			return nil, "", apperror.NewInternal("failed to link account: %w", err)
+			return nil, "", "", apperror.NewInternal("failed to link account: %w", err)
 		}
 
 		err = s.repo.UpdateSocialUserInfo(ctx, existingUser.UserID, userInfo)
@@ -456,15 +476,52 @@ func (s *userServiceImpl) HandleNativeGoogleSignIn(ctx context.Context, idToken 
 			"provider", userInfo.Provider,
 		)
 
-		jwtToken, err = s.generateJWT(existingUser)
-		if err != nil {
-			return nil, "", apperror.NewInternal("failed to generate token: %w", err)
-		}
-
-		return existingUser, jwtToken, nil
+		user = existingUser
 	}
 
-	return user, jwtToken, nil
+	accessToken, refreshToken, err := s.issueTokenPair(ctx, user, deviceInfo, ipAddress, userAgent)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	return user, accessToken, refreshToken, nil
+}
+
+// issueTokenPair generates a new access + refresh token pair for the user and
+// persists the refresh token into the Token table (mirrors the behaviour of
+// VerifyEmail / RefreshAccessToken). Returned tokens are ready to be handed back
+// to the client.
+func (s *userServiceImpl) issueTokenPair(ctx context.Context, user *model.User, deviceInfo, ipAddress, userAgent string) (string, string, error) {
+	accessToken, refreshToken, err := s.jwtService.GenerateTokenPair(user)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to generate tokens for social login", "error", err, "user_id", user.UserID)
+		return "", "", apperror.NewInternal("failed to generate session")
+	}
+
+	now := time.Now()
+	refreshTTL := parseDurationOrHours(s.config.JWTRefreshTTL, 720*time.Hour)
+	refreshAbsolute := parseDurationOrHours(s.config.JWTRefreshAbsolute, 720*time.Hour)
+	maxExpiresAt := now.Add(refreshAbsolute)
+	expireAt := clampExpiry(now.Add(refreshTTL), &maxExpiresAt)
+
+	tokenModel := &model.Token{
+		UserID:       user.UserID,
+		Token:        refreshToken,
+		TokenType:    model.TokenTypeRefresh,
+		ExpireAt:     expireAt,
+		DeviceInfo:   &deviceInfo,
+		IPAddress:    &ipAddress,
+		UserAgent:    &userAgent,
+		LastUsedAt:   &now,
+		MaxExpiresAt: &maxExpiresAt,
+	}
+
+	if err := s.repo.CreateToken(ctx, tokenModel); err != nil {
+		s.logger.ErrorContext(ctx, "failed to store refresh token for social login", "error", err, "user_id", user.UserID)
+		return "", "", apperror.NewInternal("failed to create session")
+	}
+
+	return accessToken, refreshToken, nil
 }
 
 // verifyGoogleIDToken verifies Google ID token from native apps
