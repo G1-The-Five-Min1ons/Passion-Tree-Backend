@@ -24,7 +24,9 @@ func RegisterRoutes(r fiber.Router, db connection.Database, jwtService *jwt.Serv
 
 	adminGroup := protected.Group("/admin/missions")
 	{
+		adminGroup.Get("/templates", h.GetAllTemplates)
 		adminGroup.Post("/templates", h.CreateTemplate)
+		adminGroup.Delete("/templates/:id", h.DeleteTemplate)
 	}
 
 	userGroup := protected.Group("/user/missions")

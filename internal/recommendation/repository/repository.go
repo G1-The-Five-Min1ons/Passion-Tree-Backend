@@ -9,8 +9,14 @@ import (
 
 type RepositoryRecommendation interface {
 	GetUserReflectionsByTree(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error)
-	GetUserEnrolledPathsForRec(ctx context.Context, userID string) ([]model.RecommendedPath, error)
 	GetTopPopularPaths(ctx context.Context) ([]model.RecommendedPath, error)
+}
+
+type BatchRepository interface {
+	GetBatchInteractions(ctx context.Context) ([]model.UserInteraction, error)
+	GetBatchProfiles(ctx context.Context) ([]model.UserProfile, error)
+	SaveBatchRecommendations(ctx context.Context, results []model.BatchRecommendationResult) error
+	GetSavedHomeRecommendations(ctx context.Context, userID string) ([]model.RecommendedPath, error)
 }
 
 type DBTX interface {
@@ -27,6 +33,7 @@ type Database interface {
 
 type Repository interface {
 	RepositoryRecommendation
+	BatchRepository
 }
 
 type repositoryImpl struct {

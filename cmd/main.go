@@ -29,6 +29,10 @@ import (
 
 	missionRepo "passiontree/internal/mission/repository"
 	missionService "passiontree/internal/mission/service"
+
+	pathrepo "passiontree/internal/learning-path/repository"
+	recrepo "passiontree/internal/recommendation/repository"
+	recservice "passiontree/internal/recommendation/service"
 )
 
 const (
@@ -69,8 +73,11 @@ func main() {
 	// Setup Fiber with custom Logger
 	app := createFiberApp(myLogger)
 	emailService := authservice.NewEmailService(cfg, myLogger)
-	cronJob, notificationWorker := initializeBackgroundJobs(db, storageClient, emailService, myLogger)
-	routes.Setup(app, db, aiClient, storageClient, notificationWorker, myLogger)
+	cronJob, notificationWorker := initializeBackgroundJobs(db, storageClient, emailService, aiClient, myLogger)
+	if err := routes.Setup(app, db, aiClient, storageClient, notificationWorker, myLogger); err != nil {
+		myLogger.Error("failed to setup routes", "error", err)
+		os.Exit(1)
+	}
 	defer cronJob.Stop()
 
 	port := getPort()
@@ -196,7 +203,7 @@ func getPort() string {
 	return DefaultPort
 }
 
-func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, emailService authservice.EmailService, logger *slog.Logger) (*cron.Cron, *worker.EmailNotificationWorker) {
+func initializeBackgroundJobs(db connection.Database, storage *storage.BlobService, emailService authservice.EmailService, aiClient *aiclient.AIClient, logger *slog.Logger) (*cron.Cron, *worker.EmailNotificationWorker) {
 	cleanupWorker := worker.NewCleanupWorker(db, storage)
 	notificationProvider := workerRepo.NewSQLEmailNotificationDataProvider(db)
 	authRepository := authrepo.NewRepository(db)
@@ -204,6 +211,10 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	notificationWorker := worker.NewEmailNotificationWorker(notificationProvider, emailService, userService, logger)
 	mRepo := missionRepo.NewRepository(db)
 	mSvc := missionService.NewService(mRepo, authRepository, logger)
+	pathRepository := pathrepo.NewRepository(db)
+	recRepository := recrepo.NewRepository(db)
+	recSvc := recservice.NewService(recRepository, pathRepository, aiClient, logger)
+
 	c := cron.New()
 
 	// Run every midnight
@@ -221,7 +232,19 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 		return c, notificationWorker
 	}
 
-	_, err = c.AddFunc("0 0 * * 1", withSafeCron(
+	_, err = c.AddFunc("0 2 * * *", withSafeCron(
+		"DailyRecommendationBatch",
+		30*time.Minute,
+		logger,
+		func(ctx context.Context) error {
+			return recSvc.RunDailyRecommendationBatch(ctx)
+		},
+	))
+	if err != nil {
+		logger.Error("error initializing daily recommendation batch job", "error", err)
+	}
+
+	_, err = c.AddFunc("0 1 * * 1", withSafeCron(
 		"AutoAssignWeeklyMissions",
 		10*time.Minute,
 		logger,

@@ -12,7 +12,9 @@ import (
 type RepositoryMission interface {
 	// Admin (Template)
 	CreateTemplate(ctx context.Context, req model.CreateTemplateRequest) (string, error)
+	DeleteTemplate(ctx context.Context, missionID string) error
 	GetActiveTemplates(ctx context.Context) ([]model.MissionTemplate, error)
+	GetAllTemplates(ctx context.Context) ([]model.MissionTemplate, error)
 
 	// User (Transaction)
 	GetUserActiveMissions(ctx context.Context, userID string) ([]model.UserMission, error)
@@ -22,6 +24,8 @@ type RepositoryMission interface {
 	// สำหรับ Background Job
 	GetAllActiveUsers(ctx context.Context) ([]string, error)
 	GetAllUserBehaviorStats(ctx context.Context) ([]model.UserBehaviorStat, error)
+	GetUserSeenMissionIDs(ctx context.Context, userID string) (map[string]bool, error)
+	GetAllUserSeenMissionIDs(ctx context.Context) (map[string]map[string]bool, error)
 	DeleteExpiredUnfinishedMissions(ctx context.Context) error
 	BatchUpdateMissionProgressAndReward(ctx context.Context, userID string, missions []model.UserMission, totalXP int64, totalHeart int64) error
 }

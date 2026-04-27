@@ -37,10 +37,16 @@ func TestRecommendPathsForUser(t *testing.T) {
 		expectedPaths int
 	}{
 		{
-			name:          "MissingParams_EmptyUserID",
+			name:          "EmptyUserID_ReturnsUnauthorized",
 			userID:        "",
 			treeID:        "tree-123",
 			expectedError: "Authentication session expired",
+		},
+		{
+			name:          "EmptyTreeID_ReturnsBadRequest",
+			userID:        "user-123",
+			treeID:        "",
+			expectedError: "please select a specific tree to get recommendations",
 		},
 		{
 			name:   "RepoError_ReturnsInternalError",
@@ -54,7 +60,7 @@ func TestRecommendPathsForUser(t *testing.T) {
 			expectedError: "internal server error",
 		},
 		{
-			name:   "Success_NoReflections_ReturnsEmptyDataEarly",
+			name:   "NoReflections_ReturnsEmptyEarly",
 			userID: "user-123",
 			treeID: "tree-123",
 			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
@@ -65,10 +71,10 @@ func TestRecommendPathsForUser(t *testing.T) {
 			expectedPaths: 0,
 		},
 		{
-			name:       "Success_WithAIResults",
+			name:       "AIResult_WithFullPayload_OverridesDBFields",
 			userID:     "user-123",
 			treeID:     "tree-123",
-			aiResponse: `{"results": [{"id": "path-2", "score": 0.95, "payload": {"title": "Advanced Go"}}, {"id": "path-1", "score": 0.85}]}`,
+			aiResponse: `{"results": [{"id": "path-2", "score": 0.95, "payload": {"title": "Advanced Go", "cover_img_url": "https://img.example.com/go.png", "objective": "Master Go"}}, {"id": "path-1", "score": 0.85}]}`,
 			aiStatus:   http.StatusOK,
 			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
 				rec.GetUserReflectionsByTreeFunc = func(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error) {
@@ -77,12 +83,80 @@ func TestRecommendPathsForUser(t *testing.T) {
 					}, "path-1", nil
 				}
 				path.GetLearningPathsByIDsFunc = func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
+					var result []lpmodel.LearningPath
+					for _, id := range pathIDs {
+						if id == "path-2" {
+							result = append(result, lpmodel.LearningPath{PathID: "path-2", Title: "DB Title"})
+						}
+					}
+					return result, nil
+				}
+			},
+			expectedPaths: 1,
+		},
+		{
+			name:       "AIResult_NilPayload_UsesDBFields",
+			userID:     "user-123",
+			treeID:     "tree-123",
+			aiResponse: `{"results": [{"id": "path-2", "score": 0.95}, {"id": "path-1", "score": 0.85}]}`,
+			aiStatus:   http.StatusOK,
+			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
+				rec.GetUserReflectionsByTreeFunc = func(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error) {
+					return []model.UserReflection{
+						{Summary: "Learned concurrency", PrimaryEmotion: "Confident"},
+					}, "path-1", nil
+				}
+				path.GetLearningPathsByIDsFunc = func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
 					return []lpmodel.LearningPath{
-						{PathID: "PATH-2", Title: "Advanced Go"},
+						{PathID: "path-2", Title: "Go Concurrency", Objective: "Understand goroutines"},
 					}, nil
 				}
 			},
 			expectedPaths: 1,
+		},
+		{
+			name:       "AIResult_PartialPayload_MergesWithDB",
+			userID:     "user-123",
+			treeID:     "tree-123",
+			aiResponse: `{"results": [{"id": "path-2", "score": 0.90, "payload": {"title": "AI Title"}}]}`,
+			aiStatus:   http.StatusOK,
+			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
+				rec.GetUserReflectionsByTreeFunc = func(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error) {
+					return []model.UserReflection{
+						{Summary: "Channels deep dive", PrimaryEmotion: "Curious"},
+					}, "path-1", nil
+				}
+				path.GetLearningPathsByIDsFunc = func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
+					return []lpmodel.LearningPath{
+						{PathID: "path-2", Title: "DB Title", CoverImgURL: "https://db.example.com/img.png"},
+					}, nil
+				}
+			},
+			expectedPaths: 1,
+		},
+		{
+			name:       "PathRepoError_FallsBackToPopular",
+			userID:     "user-123",
+			treeID:     "tree-123",
+			aiResponse: `{"results": [{"id": "path-2", "score": 0.9}]}`,
+			aiStatus:   http.StatusOK,
+			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
+				rec.GetUserReflectionsByTreeFunc = func(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error) {
+					return []model.UserReflection{
+						{Summary: "Test topic", PrimaryEmotion: "Motivated"},
+					}, "path-1", nil
+				}
+				path.GetLearningPathsByIDsFunc = func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
+					return nil, errors.New("DB unavailable")
+				}
+				rec.GetTopPopularPathsFunc = func(ctx context.Context) ([]model.RecommendedPath, error) {
+					return []model.RecommendedPath{
+						{LearningPath: lpmodel.LearningPath{PathID: "popular-1"}},
+						{LearningPath: lpmodel.LearningPath{PathID: "popular-2"}},
+					}, nil
+				}
+			},
+			expectedPaths: 2,
 		},
 	}
 
@@ -96,12 +170,20 @@ func TestRecommendPathsForUser(t *testing.T) {
 				tt.setup(recRepo, pathRepo)
 			}
 
-			ts := setupMockUIServer(tt.aiResponse, tt.aiStatus)
+			aiResponse := tt.aiResponse
+			if aiResponse == "" {
+				aiResponse = `{"results": []}`
+			}
+			aiStatus := tt.aiStatus
+			if aiStatus == 0 {
+				aiStatus = http.StatusOK
+			}
+
+			ts := setupMockUIServer(aiResponse, aiStatus)
 			defer ts.Close()
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			aiClient := aiclient.NewAIClient(ts.URL)
-
 			svc := service.NewService(recRepo, pathRepo, aiClient, logger)
 
 			resp, err := svc.RecommendPathsForUser(context.Background(), tt.userID, tt.treeID)
@@ -115,7 +197,7 @@ func TestRecommendPathsForUser(t *testing.T) {
 				}
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.expectedError) {
-					t.Errorf("Expected error containing '%s', got '%v'", tt.expectedError, err)
+					t.Errorf("Expected error containing %q, got %v", tt.expectedError, err)
 				}
 			}
 		})
@@ -126,46 +208,67 @@ func TestRecommendHomePathsForUser(t *testing.T) {
 	tests := []struct {
 		name          string
 		userID        string
-		aiResponse    string
-		aiStatus      int
 		setup         func(*repository_test.MockRecRepository, *repository_test.MockPathRepository)
 		expectedError string
 		expectedPaths int
 	}{
 		{
-			name:          "MissingParams_EmptyUserID",
+			name:          "EmptyUserID_ReturnsUnauthorized",
 			userID:        "",
 			expectedError: "Authentication session expired",
 		},
 		{
-			name:   "NoEnrolledPaths_ReturnsTopPopular",
+			name:   "RepoError_ReturnsInternalError",
+			userID: "user-123",
+			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
+				rec.GetSavedHomeRecommendationsFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
+					return nil, errors.New("db timeout")
+				}
+			},
+			expectedError: "internal server error",
+		},
+		{
+			name:   "NoSavedRecommendations_FallsBackToPopular",
 			userID: "user-new",
 			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
-				rec.GetUserEnrolledPathsForRecFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
+				rec.GetSavedHomeRecommendationsFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
 					return []model.RecommendedPath{}, nil
 				}
 				rec.GetTopPopularPathsFunc = func(ctx context.Context) ([]model.RecommendedPath, error) {
-					return []model.RecommendedPath{{LearningPath: lpmodel.LearningPath{PathID: "pop-1"}}, {LearningPath: lpmodel.LearningPath{PathID: "pop-2"}}}, nil
+					return []model.RecommendedPath{
+						{LearningPath: lpmodel.LearningPath{PathID: "pop-1"}},
+						{LearningPath: lpmodel.LearningPath{PathID: "pop-2"}},
+					}, nil
 				}
 			},
 			expectedPaths: 2,
 		},
 		{
-			name:       "Success_WithEnrolledPaths_FilteredAIResults",
-			userID:     "user-123",
-			aiResponse: `{"results": [{"id": "path-new", "score": 0.9}, {"id": "path-enrolled", "score": 0.8}]}`,
-			aiStatus:   http.StatusOK,
+			name:   "HasSavedRecommendations_ReturnsThem",
+			userID: "user-123",
 			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
-				rec.GetUserEnrolledPathsForRecFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
-					return []model.RecommendedPath{{LearningPath: lpmodel.LearningPath{PathID: "path-enrolled", Title: "Basic Go"}}}, nil
-				}
-				path.GetLearningPathsByIDsFunc = func(ctx context.Context, pathIDs []string) ([]lpmodel.LearningPath, error) {
-					return []lpmodel.LearningPath{
-						{PathID: "PATH-NEW", Title: "Found Path"},
+				rec.GetSavedHomeRecommendationsFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
+					return []model.RecommendedPath{
+						{LearningPath: lpmodel.LearningPath{PathID: "saved-1"}},
+						{LearningPath: lpmodel.LearningPath{PathID: "saved-2"}},
+						{LearningPath: lpmodel.LearningPath{PathID: "saved-3"}},
 					}, nil
 				}
 			},
-			expectedPaths: 1,
+			expectedPaths: 3,
+		},
+		{
+			name:   "FallbackPopularError_ReturnsInternalError",
+			userID: "user-no-recs",
+			setup: func(rec *repository_test.MockRecRepository, path *repository_test.MockPathRepository) {
+				rec.GetSavedHomeRecommendationsFunc = func(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
+					return []model.RecommendedPath{}, nil
+				}
+				rec.GetTopPopularPathsFunc = func(ctx context.Context) ([]model.RecommendedPath, error) {
+					return nil, errors.New("popular paths query failed")
+				}
+			},
+			expectedError: "internal server error",
 		},
 	}
 
@@ -179,12 +282,11 @@ func TestRecommendHomePathsForUser(t *testing.T) {
 				tt.setup(recRepo, pathRepo)
 			}
 
-			ts := setupMockUIServer(tt.aiResponse, tt.aiStatus)
+			ts := setupMockUIServer(`{"results": []}`, http.StatusOK)
 			defer ts.Close()
 
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			aiClient := aiclient.NewAIClient(ts.URL)
-
 			svc := service.NewService(recRepo, pathRepo, aiClient, logger)
 
 			resp, err := svc.RecommendHomePathsForUser(context.Background(), tt.userID)
@@ -198,7 +300,7 @@ func TestRecommendHomePathsForUser(t *testing.T) {
 				}
 			} else {
 				if err == nil || !strings.Contains(err.Error(), tt.expectedError) {
-					t.Errorf("Expected error containing '%s', got '%v'", tt.expectedError, err)
+					t.Errorf("Expected error containing %q, got %v", tt.expectedError, err)
 				}
 			}
 		})

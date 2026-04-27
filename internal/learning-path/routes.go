@@ -5,13 +5,13 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	repoUser "passiontree/internal/auth/repository"
 	"passiontree/internal/connection"
 	"passiontree/internal/learning-path/handler"
 	"passiontree/internal/learning-path/repository"
-	missionRepo "passiontree/internal/mission/repository"
-	repoUser "passiontree/internal/auth/repository"
-	missionService "passiontree/internal/mission/service"
 	"passiontree/internal/learning-path/service"
+	missionRepo "passiontree/internal/mission/repository"
+	missionService "passiontree/internal/mission/service"
 	"passiontree/internal/pkg/jwt"
 	"passiontree/internal/pkg/middleware"
 	"passiontree/internal/pkg/storage"
@@ -39,6 +39,20 @@ func RegisterRoutes(r fiber.Router, db connection.Database, aiClient *aiclient.A
 		paths.Put("/uploadimg", h.UpdateCoverImage)
 		paths.Post("/search", h.Search)
 		paths.Get("/debug/collection/:collection_name", h.DebugCollection)
+		paths.Post("/sync/bulk",
+			middleware.RbacMiddleware(logger, "admin"),
+			middleware.RateLimitMaintenanceMiddleware(),
+			h.BulkSyncLearningPaths,
+		)
+		paths.Post("/sync/reconcile",
+			middleware.RbacMiddleware(logger, "admin"),
+			middleware.RateLimitMaintenanceMiddleware(),
+			h.ReconcileLearningPaths,
+		)
+		paths.Get("/sync/tasks/:task_id",
+			middleware.RbacMiddleware(logger, "admin"),
+			h.GetSyncTaskStatus,
+		)
 		paths.Post("/sync/:path_id", h.SyncLearningPath)
 		paths.Get("/:path_id", h.GetOne)
 		paths.Put("/:path_id", h.Update)

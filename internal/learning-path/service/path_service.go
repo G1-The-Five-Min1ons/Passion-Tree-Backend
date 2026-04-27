@@ -172,6 +172,12 @@ func (s *serviceImpl) DeletePath(ctx context.Context, path_id string) error {
 		return apperror.NewInternal("database error during path deletion: %w", err)
 	}
 
+	if s.aiClient != nil {
+		if _, err := s.aiClient.SyncDeletePath(ctx, path_id, "learning_paths"); err != nil {
+			s.logger.WarnContext(ctx, "learning path removed from SQL but Qdrant delete failed", "path_id", path_id, "error", err)
+		}
+	}
+
 	s.logger.InfoContext(ctx, "learning path deleted successfully", "path_id", path_id)
 	return nil
 }
@@ -259,6 +265,11 @@ func (s *serviceImpl) GeneratePathWithAI(ctx context.Context, topic string) (*mo
 	}
 
 	s.logger.InfoContext(ctx, "generating learning path with AI", "topic", topic)
+
+	if s.aiClient == nil {
+		s.logger.ErrorContext(ctx, "AI path generation aborted: AI client is nil")
+		return nil, apperror.NewInternal("ai client is not initialized")
+	}
 
 	rawResponse, err := s.aiClient.GenerateLearningPath(ctx, topic)
 	if err != nil {

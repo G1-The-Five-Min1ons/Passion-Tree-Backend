@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"log/slog"
 
 	"passiontree/internal/auth/handler"
@@ -15,12 +16,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger) {
+func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger) error {
 	// Load configuration for email service
 	cfg, err := config.LoadDBConfig()
 	if err != nil {
 		logger.Error("startup_failed", "error", err)
-		panic("Failed to load configuration: " + err.Error())
+		return fmt.Errorf("failed to load auth configuration: %w", err)
 	}
 
 	repo := repository.NewRepository(db)
@@ -99,4 +100,6 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 			})
 		}
 	}
+
+	return nil
 }
