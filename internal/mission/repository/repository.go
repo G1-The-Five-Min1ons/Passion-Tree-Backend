@@ -14,6 +14,7 @@ type RepositoryMission interface {
 	CreateTemplate(ctx context.Context, req model.CreateTemplateRequest) (string, error)
 	DeleteTemplate(ctx context.Context, missionID string) error
 	GetActiveTemplates(ctx context.Context) ([]model.MissionTemplate, error)
+	GetAllTemplates(ctx context.Context) ([]model.MissionTemplate, error)
 
 	// User (Transaction)
 	GetUserActiveMissions(ctx context.Context, userID string) ([]model.UserMission, error)

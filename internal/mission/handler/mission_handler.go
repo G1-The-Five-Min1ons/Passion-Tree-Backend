@@ -37,6 +37,27 @@ func (h *Handler) CreateTemplate(c *fiber.Ctx) error {
 	})
 }
 
+func (h *Handler) GetAllTemplates(c *fiber.Ctx) error {
+	userID, err := middleware.GetUserIDFromContext(c)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	defer cancel()
+
+	templates, err := h.missionSvc.GetAllTemplates(ctx, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Retrieved all mission templates successfully",
+		"data":    templates,
+	})
+}
+
 func (h *Handler) DeleteTemplate(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

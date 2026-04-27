@@ -12,6 +12,7 @@ import (
 type ServiceMission interface {
 	CreateTemplate(ctx context.Context, req model.CreateTemplateRequest, userID string) (string, error)
 	DeleteTemplate(ctx context.Context, missionID string, userID string) error
+	GetAllTemplates(ctx context.Context, userID string) ([]model.MissionTemplate, error)
 	GetMyMissions(ctx context.Context, userID string) ([]model.UserMission, error)
 	ProcessMissionEvent(ctx context.Context, userID string, conditionType string) error
 	AutoAssignWeeklyMissions(ctx context.Context) error

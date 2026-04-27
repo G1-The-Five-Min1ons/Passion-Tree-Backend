@@ -68,6 +68,26 @@ func (s *serviceImpl) DeleteTemplate(ctx context.Context, missionID string, user
 	return nil
 }
 
+func (s *serviceImpl) GetAllTemplates(ctx context.Context, userID string) ([]model.MissionTemplate, error) {
+	user, _, err := s.repoUser.GetUserByID(ctx, userID)
+	if err != nil {
+		return nil, apperror.NewInternal("failed to get user by ID: %w", err)
+	}
+	if user == nil {
+		return nil, apperror.NewNotFound("user with id '%s' not found", userID)
+	}
+	if user.Role != "admin" {
+		return nil, apperror.NewUnauthorized("User not admin")
+	}
+
+	templates, err := s.repo.GetAllTemplates(ctx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "failed to fetch all mission templates", "error", err)
+		return nil, apperror.NewInternal("failed to fetch mission templates")
+	}
+	return templates, nil
+}
+
 func (s *serviceImpl) GetMyMissions(ctx context.Context, userID string) ([]model.UserMission, error) {
 	missions, err := s.repo.GetUserActiveMissions(ctx, userID)
 	if err != nil {

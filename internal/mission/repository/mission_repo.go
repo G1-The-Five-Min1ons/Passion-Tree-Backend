@@ -25,6 +25,33 @@ func (r *repositoryImpl) CreateTemplate(ctx context.Context, req model.CreateTem
 	return newID, nil
 }
 
+func (r *repositoryImpl) GetAllTemplates(ctx context.Context) ([]model.MissionTemplate, error) {
+	query := `
+		SELECT CONVERT(VARCHAR(36), mission_id), title, detail, reward_xp, reward_heart, condition_type, target_value, is_active, create_at, update_at
+		FROM mission`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetAllTemplates failed: %w", err)
+	}
+	defer rows.Close()
+
+	var templates []model.MissionTemplate
+	for rows.Next() {
+		var t model.MissionTemplate
+		if err := rows.Scan(&t.MissionID, &t.Title, &t.Description, &t.RewardXP, &t.RewardHeart, &t.ConditionType, &t.TargetValue, &t.IsActive, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			return nil, err
+		}
+		templates = append(templates, t)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetAllTemplates row iteration failed: %w", err)
+	}
+
+	return templates, nil
+}
+
 func (r *repositoryImpl) DeleteTemplate(ctx context.Context, missionID string) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
