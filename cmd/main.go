@@ -244,7 +244,7 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 		logger.Error("error initializing daily recommendation batch job", "error", err)
 	}
 
-	_, err = c.AddFunc("0 0 * * 1", withSafeCron(
+	_, err = c.AddFunc("0 1 * * 1", withSafeCron(
 		"AutoAssignWeeklyMissions",
 		10*time.Minute,
 		logger,

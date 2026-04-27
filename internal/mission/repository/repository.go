@@ -24,6 +24,8 @@ type RepositoryMission interface {
 	// สำหรับ Background Job
 	GetAllActiveUsers(ctx context.Context) ([]string, error)
 	GetAllUserBehaviorStats(ctx context.Context) ([]model.UserBehaviorStat, error)
+	GetUserSeenMissionIDs(ctx context.Context, userID string) (map[string]bool, error)
+	GetAllUserSeenMissionIDs(ctx context.Context) (map[string]map[string]bool, error)
 	DeleteExpiredUnfinishedMissions(ctx context.Context) error
 	BatchUpdateMissionProgressAndReward(ctx context.Context, userID string, missions []model.UserMission, totalXP int64, totalHeart int64) error
 }

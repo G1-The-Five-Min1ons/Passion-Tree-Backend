@@ -14,8 +14,8 @@ import (
 func (r *repositoryImpl) CreateTemplate(ctx context.Context, req model.CreateTemplateRequest) (string, error) {
 	newID := uuid.New().String()
 	query := `
-		INSERT INTO mission (mission_id, title, detail, reward_xp, reward_heart, condition_type, target_value, is_active, create_at, update_at) 
-		OUTPUT INSERTED.mission_id
+		INSERT INTO mission (mission_id, title, detail, reward_xp, reward_heart, condition_type, target_value, is_active, create_at, update_at)
+		OUTPUT CONVERT(VARCHAR(36), INSERTED.mission_id)
 		VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7, 1, GETDATE(), GETDATE())`
 
 	err := r.db.QueryRowContext(ctx, query, newID, req.Title, req.Description, req.RewardXP, req.RewardHeart, req.ConditionType, req.TargetValue).Scan(&newID)
@@ -123,7 +123,7 @@ func (r *repositoryImpl) AssignMissionsToUser(ctx context.Context, userID string
 		WHERE NOT EXISTS (
 			SELECT 1
 			FROM user_mission
-			WHERE user_id = @p2 AND mission_id = @p3
+			WHERE user_id = @p2 AND mission_id = @p3 AND status = 'active'
 		)`
 
 	for _, missionID := range missionIDs {
@@ -284,6 +284,47 @@ func (r *repositoryImpl) GetAllUserBehaviorStats(ctx context.Context) ([]model.U
 	}
 
 	return stats, nil
+}
+
+func (r *repositoryImpl) GetUserSeenMissionIDs(ctx context.Context, userID string) (map[string]bool, error) {
+	query := `SELECT DISTINCT CONVERT(VARCHAR(36), mission_id) FROM user_mission WHERE user_id = @p1`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetUserSeenMissionIDs failed: %w", err)
+	}
+	defer rows.Close()
+
+	seen := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		seen[id] = true
+	}
+	return seen, rows.Err()
+}
+
+func (r *repositoryImpl) GetAllUserSeenMissionIDs(ctx context.Context) (map[string]map[string]bool, error) {
+	query := `SELECT DISTINCT CONVERT(VARCHAR(36), user_id), CONVERT(VARCHAR(36), mission_id) FROM user_mission`
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetAllUserSeenMissionIDs failed: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]map[string]bool)
+	for rows.Next() {
+		var userID, missionID string
+		if err := rows.Scan(&userID, &missionID); err != nil {
+			return nil, err
+		}
+		if result[userID] == nil {
+			result[userID] = make(map[string]bool)
+		}
+		result[userID][missionID] = true
+	}
+	return result, rows.Err()
 }
 
 func (r *repositoryImpl) DeleteExpiredUnfinishedMissions(ctx context.Context) error {
