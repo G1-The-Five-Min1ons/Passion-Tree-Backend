@@ -1,25 +1,24 @@
-# Dev Dockerfile for Go backend with hot-reload via Air
-FROM golang:1.24-alpine
-
-# Install required tools
-RUN apk add --no-cache git bash
-
-# Install Air via Go (pin version to avoid breaking changes)
-ENV GOTOOLCHAIN=auto
-RUN go install github.com/air-verse/air@latest
-ENV PATH="/go/bin:${PATH}"
+# --- Stage 1: Build Stage ---
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Pre-fetch deps for faster startup (will be overridden by volume mount)
-COPY go.mod .
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source (for initial build; dev will use mounted volume)
 COPY . .
+RUN go build -o main ./cmd/main.go
+
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/main .
+
 
 ENV PORT=8080
 EXPOSE 8080
 
-# Default command runs Air with local config
-CMD ["air", "-c", ".air.toml"]
+CMD ["./main"]
