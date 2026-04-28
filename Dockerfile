@@ -1,42 +1,25 @@
-# 1) Build stage
-FROM golang:1.24-alpine AS builder
+# Dev Dockerfile for Go backend with hot-reload via Air
+FROM golang:1.24-alpine
 
-# ติดตั้ง dependencies ที่จำเป็นสำหรับการ Build
-RUN apk add --no-cache git build-base
+# Install required tools
+RUN apk add --no-cache git bash
 
-WORKDIR /src
-
-# คัดลอกเฉพาะไฟล์ mod ก่อนเพื่อใช้ประโยชน์จาก Docker Cache
-COPY go.mod go.sum ./
-RUN go mod download
-
-# คัดลอกโค้ดทั้งหมด
-COPY . .
-
-# ตั้งค่า Environment และ Build Binary
-# ปรับเปลี่ยน path ปลายทางให้ชัดเจน
-ENV CGO_ENABLED=0
-ENV GOOS=linux
-RUN go build -ldflags "-s -w" -o /out/app ./cmd
-
-# 2) Runtime stage
-FROM alpine:3.20
-
-# ติดตั้งใบรับรองความปลอดภัยและเครื่องมือพื้นฐาน
-RUN apk add --no-cache ca-certificates curl tzdata && update-ca-certificates
+# Install Air via Go (pin version to avoid breaking changes)
+ENV GOTOOLCHAIN=auto
+RUN go install github.com/air-verse/air@latest
+ENV PATH="/go/bin:${PATH}"
 
 WORKDIR /app
 
-# คัดลอก Binary มาจากขั้นตอน builder
-COPY --from=builder /out/app ./app
+# Pre-fetch deps for faster startup (will be overridden by volume mount)
+COPY go.mod .
+RUN go mod download
 
-# สร้าง User ใหม่ (ไม่ใช้ Root) เพื่อความปลอดภัยสูงสุด
-RUN adduser -D -H -u 10001 appuser
-USER 10001
+# Copy source (for initial build; dev will use mounted volume)
+COPY . .
 
-# ตั้งค่าตัวแปรสภาพแวดล้อมพื้นฐาน
-ENV PORT=5000
-EXPOSE 5000
+ENV PORT=8080
+EXPOSE 8080
 
-# รันแอปพลิเคชัน
-ENTRYPOINT ["/app/app"]
+# Default command runs Air with local config
+CMD ["air", "-c", ".air.toml"]
