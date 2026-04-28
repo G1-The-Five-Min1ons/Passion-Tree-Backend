@@ -54,6 +54,10 @@ jobs:
               "db-password=${{ secrets.AZURESQL_PASSWORD }}" \
               "storage-conn=${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
               "storage-key=${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}" \
+              "jwt-secret=${{ secrets.JWT_SECRET }}" \
+              "gmail-app-password=${{ secrets.GMAIL_APP_PASSWORD }}" \
+              "google-client-secret=${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+              "discord-client-secret=${{ secrets.DISCORD_CLIENT_SECRET }}"
 
           az containerapp update \
             --name ${{ env.CONTAINER_APP_NAME }} \
@@ -70,6 +74,19 @@ jobs:
               "AZURE_STORAGE_ACCOUNT_NAME=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}" \
               "CONTAINER_LEARNING_PATH=${{ secrets.CONTAINER_LEARNING_PATH }}" \
               "CONTAINER_PROFILE=${{ secrets.CONTAINER_PROFILE }}" \
+              "JWT_ACCESS_TTL=${{ secrets.JWT_ACCESS_TTL }}" \
+              "JWT_REFRESH_TTL=${{ secrets.JWT_REFRESH_TTL }}" \
+              "JWT_REFRESH_ABSOLUTE=${{ secrets.JWT_REFRESH_ABSOLUTE }}" \
+              "GMAIL_EMAIL=${{ secrets.GMAIL_EMAIL }}" \
+              "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" \
+              "GOOGLE_REDIRECT_URL=https://api.passion-tree.org/api/v1/auth/google/callback" \
+              "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}" \
+              "DISCORD_REDIRECT_URL=https://api.passion-tree.org/api/v1/auth/discord/callback" \
+              "DISCORD_NATIVE_REDIRECT_URL=https://api.passion-tree.org/api/v1/auth/discord/native/callback" \
               "AZURESQL_PASSWORD=secretref:db-password" \
               "AZURE_STORAGE_CONNECTION_STRING=secretref:storage-conn" \
-              "AZURE_STORAGE_ACCOUNT_KEY=secretref:storage-key"
+              "AZURE_STORAGE_ACCOUNT_KEY=secretref:storage-key" \
+              "JWT_SECRET=secretref:jwt-secret" \
+              "GMAIL_APP_PASSWORD=secretref:gmail-app-password" \
+              "GOOGLE_CLIENT_SECRET=secretref:google-client-secret" \
+              "DISCORD_CLIENT_SECRET=secretref:discord-client-secret"
