@@ -16,9 +16,9 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 COPY --from=builder /app/main .
+COPY --from=builder /app/internal/auth/handler/templates ./internal/auth/handler/templates
 
-
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=5000
+EXPOSE 5000
 
 CMD ["./main"]
