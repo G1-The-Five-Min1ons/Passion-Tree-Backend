@@ -66,7 +66,18 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		return h.handleError(c, apperror.NewBadRequest("invalid request body"))
 	}
 
-	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
+	// Normalize identifier so trailing spaces / casing don't cause intermittent
+	// "user not found" responses. Email is case-insensitive; username keeps its
+	// original case but with whitespace trimmed.
+	req.Identifier = strings.TrimSpace(req.Identifier)
+	if strings.Contains(req.Identifier, "@") {
+		req.Identifier = strings.ToLower(req.Identifier)
+	}
+
+	// Login does both DB lookups and an outbound Gmail SMTP call (which itself
+	// has a 10s timeout). Give the whole flow more headroom so a slow first
+	// SMTP handshake doesn't surface to the user as "user not found".
+	ctx, cancel := context.WithTimeout(c.UserContext(), 20*time.Second)
 	defer cancel()
 
 	// Extract device info for session tracking

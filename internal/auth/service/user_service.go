@@ -14,6 +14,7 @@ import (
 // Login authenticates user and returns access and refresh tokens
 // identifier can be either username or email
 func (s *userServiceImpl) Login(ctx context.Context, identifier string, password string, deviceInfo, ipAddress, userAgent string) (string, string, error) {
+	identifier = strings.TrimSpace(identifier)
 	if identifier == "" || password == "" {
 		return "", "", apperror.NewBadRequest("identifier and password are required")
 	}
@@ -24,12 +25,16 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 
 	// Check if identifier is email (contains @)
 	if strings.Contains(identifier, "@") {
-		user, err = s.repo.GetUserByEmail(ctx, identifier)
+		user, err = s.repo.GetUserByEmail(ctx, strings.ToLower(identifier))
 	} else {
 		user, err = s.repo.GetUserByUsername(ctx, identifier)
 	}
 
-	if err != nil || user == nil {
+	if err != nil {
+		s.logger.ErrorContext(ctx, "login db lookup failed", "identifier", identifier, "error", err)
+		return "", "", apperror.NewInternal("login failed, please try again")
+	}
+	if user == nil {
 		s.logger.WarnContext(ctx, "login failed: user not found", "identifier", identifier)
 		return "", "", apperror.NewUnauthorized("invalid username/email or password")
 	}
