@@ -39,6 +39,18 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		return "", "", apperror.NewUnauthorized("invalid username/email or password")
 	}
 
+	lookupType := "username"
+	if strings.Contains(identifier, "@") {
+		lookupType = "email"
+	}
+	s.logger.InfoContext(ctx, "login user resolved",
+		"identifier", identifier,
+		"lookup_type", lookupType,
+		"user_id", user.UserID,
+		"username", user.Username,
+		"email", user.Email,
+	)
+
 	deactivatedUntil, err := s.repo.GetAccountDeactivatedUntil(ctx, user.UserID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "failed to check account deactivation", "error", err, "user_id", user.UserID)

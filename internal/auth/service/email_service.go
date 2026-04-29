@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"mime"
+	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
@@ -94,16 +96,18 @@ func (s *emailServiceImpl) SendNotificationEmail(ctx context.Context, to, subjec
 
 func (s *emailServiceImpl) sendEmail(ctx context.Context, to, subject, html, text, fromName string) error {
 	// ส่งด้วย Gmail SMTP
-	return s.sendViaGmail(ctx, to, subject, html, text)
+	return s.sendViaGmail(ctx, to, subject, html, text, fromName)
 }
 
-func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBody, textBody string) error {
+func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBody, textBody, fromName string) error {
 	from := s.config.GmailEmail
 	password := s.config.GmailAppPassword
 
 	// Sanitize header values to prevent SMTP header injection
 	to = sanitizeHeaderValue(to)
 	subject = sanitizeHeaderValue(subject)
+	fromAddress := mail.Address{Name: fromName, Address: from}
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
 
 	// Generate boundary for multipart/alternative
 	boundaryBuffer := make([]byte, 16)
@@ -114,9 +118,9 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 	boundary := fmt.Sprintf("%x", boundaryBuffer)
 
 	// 1. สร้างหัวจดหมาย (Headers) - ต้องใช้ \r\n เท่านั้น
-	header := fmt.Sprintf("From: %s\r\n", from)
+	header := fmt.Sprintf("From: %s\r\n", fromAddress.String())
 	header += fmt.Sprintf("To: %s\r\n", to)
-	header += fmt.Sprintf("Subject: %s\r\n", subject)
+	header += fmt.Sprintf("Subject: %s\r\n", encodedSubject)
 	header += "MIME-Version: 1.0\r\n"
 	header += fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary)
 	header += "\r\n" // บรรทัดว่างแบ่ง Header และ Body (ห้ามขาด!)
