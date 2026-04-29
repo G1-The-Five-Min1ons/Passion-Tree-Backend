@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"mime"
+	"mime/quotedprintable"
 	"net/mail"
 	"net/smtp"
 	"strings"
@@ -28,6 +29,25 @@ func sanitizeHeaderValue(value string) string {
 	value = strings.ReplaceAll(value, "\r", "")
 	value = strings.ReplaceAll(value, "\n", "")
 	return value
+}
+
+func normalizeBodyLineEndings(value string) string {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	return strings.ReplaceAll(value, "\n", "\r\n")
+}
+
+func encodeQuotedPrintableBody(value string) (string, error) {
+	var buf bytes.Buffer
+	writer := quotedprintable.NewWriter(&buf)
+	if _, err := writer.Write([]byte(normalizeBodyLineEndings(value))); err != nil {
+		_ = writer.Close()
+		return "", err
+	}
+	if err := writer.Close(); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func (s *emailServiceImpl) SendVerificationEmail(ctx context.Context, to, token string) error {
@@ -108,10 +128,18 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 	subject = sanitizeHeaderValue(subject)
 	fromAddress := mail.Address{Name: fromName, Address: from}
 	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+	encodedTextBody, err := encodeQuotedPrintableBody(textBody)
+	if err != nil {
+		return fmt.Errorf("failed to encode text body: %w", err)
+	}
+	encodedHTMLBody, err := encodeQuotedPrintableBody(htmlBody)
+	if err != nil {
+		return fmt.Errorf("failed to encode html body: %w", err)
+	}
 
 	// Generate boundary for multipart/alternative
 	boundaryBuffer := make([]byte, 16)
-	_, err := rand.Read(boundaryBuffer)
+	_, err = rand.Read(boundaryBuffer)
 	if err != nil {
 		return fmt.Errorf("failed to generate boundary: %w", err)
 	}
@@ -131,16 +159,16 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 	// Plain text part
 	body += fmt.Sprintf("--%s\r\n", boundary)
 	body += "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: 8bit\r\n"
+	body += "Content-Transfer-Encoding: quoted-printable\r\n"
 	body += "\r\n"
-	body += textBody + "\r\n"
+	body += encodedTextBody + "\r\n"
 
 	// HTML part
 	body += fmt.Sprintf("--%s\r\n", boundary)
 	body += "Content-Type: text/html; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: 8bit\r\n"
+	body += "Content-Transfer-Encoding: quoted-printable\r\n"
 	body += "\r\n"
-	body += htmlBody + "\r\n"
+	body += encodedHTMLBody + "\r\n"
 
 	// Closing boundary
 	body += fmt.Sprintf("--%s--\r\n", boundary)
