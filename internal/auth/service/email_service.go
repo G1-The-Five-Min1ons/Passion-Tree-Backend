@@ -120,8 +120,12 @@ func (s *emailServiceImpl) sendEmail(ctx context.Context, to, subject, html, tex
 }
 
 func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBody, textBody, fromName string) error {
-	from := s.config.GmailEmail
-	password := s.config.GmailAppPassword
+	from := strings.TrimSpace(s.config.GmailEmail)
+	password := strings.ReplaceAll(strings.TrimSpace(s.config.GmailAppPassword), " ", "")
+
+	if from == "" || password == "" {
+		return fmt.Errorf("gmail credentials not configured")
+	}
 
 	// Sanitize & Encode
 	to = sanitizeHeaderValue(to)
@@ -183,8 +187,7 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 	errChan := make(chan error, 1)
 	go func() {
 		auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
-		// ส่งก้อน Message ทั้งหมด
-		errChan <- smtp.SendMail("smtp.gmail.com:587", auth, from, []string{to}, msg.Bytes())
+		errChan <- smtpSendMail("smtp.gmail.com:587", auth, from, []string{to}, msg.Bytes())
 	}()
 
 	select {
