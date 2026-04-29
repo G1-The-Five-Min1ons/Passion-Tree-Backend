@@ -24,7 +24,17 @@ type adminUpdateUserRequest struct {
 	Role      model.UserRole `json:"role"`
 }
 
-// GetAllUsers returns all users (admin only)
+// GetAllUsers godoc
+// @Summary      List all users (admin)
+// @Description  Returns every user in the system. Requires admin role.
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse  "Caller is not an admin"
+// @Failure      500  {object}  apidoc.ErrorResponse
+// @Router       /auth/admin/users [get]
 func (h *Handler) GetAllUsers(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
 	defer cancel()
@@ -45,7 +55,17 @@ func (h *Handler) GetAllUsers(c *fiber.Ctx) error {
 	})
 }
 
-// GetDashboardStats returns dashboard statistics (admin only)
+// GetDashboardStats godoc
+// @Summary      Get admin dashboard statistics
+// @Description  Returns platform-wide stats: total users, paths, enrollments, recent activity, etc.
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse
+// @Failure      500  {object}  apidoc.ErrorResponse
+// @Router       /auth/admin/dashboard/stats [get]
 func (h *Handler) GetDashboardStats(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
 	defer cancel()
@@ -66,6 +86,20 @@ func (h *Handler) GetDashboardStats(c *fiber.Ctx) error {
 	})
 }
 
+// CreateUserByAdmin godoc
+// @Summary      Create a user (admin)
+// @Description  Allows an admin to create a user account directly, optionally specifying the role.
+// @Tags         Admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      adminCreateUserRequest  true  "User payload"
+// @Success      201   {object}  apidoc.UserIDResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Failure      403   {object}  apidoc.ErrorResponse
+// @Failure      409   {object}  apidoc.ErrorResponse  "Username or email already exists"
+// @Router       /auth/admin/users [post]
 func (h *Handler) CreateUserByAdmin(c *fiber.Ctx) error {
 	var req adminCreateUserRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -104,6 +138,21 @@ func (h *Handler) CreateUserByAdmin(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateUserByAdmin godoc
+// @Summary      Update a user (admin)
+// @Description  Lets an admin update a user's first name, last name, and role.
+// @Tags         Admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        user_id  path      string                  true  "Target user ID"
+// @Param        body     body      adminUpdateUserRequest  true  "Updated fields"
+// @Success      200      {object}  apidoc.UserIDResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      403      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /auth/admin/users/{user_id} [put]
 func (h *Handler) UpdateUserByAdmin(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
 	if userID == "" {
@@ -131,6 +180,19 @@ func (h *Handler) UpdateUserByAdmin(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteUserByAdmin godoc
+// @Summary      Delete a user (admin)
+// @Description  Permanently deletes the specified user. Irreversible.
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        user_id  path      string  true  "Target user ID"
+// @Success      200      {object}  apidoc.UserIDResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      403      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /auth/admin/users/{user_id} [delete]
 func (h *Handler) DeleteUserByAdmin(c *fiber.Ctx) error {
 	userID := c.Params("user_id")
 	if userID == "" {

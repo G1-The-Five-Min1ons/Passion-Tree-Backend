@@ -8,7 +8,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// GetComments returns all comments for a node. Public read-only.
+// GetComments godoc
+// @Summary      List comments on a node
+// @Tags         Comments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string  true  "Node ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id}/comments [get]
 func (h *Handler) GetComments(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 	comments, err := h.commentSvc.GetNodeComments(ctx, c.Params("node_id"))
@@ -22,7 +30,15 @@ func (h *Handler) GetComments(c *fiber.Ctx) error {
 	})
 }
 
-// GetPathComments returns all comments for a learning path. Public read-only.
+// GetPathComments godoc
+// @Summary      List comments on a learning path
+// @Tags         Comments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/comments [get]
 func (h *Handler) GetPathComments(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 	comments, err := h.commentSvc.GetPathComments(ctx, c.Params("path_id"))
@@ -36,7 +52,19 @@ func (h *Handler) GetPathComments(c *fiber.Ctx) error {
 	})
 }
 
-// CreateComment creates a comment. The user_id is taken from the JWT token.
+// CreateComment godoc
+// @Summary      Create a comment on a node
+// @Description  Author is taken from the JWT, not the body.
+// @Tags         Comments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string                      true  "Node ID"
+// @Param        body     body      model.CreateCommentRequest  true  "Comment payload"
+// @Success      201      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id}/comments [post]
 func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 
@@ -75,7 +103,18 @@ func (h *Handler) CreateComment(c *fiber.Ctx) error {
 	})
 }
 
-// CreatePathComment creates a comment for a learning path. The user_id is taken from the JWT token.
+// CreatePathComment godoc
+// @Summary      Create a comment on a learning path
+// @Tags         Comments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string                      true  "Learning path ID"
+// @Param        body     body      model.CreateCommentRequest  true  "Comment payload"
+// @Success      201      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/comments [post]
 func (h *Handler) CreatePathComment(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 
@@ -114,8 +153,21 @@ func (h *Handler) CreatePathComment(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateComment updates a comment. Only the token owner can update their own comment.
-// Returns 403 if the comment belongs to another user.
+// UpdateComment godoc
+// @Summary      Update one of your own comments
+// @Description  Returns 403 if the comment belongs to another user.
+// @Tags         Comments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        comment_id  path      string                      true  "Comment ID"
+// @Param        body        body      model.UpdateCommentRequest  true  "Updated message"
+// @Success      200         {object}  apidoc.SuccessResponse
+// @Failure      400         {object}  apidoc.ErrorResponse
+// @Failure      401         {object}  apidoc.ErrorResponse
+// @Failure      403         {object}  apidoc.ErrorResponse
+// @Failure      404         {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/comments/{comment_id} [put]
 func (h *Handler) UpdateComment(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 	commentID := c.Params("comment_id")
@@ -150,7 +202,17 @@ func (h *Handler) UpdateComment(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteComment deletes a comment. Only the token owner can delete their own comment.
+// DeleteComment godoc
+// @Summary      Delete one of your own comments
+// @Tags         Comments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        comment_id  path      string  true  "Comment ID"
+// @Success      200         {object}  apidoc.SuccessResponse
+// @Failure      401         {object}  apidoc.ErrorResponse
+// @Failure      403         {object}  apidoc.ErrorResponse
+// @Failure      404         {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/comments/{comment_id} [delete]
 func (h *Handler) DeleteComment(c *fiber.Ctx) error {
 	commentID := c.Params("comment_id")
 	ctx := c.UserContext()
@@ -175,7 +237,19 @@ func (h *Handler) DeleteComment(c *fiber.Ctx) error {
 	})
 }
 
-// CreateReaction adds a reaction to a comment. Requires authentication.
+// CreateReaction godoc
+// @Summary      Toggle a reaction on a comment
+// @Description  Adds the reaction if it doesn't exist; removes it if the same user has already reacted.
+// @Tags         Comments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        comment_id  path      string                       true  "Comment ID"
+// @Param        body        body      model.CreateReactionRequest  true  "Reaction type"
+// @Success      200         {object}  apidoc.SuccessResponse
+// @Failure      400         {object}  apidoc.ErrorResponse
+// @Failure      401         {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/comments/{comment_id}/reactions [post]
 func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	commentID := c.Params("comment_id")
 	ctx := c.UserContext()
@@ -219,8 +293,19 @@ func (h *Handler) CreateReaction(c *fiber.Ctx) error {
 	})
 }
 
-// CreateMention creates a mention on a comment.
-// mentioner_user_id is sourced from the JWT token; mentioned_user_id is from the request body.
+// CreateMention godoc
+// @Summary      Mention another user in a comment
+// @Description  The mentioning user is taken from the JWT; the mentioned user comes from the request body.
+// @Tags         Comments
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        comment_id  path      string                      true  "Comment ID"
+// @Param        body        body      model.CreateMentionRequest  true  "Mentioned user payload"
+// @Success      201         {object}  apidoc.SuccessResponse
+// @Failure      400         {object}  apidoc.ErrorResponse
+// @Failure      401         {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/comments/{comment_id}/mentions [post]
 func (h *Handler) CreateMention(c *fiber.Ctx) error {
 	ctx := c.UserContext()
 

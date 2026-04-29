@@ -1,0 +1,4449 @@
+basePath: /api/v1
+definitions:
+  apidoc.AuthURLPayload:
+    properties:
+      auth_url:
+        example: https://accounts.google.com/o/oauth2/v2/auth?...
+        type: string
+    type: object
+  apidoc.AuthURLResponse:
+    properties:
+      data:
+        $ref: '#/definitions/apidoc.AuthURLPayload'
+      message:
+        example: Google OAuth URL generated
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  apidoc.ErrorResponse:
+    properties:
+      error:
+        example: invalid request body
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  apidoc.MessageResponse:
+    properties:
+      message:
+        example: Operation completed successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  apidoc.OTPRequiredResponse:
+    properties:
+      message:
+        example: OTP verification required
+        type: string
+      requires_otp:
+        example: true
+        type: boolean
+      success:
+        example: true
+        type: boolean
+    type: object
+  apidoc.ReactivationRequiredResponse:
+    properties:
+      grace_period_days:
+        example: 30
+        type: integer
+      message:
+        example: Account is deactivated
+        type: string
+      requires_reactivation:
+        example: true
+        type: boolean
+      success:
+        example: true
+        type: boolean
+    type: object
+  apidoc.SuccessResponse:
+    properties:
+      data: {}
+      message:
+        example: Operation completed successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  apidoc.TokenPair:
+    properties:
+      access_token:
+        example: eyJhbGciOi...
+        type: string
+      refresh_token:
+        example: eyJhbGciOi...
+        type: string
+    type: object
+  apidoc.TokenPairResponse:
+    properties:
+      data:
+        $ref: '#/definitions/apidoc.TokenPair'
+      message:
+        example: Login successful
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  apidoc.UserIDPayload:
+    properties:
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  apidoc.UserIDResponse:
+    properties:
+      data:
+        $ref: '#/definitions/apidoc.UserIDPayload'
+      message:
+        example: User registered successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  internal_auth_handler.adminCreateUserRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
+      username:
+        type: string
+    type: object
+  internal_auth_handler.adminUpdateUserRequest:
+    properties:
+      first_name:
+        type: string
+      last_name:
+        type: string
+      role:
+        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
+    type: object
+  passiontree_internal_auth_model.ApplyTeacherRequest:
+    properties:
+      phone_number:
+        type: string
+      reason:
+        type: string
+      teaching_history:
+        type: string
+    type: object
+  passiontree_internal_auth_model.ChangePasswordRequest:
+    properties:
+      new_password:
+        type: string
+      old_password:
+        type: string
+    type: object
+  passiontree_internal_auth_model.ConfirmAccountLinkRequest:
+    properties:
+      confirm:
+        type: boolean
+      link_token:
+        type: string
+    type: object
+  passiontree_internal_auth_model.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    type: object
+  passiontree_internal_auth_model.LoginRequest:
+    properties:
+      identifier:
+        description: รองรับทั้ง Username หรือ Email
+        type: string
+      password:
+        type: string
+    type: object
+  passiontree_internal_auth_model.LogoutRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  passiontree_internal_auth_model.NativeDiscordSignInRequest:
+    properties:
+      code:
+        type: string
+    type: object
+  passiontree_internal_auth_model.NativeGoogleSignInRequest:
+    properties:
+      id_token:
+        type: string
+    type: object
+  passiontree_internal_auth_model.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  passiontree_internal_auth_model.RegisterRequest:
+    properties:
+      avatar_url:
+        type: string
+      bio:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      location:
+        type: string
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
+      username:
+        type: string
+    type: object
+  passiontree_internal_auth_model.ResendVerificationRequest:
+    properties:
+      email:
+        type: string
+    type: object
+  passiontree_internal_auth_model.ResetPasswordRequest:
+    properties:
+      code:
+        type: string
+      new_password:
+        type: string
+    type: object
+  passiontree_internal_auth_model.ReviewTeacherApplicationRequest:
+    properties:
+      status:
+        type: string
+    type: object
+  passiontree_internal_auth_model.UpdateProfileRequest:
+    properties:
+      avatar_url:
+        type: string
+      bio:
+        type: string
+      date_format:
+        type: string
+      location:
+        type: string
+      phone_number:
+        type: string
+      time_zone:
+        type: string
+    type: object
+  passiontree_internal_auth_model.UpdateUserRequest:
+    properties:
+      first_name:
+        type: string
+      last_name:
+        type: string
+      role:
+        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
+    type: object
+  passiontree_internal_auth_model.UserRole:
+    enum:
+    - student
+    - teacher
+    - admin
+    - pending
+    type: string
+    x-enum-varnames:
+    - RoleStudent
+    - RoleTeacher
+    - RoleAdmin
+    - RolePending
+  passiontree_internal_auth_model.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.AIGeneratePathRequest:
+    properties:
+      topic:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.CreateChoiceRequest:
+    properties:
+      choice_text:
+        type: string
+      is_correct:
+        type: boolean
+      question_id:
+        type: string
+      reasoning:
+        type: string
+    required:
+    - choice_text
+    type: object
+  passiontree_internal_learning-path_model.CreateCommentRequest:
+    properties:
+      message:
+        type: string
+      node_id:
+        type: string
+      parent_id:
+        type: string
+      path_id:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.CreateMaterialRequest:
+    properties:
+      node_id:
+        type: string
+      type:
+        type: string
+      url:
+        type: string
+    required:
+    - type
+    - url
+    type: object
+  passiontree_internal_learning-path_model.CreateMentionRequest:
+    properties:
+      mentioned_user_id:
+        description: Sent by client — who is being mentioned
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.CreateNodeRequest:
+    properties:
+      Question:
+        items:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateQuestionWithChoices'
+        type: array
+      description:
+        type: string
+      link_vdo:
+        type: string
+      material:
+        items:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateMaterialRequest'
+        type: array
+      path_id:
+        type: string
+      sequence:
+        type: string
+      title:
+        type: string
+    required:
+    - link_vdo
+    - path_id
+    - sequence
+    - title
+    type: object
+  passiontree_internal_learning-path_model.CreatePathRequest:
+    properties:
+      cover_img_url:
+        type: string
+      creator_id:
+        type: string
+      description:
+        type: string
+      objective:
+        type: string
+      publish_status:
+        type: string
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  passiontree_internal_learning-path_model.CreateQuestionRequest:
+    properties:
+      node_id:
+        type: string
+      question_text:
+        type: string
+      type:
+        type: string
+    required:
+    - question_text
+    - type
+    type: object
+  passiontree_internal_learning-path_model.CreateQuestionWithChoices:
+    properties:
+      choice:
+        items:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateChoiceRequest'
+        type: array
+      node_id:
+        type: string
+      question_text:
+        type: string
+      type:
+        type: string
+    required:
+    - question_text
+    - type
+    type: object
+  passiontree_internal_learning-path_model.CreateReactionRequest:
+    properties:
+      reaction_type:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.RatingRequest:
+    properties:
+      rating_content:
+        type: integer
+      rating_instruct:
+        type: integer
+    required:
+    - rating_content
+    - rating_instruct
+    type: object
+  passiontree_internal_learning-path_model.ReorderNodesRequest:
+    properties:
+      node_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - node_ids
+    type: object
+  passiontree_internal_learning-path_model.SearchPathRequest:
+    properties:
+      filters:
+        additionalProperties: true
+        type: object
+      query:
+        type: string
+      top_k:
+        type: integer
+    required:
+    - query
+    type: object
+  passiontree_internal_learning-path_model.UpdateChoiceRequest:
+    properties:
+      choice_text:
+        type: string
+      is_correct:
+        type: boolean
+      reasoning:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.UpdateCommentRequest:
+    properties:
+      message:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.UpdateImageRequest:
+    properties:
+      cover_image_url:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.UpdateMaterialRequest:
+    properties:
+      type:
+        type: string
+      url:
+        type: string
+    required:
+    - type
+    - url
+    type: object
+  passiontree_internal_learning-path_model.UpdateNodeRequest:
+    properties:
+      description:
+        type: string
+      link_vdo:
+        type: string
+      materials:
+        items:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateMaterialRequest'
+        type: array
+      title:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.UpdatePathRequest:
+    properties:
+      cover_img_url:
+        type: string
+      description:
+        type: string
+      objective:
+        type: string
+      publish_status:
+        type: string
+      title:
+        type: string
+    type: object
+  passiontree_internal_learning-path_model.UpdateQuestionRequest:
+    properties:
+      question_text:
+        type: string
+      type:
+        type: string
+    type: object
+  passiontree_internal_mission_model.CreateTemplateRequest:
+    properties:
+      condition_type:
+        type: string
+      description:
+        type: string
+      reward_heart:
+        type: integer
+      reward_xp:
+        type: integer
+      target_value:
+        type: integer
+      title:
+        type: string
+    required:
+    - condition_type
+    - reward_xp
+    - target_value
+    - title
+    type: object
+  passiontree_internal_onboarding_model.SaveOnboardingRequest:
+    properties:
+      daily_goal:
+        description: single selection
+        type: string
+      knowledge_level:
+        description: single selection
+        type: string
+      learning_styles:
+        description: multiple selections
+        items:
+          type: string
+        type: array
+      motivation:
+        description: single selection
+        type: string
+      reflection_habit:
+        description: single selection
+        type: string
+      subjects:
+        description: multiple selections
+        items:
+          type: string
+        type: array
+    type: object
+  passiontree_internal_reflection_model.CreateAlbumRequest:
+    properties:
+      album_name:
+        type: string
+      cover_image_url:
+        type: string
+      user_id:
+        type: string
+    type: object
+  passiontree_internal_reflection_model.CreateReflectionRequest:
+    properties:
+      challenge_score:
+        type: number
+      feel_score:
+        type: number
+      learning_reflect:
+        type: string
+      mood_reflect:
+        type: string
+      progress_score:
+        type: number
+      tree_node_id:
+        type: string
+    type: object
+  passiontree_internal_reflection_model.CreateTreeNodeRequest:
+    properties:
+      child_node:
+        type: string
+      node_id:
+        type: string
+      node_title:
+        type: string
+      tree_id:
+        type: string
+    required:
+    - node_title
+    - tree_id
+    type: object
+  passiontree_internal_reflection_model.CreateTreeRequest:
+    properties:
+      album_id:
+        type: string
+      difficulties:
+        type: string
+      path_id:
+        type: string
+      title:
+        type: string
+    required:
+    - album_id
+    - difficulties
+    - path_id
+    - title
+    type: object
+  passiontree_internal_reflection_model.PauseTreeRequest:
+    properties:
+      pause_from:
+        type: string
+      paused_at:
+        type: string
+    type: object
+  passiontree_internal_reflection_model.UpdateAlbumRequest:
+    properties:
+      album_name:
+        type: string
+      cover_image_url:
+        type: string
+    type: object
+  passiontree_internal_reflection_model.UpdateReflectionRequest:
+    properties:
+      challenge_score:
+        type: number
+      feel_score:
+        type: number
+      learning_reflect:
+        type: string
+      mood_reflect:
+        type: string
+      progress_score:
+        type: number
+    type: object
+  passiontree_internal_reflection_model.UpdateTreeNodeRequest:
+    properties:
+      child_node:
+        type: string
+      node_score:
+        type: number
+      node_title:
+        type: string
+    type: object
+  passiontree_internal_reflection_model.UpdateTreeRequest:
+    properties:
+      album_id:
+        type: string
+      title:
+        type: string
+    type: object
+  passiontree_internal_setting_model.SettingRequest:
+    properties:
+      key:
+        type: string
+      value:
+        type: string
+    required:
+    - key
+    - value
+    type: object
+  passiontree_internal_upload_model.UploadImageRequest:
+    properties:
+      filename:
+        type: string
+      folder:
+        type: string
+    type: object
+host: api.passion-tree.org
+info:
+  contact:
+    name: Passion Tree Team
+    url: https://passion-tree.org
+  description: |-
+    REST API documentation for the Passion Tree learning platform.
+    Use the "Authorize" button and paste a valid JWT (without the "Bearer " prefix) to call protected endpoints.
+  license:
+    name: Proprietary
+  termsOfService: http://swagger.io/terms/
+  title: Passion Tree Backend API
+  version: "1.0"
+paths:
+  /admin/missions/templates:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all mission templates (admin)
+      tags:
+      - Missions
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Mission template payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_mission_model.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a mission template (admin)
+      tags:
+      - Missions
+  /admin/missions/templates/{id}:
+    delete:
+      parameters:
+      - description: Mission template ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a mission template (admin)
+      tags:
+      - Missions
+  /albums:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List albums for the authenticated user
+      tags:
+      - Albums
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Album payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.CreateAlbumRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an album
+      tags:
+      - Albums
+  /albums/{album_id}:
+    delete:
+      parameters:
+      - description: Album ID
+        in: path
+        name: album_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete an album
+      tags:
+      - Albums
+    get:
+      parameters:
+      - description: Album ID
+        in: path
+        name: album_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get an album by ID
+      tags:
+      - Albums
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Album ID
+        in: path
+        name: album_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateAlbumRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an album
+      tags:
+      - Albums
+  /auth/admin/dashboard/stats:
+    get:
+      description: 'Returns platform-wide stats: total users, paths, enrollments,
+        recent activity, etc.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get admin dashboard statistics
+      tags:
+      - Admin
+  /auth/admin/teacher-applications:
+    get:
+      description: Returns teacher applications filtered by status. Defaults to pending.
+      parameters:
+      - description: Filter by status (pending, approved, rejected)
+        enum:
+        - pending
+        - approved
+        - rejected
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List teacher applications (admin)
+      tags:
+      - Admin
+  /auth/admin/teacher-applications/{request_id}:
+    put:
+      consumes:
+      - application/json
+      description: Approves or rejects the specified teacher application.
+      parameters:
+      - description: Teacher application ID
+        in: path
+        name: request_id
+        required: true
+        type: string
+      - description: Decision payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.ReviewTeacherApplicationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Review a teacher application (admin)
+      tags:
+      - Admin
+  /auth/admin/users:
+    get:
+      description: Returns every user in the system. Requires admin role.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Caller is not an admin
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all users (admin)
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      description: Allows an admin to create a user account directly, optionally specifying
+        the role.
+      parameters:
+      - description: User payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth_handler.adminCreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "409":
+          description: Username or email already exists
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a user (admin)
+      tags:
+      - Admin
+  /auth/admin/users/{user_id}:
+    delete:
+      description: Permanently deletes the specified user. Irreversible.
+      parameters:
+      - description: Target user ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a user (admin)
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      description: Lets an admin update a user's first name, last name, and role.
+      parameters:
+      - description: Target user ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth_handler.adminUpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a user (admin)
+      tags:
+      - Admin
+  /auth/change-password:
+    put:
+      consumes:
+      - application/json
+      description: Updates the password for the JWT-authenticated user after verifying
+        the old password.
+      parameters:
+      - description: Old and new passwords
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Wrong old password or invalid session
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Change password (authenticated)
+      tags:
+      - Auth
+  /auth/confirm-link:
+    post:
+      consumes:
+      - application/json
+      description: Called after a social login returns a link-confirmation requirement.
+        If `confirm=true`, the social identity is linked to the existing local account.
+      parameters:
+      - description: Link token and decision
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.ConfirmAccountLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Confirm or decline OAuth account linking
+      tags:
+      - Social Auth
+  /auth/deactivate:
+    post:
+      description: Marks the account as deactivated for the configured grace period
+        and revokes all active refresh sessions.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Temporarily deactivate the authenticated user's account
+      tags:
+      - Auth
+  /auth/discord:
+    get:
+      description: Returns a Discord authorization URL the client should redirect
+        to.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.AuthURLResponse'
+      summary: Initiate Discord OAuth2 login (web)
+      tags:
+      - Social Auth
+  /auth/discord/callback:
+    get:
+      description: Exchanges the OAuth code for tokens and either logs the user in
+        or returns a link-confirmation payload.
+      parameters:
+      - description: Authorization code from Discord
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: CSRF state echoed from /auth/discord
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "300":
+          description: Account linking confirmation required
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Discord OAuth2 callback (web)
+      tags:
+      - Social Auth
+  /auth/discord/native/callback:
+    get:
+      description: Discord redirects here with ?code=...; this endpoint serves an
+        HTML page that immediately redirects to the mobile app's custom URL scheme
+        so flutter_web_auth_2 can capture the code.
+      parameters:
+      - description: Authorization code from Discord
+        in: query
+        name: code
+        type: string
+      - description: Error code from Discord
+        in: query
+        name: error
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML redirect page
+          schema:
+            type: string
+      summary: Discord OAuth2 native bridge
+      tags:
+      - Social Auth
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Always returns 200 to avoid leaking whether an email exists in
+        the system.
+      parameters:
+      - description: Email to send reset code to
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Request password reset email
+      tags:
+      - Auth
+  /auth/google:
+    get:
+      description: |-
+        Returns a Google authorization URL the client should redirect to.
+        Sets a CSRF state cookie that must be echoed back on callback.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.AuthURLResponse'
+      summary: Initiate Google OAuth2 login (web)
+      tags:
+      - Social Auth
+  /auth/google/callback:
+    get:
+      description: Exchanges the OAuth code for tokens and either logs the user in
+        or returns a link-confirmation payload if the email already maps to another
+        account.
+      parameters:
+      - description: Authorization code from Google
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: CSRF state echoed from /auth/google
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "300":
+          description: Account linking confirmation required
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Google OAuth2 callback (web)
+      tags:
+      - Social Auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Logs in with username/email + password and returns access & refresh tokens.
+        May also return `requires_otp` or `requires_reactivation` flags instead of tokens.
+      parameters:
+      - description: Set to 'true' to confirm reactivation of a deactivated account
+        in: query
+        name: confirm_reactivate
+        type: string
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Account deactivated, awaiting reactivation confirmation
+          schema:
+            $ref: '#/definitions/apidoc.ReactivationRequiredResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "429":
+          description: Too many login attempts
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Authenticate a user
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        If a refresh_token is provided in the body, only that session is revoked.
+        Otherwise all refresh tokens for the user are revoked.
+      parameters:
+      - description: Optional specific refresh token to revoke
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout (revoke refresh tokens)
+      tags:
+      - Auth
+  /auth/native/discord:
+    post:
+      consumes:
+      - application/json
+      description: Exchanges a Discord OAuth code captured by the mobile client for
+        access & refresh tokens.
+      parameters:
+      - description: Discord OAuth code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.NativeDiscordSignInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Native Discord Sign-In (mobile)
+      tags:
+      - Social Auth
+  /auth/native/google:
+    post:
+      consumes:
+      - application/json
+      description: Verifies a Google ID token coming from a mobile client and returns
+        access & refresh tokens.
+      parameters:
+      - description: Google ID token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.NativeGoogleSignInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Invalid ID token
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Native Google Sign-In (mobile)
+      tags:
+      - Social Auth
+  /auth/profile:
+    get:
+      description: Returns the user object and profile of the JWT-authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Account deactivated
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get authenticated user's profile
+      tags:
+      - Profile
+    put:
+      consumes:
+      - application/json
+      description: Updates avatar, location, bio, phone, time zone and date format
+        for the JWT-authenticated user.
+      parameters:
+      - description: Profile fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update authenticated user's profile
+      tags:
+      - Profile
+  /auth/reactivate:
+    post:
+      description: Clears the deactivation flag for the JWT-authenticated user, restoring
+        access immediately.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reactivate a deactivated account
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Exchanges a valid refresh token for a new access token and a freshly
+        rotated refresh token.
+      parameters:
+      - description: Refresh token payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.TokenPairResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Refresh token expired or revoked
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Rotate access & refresh tokens
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account with associated profile information.
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "400":
+          description: Invalid request body or invalid role
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "409":
+          description: Username or email already exists
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - Auth
+  /auth/resend-verification:
+    post:
+      consumes:
+      - application/json
+      description: Sends a fresh verification code to the supplied email if the account
+        exists and is unverified.
+      parameters:
+      - description: Email to resend to
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.ResendVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Resend the email-verification code
+      tags:
+      - Auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Updates the user's password if the supplied reset code is valid.
+      parameters:
+      - description: Reset code and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Invalid code or password
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Reset password using a reset code
+      tags:
+      - Auth
+  /auth/sessions:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Returns the list of active refresh-token sessions for the authenticated user.
+        Pass the current refresh token in the body to flag the current session in the response.
+      parameters:
+      - description: Optional current refresh token
+        in: body
+        name: body
+        schema:
+          properties:
+            current_refresh_token:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List active sessions / devices
+      tags:
+      - Sessions
+  /auth/sessions/{session_id}:
+    delete:
+      description: Revokes the refresh token associated with the given session ID.
+      parameters:
+      - description: Session ID to revoke
+        in: path
+        name: session_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout a specific session/device
+      tags:
+      - Sessions
+  /auth/teacher/apply:
+    post:
+      consumes:
+      - application/json
+      description: Submits a teacher-role application with phone, reason, and teaching
+        history. Requires authentication.
+      parameters:
+      - description: Application payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.ApplyTeacherRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "409":
+          description: Application already exists
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Apply for teacher role
+      tags:
+      - Teacher
+  /auth/teacher/verification-status:
+    get:
+      description: Returns pending/approved/rejected state plus review metadata for
+        the user's teacher application.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: No application submitted yet
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the authenticated user's teacher application status
+      tags:
+      - Teacher
+  /auth/user:
+    delete:
+      consumes:
+      - application/json
+      description: Requires password confirmation in the request body. This action
+        is irreversible.
+      parameters:
+      - description: Password confirmation
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Permanently delete the authenticated user
+      tags:
+      - Profile
+    put:
+      consumes:
+      - application/json
+      description: Updates first name, last name, and optionally role for the JWT-authenticated
+        user.
+      parameters:
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.UserIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update authenticated user's basic info
+      tags:
+      - Profile
+  /auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Confirms a user's email using the one-time code sent at registration
+        and immediately issues access & refresh tokens.
+      parameters:
+      - description: Verification code
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_auth_model.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.TokenPairResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Verify email and auto-login
+      tags:
+      - Auth
+  /batch/recommendation/trigger:
+    post:
+      description: Starts an async job that recomputes home-screen recommendations
+        for all users.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "409":
+          description: Batch already running
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Manually trigger the daily recommendation batch (admin)
+      tags:
+      - Admin
+  /dashboard:
+    get:
+      description: Returns aggregated stats for the user (paths in progress, reflections
+        count, mission progress, etc.).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the authenticated user's personal dashboard
+      tags:
+      - Dashboard
+  /health:
+    get:
+      description: Returns liveness/readiness for the orchestrator service plus DB
+        and Azure Storage connectivity.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Database is disconnected
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Service health check
+      tags:
+      - Health
+  /home/recommendation:
+    get:
+      description: Returns the precomputed daily recommendation set for the home screen.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get home-screen recommendations for the authenticated user
+      tags:
+      - Recommendations
+  /learningpaths:
+    get:
+      description: Returns every published learning path (public catalog).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all learning paths
+      tags:
+      - Learning Paths
+    post:
+      consumes:
+      - application/json
+      description: Creates a new learning path owned by the authenticated user.
+      parameters:
+      - description: Learning path payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreatePathRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a learning path
+      tags:
+      - Learning Paths
+  /learningpaths/{path_id}:
+    delete:
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Not the owner
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a learning path
+      tags:
+      - Learning Paths
+    get:
+      description: Returns full details (nodes, materials, ratings) of a single learning
+        path.
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a learning path by ID
+      tags:
+      - Learning Paths
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdatePathRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a learning path
+      tags:
+      - Learning Paths
+  /learningpaths/{path_id}/comments:
+    get:
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List comments on a learning path
+      tags:
+      - Comments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      - description: Comment payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a comment on a learning path
+      tags:
+      - Comments
+  /learningpaths/{path_id}/nodes:
+    get:
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List nodes within a learning path
+      tags:
+      - Nodes
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      - description: Node payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateNodeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add a node to a learning path
+      tags:
+      - Nodes
+  /learningpaths/{path_id}/nodes/reorder:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      - description: Ordered list of node IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.ReorderNodesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reorder nodes within a learning path
+      tags:
+      - Nodes
+  /learningpaths/{path_id}/ratings:
+    delete:
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remove the authenticated user's rating from a path
+      tags:
+      - Ratings
+    get:
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the authenticated user's rating for a path
+      tags:
+      - Ratings
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      - description: Rating value and review
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.RatingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit or update a rating for a learning path
+      tags:
+      - Ratings
+  /learningpaths/{path_id}/start:
+    post:
+      description: Enrolls the authenticated user in the given learning path.
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "409":
+          description: Already enrolled
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Enroll in a learning path
+      tags:
+      - Learning Paths
+  /learningpaths/comments/{comment_id}:
+    delete:
+      parameters:
+      - description: Comment ID
+        in: path
+        name: comment_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete one of your own comments
+      tags:
+      - Comments
+    put:
+      consumes:
+      - application/json
+      description: Returns 403 if the comment belongs to another user.
+      parameters:
+      - description: Comment ID
+        in: path
+        name: comment_id
+        required: true
+        type: string
+      - description: Updated message
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update one of your own comments
+      tags:
+      - Comments
+  /learningpaths/comments/{comment_id}/mentions:
+    post:
+      consumes:
+      - application/json
+      description: The mentioning user is taken from the JWT; the mentioned user comes
+        from the request body.
+      parameters:
+      - description: Comment ID
+        in: path
+        name: comment_id
+        required: true
+        type: string
+      - description: Mentioned user payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateMentionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mention another user in a comment
+      tags:
+      - Comments
+  /learningpaths/comments/{comment_id}/reactions:
+    post:
+      consumes:
+      - application/json
+      description: Adds the reaction if it doesn't exist; removes it if the same user
+        has already reacted.
+      parameters:
+      - description: Comment ID
+        in: path
+        name: comment_id
+        required: true
+        type: string
+      - description: Reaction type
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateReactionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Toggle a reaction on a comment
+      tags:
+      - Comments
+  /learningpaths/debug/collection/{collection_name}:
+    get:
+      description: Returns size, vector count, and config for the named Qdrant collection.
+        Defaults to learning_paths.
+      parameters:
+      - description: Qdrant collection name
+        in: path
+        name: collection_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get vector collection debug info
+      tags:
+      - Search
+  /learningpaths/generate:
+    post:
+      consumes:
+      - application/json
+      description: Calls the AI service to draft a complete learning path for the
+        given topic.
+      parameters:
+      - description: Topic to generate
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.AIGeneratePathRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "502":
+          description: AI service error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Generate a learning path with AI
+      tags:
+      - Learning Paths
+  /learningpaths/nodes/{node_id}:
+    delete:
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a node
+      tags:
+      - Nodes
+    get:
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a single node's details
+      tags:
+      - Nodes
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateNodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a node
+      tags:
+      - Nodes
+  /learningpaths/nodes/{node_id}/comments:
+    get:
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List comments on a node
+      tags:
+      - Comments
+    post:
+      consumes:
+      - application/json
+      description: Author is taken from the JWT, not the body.
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Comment payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a comment on a node
+      tags:
+      - Comments
+  /learningpaths/nodes/{node_id}/complete:
+    put:
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark a node as completed
+      tags:
+      - Nodes
+  /learningpaths/nodes/{node_id}/materials:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Material payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateMaterialRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add learning material to a node
+      tags:
+      - Nodes
+  /learningpaths/nodes/{node_id}/questions:
+    get:
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List quiz questions for a node
+      tags:
+      - Quiz
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      - description: Question payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateQuestionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add a quiz question to a node
+      tags:
+      - Quiz
+  /learningpaths/nodes/{node_id}/start:
+    put:
+      parameters:
+      - description: Node ID
+        in: path
+        name: node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Mark a node as started/active
+      tags:
+      - Nodes
+  /learningpaths/nodes/materials/{material_id}:
+    delete:
+      parameters:
+      - description: Material ID
+        in: path
+        name: material_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a learning material
+      tags:
+      - Nodes
+  /learningpaths/questions/{question_id}:
+    delete:
+      parameters:
+      - description: Question ID
+        in: path
+        name: question_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a quiz question
+      tags:
+      - Quiz
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Question ID
+        in: path
+        name: question_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateQuestionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a quiz question
+      tags:
+      - Quiz
+  /learningpaths/questions/{question_id}/choices:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Question ID
+        in: path
+        name: question_id
+        required: true
+        type: string
+      - description: Choice payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateChoiceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Add a choice to a quiz question
+      tags:
+      - Quiz
+  /learningpaths/questions/choices/{choice_id}:
+    delete:
+      parameters:
+      - description: Choice ID
+        in: path
+        name: choice_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a quiz choice
+      tags:
+      - Quiz
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Choice ID
+        in: path
+        name: choice_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateChoiceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a quiz choice
+      tags:
+      - Quiz
+  /learningpaths/search:
+    post:
+      consumes:
+      - application/json
+      description: Sends the query to the AI service which performs vector search
+        over the learning-path collection.
+      parameters:
+      - description: Search query
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.SearchPathRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "502":
+          description: AI service error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Semantic search learning paths
+      tags:
+      - Search
+  /learningpaths/sync/{path_id}:
+    post:
+      description: Pushes the specified learning path's data into the AI service's
+        vector DB.
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Sync a single learning path to Qdrant
+      tags:
+      - Search
+  /learningpaths/sync/bulk:
+    post:
+      description: Starts an async job that pushes every learning path in SQL to the
+        vector DB. Returns a task_id to poll.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "409":
+          description: Another bulk sync is already running
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Bulk sync all learning paths to Qdrant (admin)
+      tags:
+      - Admin
+  /learningpaths/sync/reconcile:
+    post:
+      description: Starts an async job that deletes stale vectors and syncs missing
+        ones. Returns a task_id to poll.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Reconcile Qdrant with SQL (admin)
+      tags:
+      - Admin
+  /learningpaths/sync/tasks/{task_id}:
+    get:
+      parameters:
+      - description: Task ID returned by /sync/bulk or /sync/reconcile
+        in: path
+        name: task_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Poll an async sync/reconcile task (admin)
+      tags:
+      - Admin
+  /learningpaths/uploadimg:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: New cover image URL
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateImageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update learning path cover image URL
+      tags:
+      - Learning Paths
+  /learningpaths/user/enroll:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List paths the authenticated user is enrolled in
+      tags:
+      - Learning Paths
+  /onboarding:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the authenticated user's onboarding answers
+      tags:
+      - Onboarding
+    post:
+      consumes:
+      - application/json
+      description: Persists the user's onboarding survey answers (interests, goals,
+        etc.).
+      parameters:
+      - description: Onboarding answers
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_onboarding_model.SaveOnboardingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Save onboarding answers
+      tags:
+      - Onboarding
+  /reflect/recommendation:
+    get:
+      description: Returns personalized learning paths derived from the given reflection
+        tree's content.
+      parameters:
+      - description: Reflection tree ID
+        in: query
+        name: tree_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get learning-path recommendations from a reflection tree
+      tags:
+      - Recommendations
+  /reflections:
+    get:
+      description: Supports filtering by tree_node_id / tree_id / album_id / user_id
+        and keyset pagination via before_created_at + before_reflect_id (must be passed
+        together).
+      parameters:
+      - description: Page size (default 50)
+        in: query
+        name: limit
+        type: integer
+      - description: RFC3339Nano timestamp for keyset pagination
+        in: query
+        name: before_created_at
+        type: string
+      - description: Reflection ID for keyset pagination
+        in: query
+        name: before_reflect_id
+        type: string
+      - description: Filter by tree node ID
+        in: query
+        name: tree_node_id
+        type: string
+      - description: Filter by tree ID
+        in: query
+        name: tree_id
+        type: string
+      - description: Filter by album ID
+        in: query
+        name: album_id
+        type: string
+      - description: Filter by user ID
+        in: query
+        name: user_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List reflections with keyset pagination
+      tags:
+      - Reflections
+    post:
+      consumes:
+      - application/json
+      description: Creates a new reflection (a journal-style entry) for the authenticated
+        user.
+      parameters:
+      - description: Reflection payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.CreateReflectionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a reflection
+      tags:
+      - Reflections
+  /reflections/{reflect_id}:
+    delete:
+      parameters:
+      - description: Reflection ID
+        in: path
+        name: reflect_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a reflection
+      tags:
+      - Reflections
+    get:
+      parameters:
+      - description: Reflection ID
+        in: path
+        name: reflect_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a single reflection
+      tags:
+      - Reflections
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Reflection ID
+        in: path
+        name: reflect_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateReflectionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a reflection
+      tags:
+      - Reflections
+  /reflections/stats:
+    get:
+      description: Returns aggregate reflection counts and trends across the platform.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get reflection statistics
+      tags:
+      - Reflections
+  /settings/:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all settings for the authenticated user
+      tags:
+      - Settings
+    put:
+      consumes:
+      - application/json
+      description: Accepts an array of {key, value} entries and persists them in one
+        transaction.
+      parameters:
+      - description: Array of setting requests
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/passiontree_internal_setting_model.SettingRequest'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Bulk update settings (atomic transaction)
+      tags:
+      - Settings
+  /settings/{key}:
+    delete:
+      parameters:
+      - description: Setting key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a setting by key
+      tags:
+      - Settings
+    get:
+      parameters:
+      - description: Setting key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a specific setting by key
+      tags:
+      - Settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Setting key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Setting payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_setting_model.SettingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a single setting by key
+      tags:
+      - Settings
+  /system/missions/auto-assign:
+    post:
+      description: Forces the weekly mission assignment routine to run immediately
+        for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Manually trigger weekly mission auto-assignment for the current user
+      tags:
+      - Missions
+  /tree-nodes:
+    get:
+      parameters:
+      - description: Tree ID
+        in: query
+        name: tree_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List tree nodes belonging to a tree
+      tags:
+      - Tree Nodes
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tree node payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.CreateTreeNodeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a tree node
+      tags:
+      - Tree Nodes
+  /tree-nodes/{tree_node_id}:
+    delete:
+      parameters:
+      - description: Tree node ID
+        in: path
+        name: tree_node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a tree node
+      tags:
+      - Tree Nodes
+    get:
+      parameters:
+      - description: Tree node ID
+        in: path
+        name: tree_node_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a tree node by ID
+      tags:
+      - Tree Nodes
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tree node ID
+        in: path
+        name: tree_node_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateTreeNodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a tree node
+      tags:
+      - Tree Nodes
+  /trees:
+    get:
+      parameters:
+      - description: Album ID
+        in: query
+        name: album_id
+        required: true
+        type: string
+      - description: Include child tree nodes in the response
+        in: query
+        name: include_nodes
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List trees in an album
+      tags:
+      - Trees
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tree payload (album_id required)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.CreateTreeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a tree (within an album)
+      tags:
+      - Trees
+  /trees/{tree_id}:
+    delete:
+      parameters:
+      - description: Tree ID
+        in: path
+        name: tree_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a tree
+      tags:
+      - Trees
+    get:
+      parameters:
+      - description: Tree ID
+        in: path
+        name: tree_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a tree by ID
+      tags:
+      - Trees
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tree ID
+        in: path
+        name: tree_id
+        required: true
+        type: string
+      - description: Updated fields
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateTreeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a tree
+      tags:
+      - Trees
+  /trees/{tree_id}/end-reflecting:
+    patch:
+      description: Freezes a tree's reflection status — locks the tree from further
+        reflections and marks it complete.
+      parameters:
+      - description: Tree ID
+        in: path
+        name: tree_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: End the reflection cycle for a tree
+      tags:
+      - Trees
+  /trees/{tree_id}/pause:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Tree ID
+        in: path
+        name: tree_id
+        required: true
+        type: string
+      - description: Optional pause options
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/passiontree_internal_reflection_model.PauseTreeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Toggle pause/resume state of a tree
+      tags:
+      - Trees
+  /trees/{tree_id}/retrieve:
+    patch:
+      parameters:
+      - description: Tree ID
+        in: path
+        name: tree_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Not enough hearts or tree not in dead state
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Retrieve (revive) a dead tree by spending hearts
+      tags:
+      - Trees
+  /trees/{tree_id}/score:
+    patch:
+      description: Computes the weighted average score (0–10 scale) for the tree's
+        reflections and stores it.
+      parameters:
+      - description: Tree ID
+        in: path
+        name: tree_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Calculate and persist a tree's score
+      tags:
+      - Trees
+  /upload/presignedimg-url:
+    post:
+      consumes:
+      - application/json
+      description: Returns a short-lived URL the client can PUT an image to (Azure
+        Blob Storage), plus the resulting public URL.
+      parameters:
+      - description: Filename and target folder
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/passiontree_internal_upload_model.UploadImageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Generate a presigned URL for image upload
+      tags:
+      - Upload
+  /user/learningpaths/{path_id}/progress:
+    get:
+      description: Returns completion percentage and per-node status for the authenticated
+        user.
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get learning path progress
+      tags:
+      - Learning Paths
+  /user/learningpaths/{path_id}/status:
+    get:
+      parameters:
+      - description: Learning path ID
+        in: path
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get enrollment status for a path
+      tags:
+      - Learning Paths
+  /user/learningpaths/history:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the authenticated user's learning history
+      tags:
+      - Learning Paths
+  /user/learningpaths/resume:
+    get:
+      description: Returns the node where the user should resume based on their last
+        activity for the given path.
+      parameters:
+      - description: Learning path ID
+        in: query
+        name: path_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the next node to resume on a learning path
+      tags:
+      - Learning Paths
+  /user/missions:
+    get:
+      parameters:
+      - description: Optional client correlation ID echoed back in the response
+        in: header
+        name: X-Client-Request-Id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List the authenticated user's active missions
+      tags:
+      - Missions
+schemes:
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and a valid JWT access token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -10,7 +10,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// GetSettings retrieves all settings for the authenticated user
+// GetSettings godoc
+// @Summary      List all settings for the authenticated user
+// @Tags         Settings
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Router       /settings/ [get]
 func (h *Handler) GetSettings(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -33,7 +40,16 @@ func (h *Handler) GetSettings(c *fiber.Ctx) error {
 	})
 }
 
-// GetSetting retrieves a specific setting by key
+// GetSetting godoc
+// @Summary      Get a specific setting by key
+// @Tags         Settings
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key  path      string  true  "Setting key"
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      404  {object}  apidoc.ErrorResponse
+// @Router       /settings/{key} [get]
 func (h *Handler) GetSetting(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -58,7 +74,18 @@ func (h *Handler) GetSetting(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateSettings updates multiple settings at once in a single atomic transaction
+// UpdateSettings godoc
+// @Summary      Bulk update settings (atomic transaction)
+// @Description  Accepts an array of {key, value} entries and persists them in one transaction.
+// @Tags         Settings
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      []model.SettingRequest  true  "Array of setting requests"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /settings/ [put]
 func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -87,7 +114,18 @@ func (h *Handler) UpdateSettings(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateSetting updates a specific setting by key
+// UpdateSetting godoc
+// @Summary      Update a single setting by key
+// @Tags         Settings
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key   path      string                true  "Setting key"
+// @Param        body  body      model.SettingRequest  true  "Setting payload"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /settings/{key} [put]
 func (h *Handler) UpdateSetting(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -119,7 +157,16 @@ func (h *Handler) UpdateSetting(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteSetting deletes a specific setting by key
+// DeleteSetting godoc
+// @Summary      Delete a setting by key
+// @Tags         Settings
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key  path      string  true  "Setting key"
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      404  {object}  apidoc.ErrorResponse
+// @Router       /settings/{key} [delete]
 func (h *Handler) DeleteSetting(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

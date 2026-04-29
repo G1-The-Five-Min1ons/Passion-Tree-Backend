@@ -42,6 +42,25 @@ const (
 	AppName         = "Passion Tree Backend v1.0"
 )
 
+// @title           Passion Tree Backend API
+// @version         1.0
+// @description     REST API documentation for the Passion Tree learning platform.
+// @description     Use the "Authorize" button and paste a valid JWT (without the "Bearer " prefix) to call protected endpoints.
+// @termsOfService  http://swagger.io/terms/
+//
+// @contact.name    Passion Tree Team
+// @contact.url     https://passion-tree.org
+//
+// @license.name    Proprietary
+//
+// @host            api.passion-tree.org
+// @BasePath        /api/v1
+// @schemes         https
+//
+// @securityDefinitions.apikey  BearerAuth
+// @in                          header
+// @name                        Authorization
+// @description                 Type "Bearer" followed by a space and a valid JWT access token.
 func main() {
 	// Setup
 	isDev := os.Getenv("APP_ENV") != "production"

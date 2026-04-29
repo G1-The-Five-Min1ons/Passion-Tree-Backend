@@ -10,7 +10,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// CreateTree handles the creation of a new tree
+// CreateTree godoc
+// @Summary      Create a tree (within an album)
+// @Tags         Trees
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.CreateTreeRequest  true  "Tree payload (album_id required)"
+// @Success      201   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /trees [post]
 func (h *Handler) CreateTree(c *fiber.Ctx) error {
 	var req model.CreateTreeRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
@@ -39,7 +49,16 @@ func (h *Handler) CreateTree(c *fiber.Ctx) error {
 	})
 }
 
-// GetTreeByID handles retrieving a tree by its ID
+// GetTreeByID godoc
+// @Summary      Get a tree by ID
+// @Tags         Trees
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  path      string  true  "Tree ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /trees/{tree_id} [get]
 func (h *Handler) GetTreeByID(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -61,7 +80,17 @@ func (h *Handler) GetTreeByID(c *fiber.Ctx) error {
 	})
 }
 
-// GetTreesByAlbumID handles retrieving all trees for an album
+// GetTreesByAlbumID godoc
+// @Summary      List trees in an album
+// @Tags         Trees
+// @Produce      json
+// @Security     BearerAuth
+// @Param        album_id       query     string  true   "Album ID"
+// @Param        include_nodes  query     bool    false  "Include child tree nodes in the response"
+// @Success      200            {object}  apidoc.SuccessResponse
+// @Failure      400            {object}  apidoc.ErrorResponse
+// @Failure      401            {object}  apidoc.ErrorResponse
+// @Router       /trees [get]
 func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 	albumID := c.Query("album_id")
 	includeNodes := c.QueryBool("include_nodes", false)
@@ -104,7 +133,19 @@ func (h *Handler) GetTreesByAlbumID(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateTree handles updating an existing tree
+// UpdateTree godoc
+// @Summary      Update a tree
+// @Tags         Trees
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  path      string                   true  "Tree ID"
+// @Param        body     body      model.UpdateTreeRequest  true  "Updated fields"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /trees/{tree_id} [put]
 func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -136,7 +177,17 @@ func (h *Handler) UpdateTree(c *fiber.Ctx) error {
 	})
 }
 
-// RetrieveTree handles retrieving a dead tree by spending hearts
+// RetrieveTree godoc
+// @Summary      Retrieve (revive) a dead tree by spending hearts
+// @Tags         Trees
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  path      string  true  "Tree ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse  "Not enough hearts or tree not in dead state"
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /trees/{tree_id}/retrieve [patch]
 func (h *Handler) RetrieveTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -161,7 +212,17 @@ func (h *Handler) RetrieveTree(c *fiber.Ctx) error {
 	})
 }
 
-// EndReflecting handles freezing a tree's reflection status.
+// EndReflecting godoc
+// @Summary      End the reflection cycle for a tree
+// @Description  Freezes a tree's reflection status — locks the tree from further reflections and marks it complete.
+// @Tags         Trees
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  path      string  true  "Tree ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /trees/{tree_id}/end-reflecting [patch]
 func (h *Handler) EndReflecting(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -186,7 +247,16 @@ func (h *Handler) EndReflecting(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteTree handles deleting a tree
+// DeleteTree godoc
+// @Summary      Delete a tree
+// @Tags         Trees
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  path      string  true  "Tree ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /trees/{tree_id} [delete]
 func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -213,7 +283,19 @@ func (h *Handler) DeleteTree(c *fiber.Ctx) error {
 	})
 }
 
-// PauseTree handles toggling pause/unpause state of a tree
+// PauseTree godoc
+// @Summary      Toggle pause/resume state of a tree
+// @Tags         Trees
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  path      string                  true   "Tree ID"
+// @Param        body     body      model.PauseTreeRequest  false  "Optional pause options"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /trees/{tree_id}/pause [patch]
 func (h *Handler) PauseTree(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	var req model.PauseTreeRequest
@@ -250,8 +332,17 @@ func (h *Handler) PauseTree(c *fiber.Ctx) error {
 	})
 }
 
-// CalculateTreeScore handles calculating the average weighted score for a tree,
-// keeping it on a 0-10 scale, and persisting it to the database.
+// CalculateTreeScore godoc
+// @Summary      Calculate and persist a tree's score
+// @Description  Computes the weighted average score (0–10 scale) for the tree's reflections and stores it.
+// @Tags         Trees
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  path      string  true  "Tree ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /trees/{tree_id}/score [patch]
 func (h *Handler) CalculateTreeScore(c *fiber.Ctx) error {
 	treeID := c.Params("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)

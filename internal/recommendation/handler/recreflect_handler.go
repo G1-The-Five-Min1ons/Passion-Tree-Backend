@@ -9,6 +9,17 @@ import (
 	"passiontree/internal/pkg/middleware"
 )
 
+// GetRecommendations godoc
+// @Summary      Get learning-path recommendations from a reflection tree
+// @Description  Returns personalized learning paths derived from the given reflection tree's content.
+// @Tags         Recommendations
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  query     string  true  "Reflection tree ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /reflect/recommendation [get]
 func (h *Handler) GetRecommendations(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {

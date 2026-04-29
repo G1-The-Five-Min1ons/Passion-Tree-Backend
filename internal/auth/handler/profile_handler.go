@@ -11,7 +11,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// UpdateProfile updates user profile information
+// UpdateProfile godoc
+// @Summary      Update authenticated user's profile
+// @Description  Updates avatar, location, bio, phone, time zone and date format for the JWT-authenticated user.
+// @Tags         Profile
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.UpdateProfileRequest  true  "Profile fields to update"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /auth/profile [put]
 func (h *Handler) UpdateProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {

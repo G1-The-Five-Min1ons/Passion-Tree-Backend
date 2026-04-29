@@ -9,6 +9,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// GetUserHistory godoc
+// @Summary      Get the authenticated user's learning history
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Router       /user/learningpaths/history [get]
 func (h *Handler) GetUserHistory(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

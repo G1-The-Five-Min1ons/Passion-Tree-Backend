@@ -10,6 +10,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// GetQuestions godoc
+// @Summary      List quiz questions for a node
+// @Tags         Quiz
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string  true  "Node ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id}/questions [get]
 func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -29,6 +38,18 @@ func (h *Handler) GetQuestions(c *fiber.Ctx) error {
 	})
 }
 
+// CreateQuestion godoc
+// @Summary      Add a quiz question to a node
+// @Tags         Quiz
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string                       true  "Node ID"
+// @Param        body     body      model.CreateQuestionRequest  true  "Question payload"
+// @Success      201      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id}/questions [post]
 func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -56,6 +77,16 @@ func (h *Handler) CreateQuestion(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteQuestion godoc
+// @Summary      Delete a quiz question
+// @Tags         Quiz
+// @Produce      json
+// @Security     BearerAuth
+// @Param        question_id  path      string  true  "Question ID"
+// @Success      200          {object}  apidoc.SuccessResponse
+// @Failure      401          {object}  apidoc.ErrorResponse
+// @Failure      404          {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/questions/{question_id} [delete]
 func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
 	question_id := c.Params("question_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -76,6 +107,18 @@ func (h *Handler) DeleteQuestion(c *fiber.Ctx) error {
 	})
 }
 
+// CreateChoice godoc
+// @Summary      Add a choice to a quiz question
+// @Tags         Quiz
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        question_id  path      string                     true  "Question ID"
+// @Param        body         body      model.CreateChoiceRequest  true  "Choice payload"
+// @Success      201          {object}  apidoc.SuccessResponse
+// @Failure      400          {object}  apidoc.ErrorResponse
+// @Failure      401          {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/questions/{question_id}/choices [post]
 func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 	questionID := c.Params("question_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -102,6 +145,16 @@ func (h *Handler) CreateChoice(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteChoice godoc
+// @Summary      Delete a quiz choice
+// @Tags         Quiz
+// @Produce      json
+// @Security     BearerAuth
+// @Param        choice_id  path      string  true  "Choice ID"
+// @Success      200        {object}  apidoc.SuccessResponse
+// @Failure      401        {object}  apidoc.ErrorResponse
+// @Failure      404        {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/questions/choices/{choice_id} [delete]
 func (h *Handler) DeleteChoice(c *fiber.Ctx) error {
 	choice_id := c.Params("choice_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -122,6 +175,19 @@ func (h *Handler) DeleteChoice(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateQuestion godoc
+// @Summary      Update a quiz question
+// @Tags         Quiz
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        question_id  path      string                       true  "Question ID"
+// @Param        body         body      model.UpdateQuestionRequest  true  "Updated fields"
+// @Success      200          {object}  apidoc.SuccessResponse
+// @Failure      400          {object}  apidoc.ErrorResponse
+// @Failure      401          {object}  apidoc.ErrorResponse
+// @Failure      404          {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/questions/{question_id} [put]
 func (h *Handler) UpdateQuestion(c *fiber.Ctx) error {
 	questionID := c.Params("question_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -147,6 +213,19 @@ func (h *Handler) UpdateQuestion(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateChoice godoc
+// @Summary      Update a quiz choice
+// @Tags         Quiz
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        choice_id  path      string                     true  "Choice ID"
+// @Param        body       body      model.UpdateChoiceRequest  true  "Updated fields"
+// @Success      200        {object}  apidoc.SuccessResponse
+// @Failure      400        {object}  apidoc.ErrorResponse
+// @Failure      401        {object}  apidoc.ErrorResponse
+// @Failure      404        {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/questions/choices/{choice_id} [put]
 func (h *Handler) UpdateChoice(c *fiber.Ctx) error {
 	choiceID := c.Params("choice_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)

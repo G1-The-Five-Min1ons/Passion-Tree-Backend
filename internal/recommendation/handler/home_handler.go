@@ -10,6 +10,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// GetHomeRecommendations godoc
+// @Summary      Get home-screen recommendations for the authenticated user
+// @Description  Returns the precomputed daily recommendation set for the home screen.
+// @Tags         Recommendations
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Router       /home/recommendation [get]
 func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
@@ -36,6 +45,17 @@ func (h *Handler) GetHomeRecommendations(c *fiber.Ctx) error {
 	})
 }
 
+// TriggerBatchRecommendation godoc
+// @Summary      Manually trigger the daily recommendation batch (admin)
+// @Description  Starts an async job that recomputes home-screen recommendations for all users.
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      202  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse
+// @Failure      409  {object}  apidoc.ErrorResponse  "Batch already running"
+// @Router       /batch/recommendation/trigger [post]
 func (h *Handler) TriggerBatchRecommendation(c *fiber.Ctx) error {
 	role, err := middleware.GetRoleFromContext(c)
 	if err != nil || role != "admin" {

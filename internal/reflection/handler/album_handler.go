@@ -10,7 +10,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// CreateAlbum handles the creation of a new album
+// CreateAlbum godoc
+// @Summary      Create an album
+// @Tags         Albums
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.CreateAlbumRequest  true  "Album payload"
+// @Success      201   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /albums [post]
 func (h *Handler) CreateAlbum(c *fiber.Ctx) error {
 	var req model.CreateAlbumRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
@@ -36,7 +46,16 @@ func (h *Handler) CreateAlbum(c *fiber.Ctx) error {
 	})
 }
 
-// GetAlbumByID handles retrieving an album by its ID
+// GetAlbumByID godoc
+// @Summary      Get an album by ID
+// @Tags         Albums
+// @Produce      json
+// @Security     BearerAuth
+// @Param        album_id  path      string  true  "Album ID"
+// @Success      200       {object}  apidoc.SuccessResponse
+// @Failure      401       {object}  apidoc.ErrorResponse
+// @Failure      404       {object}  apidoc.ErrorResponse
+// @Router       /albums/{album_id} [get]
 func (h *Handler) GetAlbumByID(c *fiber.Ctx) error {
 	albumID := c.Params("album_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -58,7 +77,14 @@ func (h *Handler) GetAlbumByID(c *fiber.Ctx) error {
 	})
 }
 
-// GetAlbumsByUserID handles retrieving all albums for a user
+// GetAlbumsByUserID godoc
+// @Summary      List albums for the authenticated user
+// @Tags         Albums
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Router       /albums [get]
 func (h *Handler) GetAlbumsByUserID(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -85,7 +111,19 @@ func (h *Handler) GetAlbumsByUserID(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateAlbum handles updating an existing album
+// UpdateAlbum godoc
+// @Summary      Update an album
+// @Tags         Albums
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        album_id  path      string                    true  "Album ID"
+// @Param        body      body      model.UpdateAlbumRequest  true  "Updated fields"
+// @Success      200       {object}  apidoc.SuccessResponse
+// @Failure      400       {object}  apidoc.ErrorResponse
+// @Failure      401       {object}  apidoc.ErrorResponse
+// @Failure      404       {object}  apidoc.ErrorResponse
+// @Router       /albums/{album_id} [put]
 func (h *Handler) UpdateAlbum(c *fiber.Ctx) error {
 	albumID := c.Params("album_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -112,7 +150,16 @@ func (h *Handler) UpdateAlbum(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteAlbum handles deleting an album
+// DeleteAlbum godoc
+// @Summary      Delete an album
+// @Tags         Albums
+// @Produce      json
+// @Security     BearerAuth
+// @Param        album_id  path      string  true  "Album ID"
+// @Success      200       {object}  apidoc.SuccessResponse
+// @Failure      401       {object}  apidoc.ErrorResponse
+// @Failure      404       {object}  apidoc.ErrorResponse
+// @Router       /albums/{album_id} [delete]
 func (h *Handler) DeleteAlbum(c *fiber.Ctx) error {
 	albumID := c.Params("album_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)

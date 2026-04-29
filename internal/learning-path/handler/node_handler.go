@@ -11,6 +11,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// GetOneNode godoc
+// @Summary      Get a single node's details
+// @Tags         Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string  true  "Node ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id} [get]
 func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 
@@ -36,6 +46,18 @@ func (h *Handler) GetOneNode(c *fiber.Ctx) error {
 	})
 }
 
+// CreateNode godoc
+// @Summary      Add a node to a learning path
+// @Tags         Nodes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string                   true  "Learning path ID"
+// @Param        body     body      model.CreateNodeRequest  true  "Node payload"
+// @Success      201      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/nodes [post]
 func (h *Handler) CreateNode(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -64,6 +86,19 @@ func (h *Handler) CreateNode(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateNode godoc
+// @Summary      Update a node
+// @Tags         Nodes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string                   true  "Node ID"
+// @Param        body     body      model.UpdateNodeRequest  true  "Updated fields"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id} [put]
 func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -90,6 +125,16 @@ func (h *Handler) UpdateNode(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteNode godoc
+// @Summary      Delete a node
+// @Tags         Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string  true  "Node ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id} [delete]
 func (h *Handler) DeleteNode(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -112,6 +157,18 @@ func (h *Handler) DeleteNode(c *fiber.Ctx) error {
 	})
 }
 
+// CreateMaterial godoc
+// @Summary      Add learning material to a node
+// @Tags         Nodes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string                       true  "Node ID"
+// @Param        body     body      model.CreateMaterialRequest  true  "Material payload"
+// @Success      201      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id}/materials [post]
 func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -140,6 +197,16 @@ func (h *Handler) CreateMaterial(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteMaterial godoc
+// @Summary      Delete a learning material
+// @Tags         Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        material_id  path      string  true  "Material ID"
+// @Success      200          {object}  apidoc.SuccessResponse
+// @Failure      401          {object}  apidoc.ErrorResponse
+// @Failure      404          {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/materials/{material_id} [delete]
 func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 	material_id := c.Params("material_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -162,6 +229,18 @@ func (h *Handler) DeleteMaterial(c *fiber.Ctx) error {
 	})
 }
 
+// ReorderNodes godoc
+// @Summary      Reorder nodes within a learning path
+// @Tags         Nodes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string                      true  "Learning path ID"
+// @Param        body     body      model.ReorderNodesRequest   true  "Ordered list of node IDs"
+// @Success      200      {object}  apidoc.MessageResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/nodes/reorder [put]
 func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -186,6 +265,16 @@ func (h *Handler) ReorderNodes(c *fiber.Ctx) error {
 	})
 }
 
+// GetNodesByPathID godoc
+// @Summary      List nodes within a learning path
+// @Tags         Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/nodes [get]
 func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 
@@ -211,6 +300,16 @@ func (h *Handler) GetNodesByPathID(c *fiber.Ctx) error {
 	})
 }
 
+// StartNodeStatus godoc
+// @Summary      Mark a node as started/active
+// @Tags         Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string  true  "Node ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id}/start [put]
 func (h *Handler) StartNodeStatus(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -236,6 +335,16 @@ func (h *Handler) StartNodeStatus(c *fiber.Ctx) error {
 	})
 }
 
+// CompleteNodeStatus godoc
+// @Summary      Mark a node as completed
+// @Tags         Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        node_id  path      string  true  "Node ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/nodes/{node_id}/complete [put]
 func (h *Handler) CompleteNodeStatus(c *fiber.Ctx) error {
 	nodeID := c.Params("node_id")
 	userID, err := middleware.GetUserIDFromContext(c)

@@ -13,7 +13,19 @@ import (
 
 const maintenanceTaskTimeout = 10 * time.Minute
 
-// Search handles search learning paths via AI service
+// Search godoc
+// @Summary      Semantic search learning paths
+// @Description  Sends the query to the AI service which performs vector search over the learning-path collection.
+// @Tags         Search
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.SearchPathRequest  true  "Search query"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Failure      502   {object}  apidoc.ErrorResponse  "AI service error"
+// @Router       /learningpaths/search [post]
 func (h *Handler) Search(c *fiber.Ctx) error {
 	var req model.SearchPathRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
@@ -44,7 +56,17 @@ func (h *Handler) Search(c *fiber.Ctx) error {
 	})
 }
 
-// DebugCollection retrieves debug information about a collection from AI service
+// DebugCollection godoc
+// @Summary      Get vector collection debug info
+// @Description  Returns size, vector count, and config for the named Qdrant collection. Defaults to learning_paths.
+// @Tags         Search
+// @Produce      json
+// @Security     BearerAuth
+// @Param        collection_name  path      string  true  "Qdrant collection name"
+// @Success      200              {object}  apidoc.SuccessResponse
+// @Failure      401              {object}  apidoc.ErrorResponse
+// @Failure      502              {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/debug/collection/{collection_name} [get]
 func (h *Handler) DebugCollection(c *fiber.Ctx) error {
 	collectionName := c.Params("collection_name")
 	if collectionName == "" {
@@ -66,7 +88,17 @@ func (h *Handler) DebugCollection(c *fiber.Ctx) error {
 	})
 }
 
-// BulkSyncLearningPaths pushes every path in SQL to Qdrant in one call.
+// BulkSyncLearningPaths godoc
+// @Summary      Bulk sync all learning paths to Qdrant (admin)
+// @Description  Starts an async job that pushes every learning path in SQL to the vector DB. Returns a task_id to poll.
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      202  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse
+// @Failure      409  {object}  apidoc.ErrorResponse  "Another bulk sync is already running"
+// @Router       /learningpaths/sync/bulk [post]
 func (h *Handler) BulkSyncLearningPaths(c *fiber.Ctx) error {
 	const taskType = "bulk_sync"
 
@@ -100,7 +132,17 @@ func (h *Handler) BulkSyncLearningPaths(c *fiber.Ctx) error {
 	})
 }
 
-// ReconcileLearningPaths aligns Qdrant with SQL (delete stale, sync missing).
+// ReconcileLearningPaths godoc
+// @Summary      Reconcile Qdrant with SQL (admin)
+// @Description  Starts an async job that deletes stale vectors and syncs missing ones. Returns a task_id to poll.
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      202  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse
+// @Failure      409  {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/sync/reconcile [post]
 func (h *Handler) ReconcileLearningPaths(c *fiber.Ctx) error {
 	const taskType = "reconcile"
 
@@ -136,7 +178,18 @@ func (h *Handler) ReconcileLearningPaths(c *fiber.Ctx) error {
 	})
 }
 
-// GetSyncTaskStatus returns status/result for an async sync/reconcile task.
+// GetSyncTaskStatus godoc
+// @Summary      Poll an async sync/reconcile task (admin)
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        task_id  path      string  true  "Task ID returned by /sync/bulk or /sync/reconcile"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      403      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/sync/tasks/{task_id} [get]
 func (h *Handler) GetSyncTaskStatus(c *fiber.Ctx) error {
 	taskID := strings.TrimSpace(c.Params("task_id"))
 	if taskID == "" {
@@ -155,7 +208,18 @@ func (h *Handler) GetSyncTaskStatus(c *fiber.Ctx) error {
 	})
 }
 
-// SyncLearningPath syncs a single learning path from Azure DB to Qdrant
+// SyncLearningPath godoc
+// @Summary      Sync a single learning path to Qdrant
+// @Description  Pushes the specified learning path's data into the AI service's vector DB.
+// @Tags         Search
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      502      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/sync/{path_id} [post]
 func (h *Handler) SyncLearningPath(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	if pathID == "" {

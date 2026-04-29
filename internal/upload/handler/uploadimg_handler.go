@@ -8,6 +8,17 @@ import (
 	"passiontree/internal/upload/model"
 )
 
+// GetPresignedIMGURL godoc
+// @Summary      Generate a presigned URL for image upload
+// @Description  Returns a short-lived URL the client can PUT an image to (Azure Blob Storage), plus the resulting public URL.
+// @Tags         Upload
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.UploadImageRequest  true  "Filename and target folder"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      500   {object}  apidoc.ErrorResponse
+// @Router       /upload/presignedimg-url [post]
 func (h *Handler) GetPresignedIMGURL(c *fiber.Ctx) error {
 	var req model.UploadImageRequest
 

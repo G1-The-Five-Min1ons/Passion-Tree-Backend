@@ -11,6 +11,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// CreateTemplate godoc
+// @Summary      Create a mission template (admin)
+// @Tags         Missions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.CreateTemplateRequest  true  "Mission template payload"
+// @Success      201   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Failure      403   {object}  apidoc.ErrorResponse
+// @Router       /admin/missions/templates [post]
 func (h *Handler) CreateTemplate(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -37,6 +49,15 @@ func (h *Handler) CreateTemplate(c *fiber.Ctx) error {
 	})
 }
 
+// GetAllTemplates godoc
+// @Summary      List all mission templates (admin)
+// @Tags         Missions
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse
+// @Router       /admin/missions/templates [get]
 func (h *Handler) GetAllTemplates(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -58,6 +79,18 @@ func (h *Handler) GetAllTemplates(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteTemplate godoc
+// @Summary      Delete a mission template (admin)
+// @Tags         Missions
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path      string  true  "Mission template ID"
+// @Success      200  {object}  apidoc.MessageResponse
+// @Failure      400  {object}  apidoc.ErrorResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse
+// @Failure      404  {object}  apidoc.ErrorResponse
+// @Router       /admin/missions/templates/{id} [delete]
 func (h *Handler) DeleteTemplate(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -82,6 +115,15 @@ func (h *Handler) DeleteTemplate(c *fiber.Ctx) error {
 	})
 }
 
+// GetMyMissions godoc
+// @Summary      List the authenticated user's active missions
+// @Tags         Missions
+// @Produce      json
+// @Security     BearerAuth
+// @Param        X-Client-Request-Id  header    string  false  "Optional client correlation ID echoed back in the response"
+// @Success      200                  {object}  apidoc.SuccessResponse
+// @Failure      401                  {object}  apidoc.ErrorResponse
+// @Router       /user/missions [get]
 func (h *Handler) GetMyMissions(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -131,6 +173,16 @@ func (h *Handler) GetMyMissions(c *fiber.Ctx) error {
 	})
 }
 
+// TriggerAutoAssign godoc
+// @Summary      Manually trigger weekly mission auto-assignment for the current user
+// @Description  Forces the weekly mission assignment routine to run immediately for the authenticated user.
+// @Tags         Missions
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.MessageResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      500  {object}  apidoc.ErrorResponse
+// @Router       /system/missions/auto-assign [post]
 func (h *Handler) TriggerAutoAssign(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

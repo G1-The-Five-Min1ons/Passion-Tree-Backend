@@ -11,6 +11,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// GetAll godoc
+// @Summary      List all learning paths
+// @Description  Returns every published learning path (public catalog).
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      500  {object}  apidoc.ErrorResponse
+// @Router       /learningpaths [get]
 func (h *Handler) GetAll(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
@@ -29,6 +39,17 @@ func (h *Handler) GetAll(c *fiber.Ctx) error {
 	})
 }
 
+// GetOne godoc
+// @Summary      Get a learning path by ID
+// @Description  Returns full details (nodes, materials, ratings) of a single learning path.
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id} [get]
 func (h *Handler) GetOne(c *fiber.Ctx) error {
 	id := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -78,6 +99,18 @@ func (h *Handler) GetUploadURL(c *fiber.Ctx) error {
 	})
 }
 
+// Create godoc
+// @Summary      Create a learning path
+// @Description  Creates a new learning path owned by the authenticated user.
+// @Tags         Learning Paths
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.CreatePathRequest  true  "Learning path payload"
+// @Success      201   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /learningpaths [post]
 func (h *Handler) Create(c *fiber.Ctx) error {
 	var req model.CreatePathRequest
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -110,6 +143,19 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	})
 }
 
+// Update godoc
+// @Summary      Update a learning path
+// @Tags         Learning Paths
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string                   true  "Learning path ID"
+// @Param        body     body      model.UpdatePathRequest  true  "Updated fields"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id} [put]
 func (h *Handler) Update(c *fiber.Ctx) error {
 	path_id := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -136,6 +182,17 @@ func (h *Handler) Update(c *fiber.Ctx) error {
 	})
 }
 
+// Delete godoc
+// @Summary      Delete a learning path
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      403      {object}  apidoc.ErrorResponse  "Not the owner"
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id} [delete]
 func (h *Handler) Delete(c *fiber.Ctx) error {
 	id := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -158,6 +215,18 @@ func (h *Handler) Delete(c *fiber.Ctx) error {
 	})
 }
 
+// Start godoc
+// @Summary      Enroll in a learning path
+// @Description  Enrolls the authenticated user in the given learning path.
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      201      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Failure      409      {object}  apidoc.ErrorResponse  "Already enrolled"
+// @Router       /learningpaths/{path_id}/start [post]
 func (h *Handler) Start(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 
@@ -185,6 +254,15 @@ func (h *Handler) Start(c *fiber.Ctx) error {
 	})
 }
 
+// GetEnrollmentStatus godoc
+// @Summary      Get enrollment status for a path
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /user/learningpaths/{path_id}/status [get]
 func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 
@@ -210,6 +288,16 @@ func (h *Handler) GetEnrollmentStatus(c *fiber.Ctx) error {
 	})
 }
 
+// GetPathProgress godoc
+// @Summary      Get learning path progress
+// @Description  Returns completion percentage and per-node status for the authenticated user.
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /user/learningpaths/{path_id}/progress [get]
 func (h *Handler) GetPathProgress(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 
@@ -234,6 +322,19 @@ func (h *Handler) GetPathProgress(c *fiber.Ctx) error {
 		"data":    progress,
 	})
 }
+// Generate godoc
+// @Summary      Generate a learning path with AI
+// @Description  Calls the AI service to draft a complete learning path for the given topic.
+// @Tags         Learning Paths
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.AIGeneratePathRequest  true  "Topic to generate"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Failure      502   {object}  apidoc.ErrorResponse  "AI service error"
+// @Router       /learningpaths/generate [post]
 func (h *Handler) Generate(c *fiber.Ctx) error {
 	var req model.AIGeneratePathRequest
 
@@ -258,6 +359,17 @@ func (h *Handler) Generate(c *fiber.Ctx) error {
 	})
 }
 
+// UpdateCoverImage godoc
+// @Summary      Update learning path cover image URL
+// @Tags         Learning Paths
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.UpdateImageRequest  true  "New cover image URL"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/uploadimg [put]
 func (h *Handler) UpdateCoverImage(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -284,6 +396,14 @@ func (h *Handler) UpdateCoverImage(c *fiber.Ctx) error {
 	})
 }
 
+// GetMyPaths godoc
+// @Summary      List paths the authenticated user is enrolled in
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/user/enroll [get]
 func (h *Handler) GetMyPaths(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -305,6 +425,18 @@ func (h *Handler) GetMyPaths(c *fiber.Ctx) error {
 	})
 }
 
+// SubmitRating godoc
+// @Summary      Submit or update a rating for a learning path
+// @Tags         Ratings
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string                true  "Learning path ID"
+// @Param        body     body      model.RatingRequest   true  "Rating value and review"
+// @Success      200      {object}  apidoc.MessageResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/ratings [post]
 func (h *Handler) SubmitRating(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -330,6 +462,15 @@ func (h *Handler) SubmitRating(c *fiber.Ctx) error {
 	})
 }
 
+// GetMyRating godoc
+// @Summary      Get the authenticated user's rating for a path
+// @Tags         Ratings
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/ratings [get]
 func (h *Handler) GetMyRating(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	userID, err := middleware.GetUserIDFromContext(c)
@@ -351,6 +492,16 @@ func (h *Handler) GetMyRating(c *fiber.Ctx) error {
 	})
 }
 
+// DeleteRating godoc
+// @Summary      Remove the authenticated user's rating from a path
+// @Tags         Ratings
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  path      string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.MessageResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Failure      404      {object}  apidoc.ErrorResponse
+// @Router       /learningpaths/{path_id}/ratings [delete]
 func (h *Handler) DeleteRating(c *fiber.Ctx) error {
 	pathID := c.Params("path_id")
 	userID, err := middleware.GetUserIDFromContext(c)

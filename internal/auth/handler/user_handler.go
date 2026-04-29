@@ -13,7 +13,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Register creates a new user with profile
+// Register godoc
+// @Summary      Register a new user
+// @Description  Creates a new user account with associated profile information.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.RegisterRequest  true  "Registration payload"
+// @Success      201   {object}  apidoc.UserIDResponse
+// @Failure      400   {object}  apidoc.ErrorResponse  "Invalid request body or invalid role"
+// @Failure      409   {object}  apidoc.ErrorResponse  "Username or email already exists"
+// @Failure      500   {object}  apidoc.ErrorResponse  "Internal server error"
+// @Router       /auth/register [post]
 func (h *Handler) Register(c *fiber.Ctx) error {
 	var req model.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -59,7 +70,22 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	})
 }
 
-// Login authenticates a user
+// Login godoc
+// @Summary      Authenticate a user
+// @Description  Logs in with username/email + password and returns access & refresh tokens.
+// @Description  May also return `requires_otp` or `requires_reactivation` flags instead of tokens.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        confirm_reactivate  query     string                false  "Set to 'true' to confirm reactivation of a deactivated account"
+// @Param        body                body      model.LoginRequest    true   "Login credentials"
+// @Success      200                 {object}  apidoc.TokenPairResponse
+// @Success      200                 {object}  apidoc.OTPRequiredResponse           "OTP verification required"
+// @Success      200                 {object}  apidoc.ReactivationRequiredResponse  "Account deactivated, awaiting reactivation confirmation"
+// @Failure      400                 {object}  apidoc.ErrorResponse
+// @Failure      401                 {object}  apidoc.ErrorResponse  "Invalid credentials"
+// @Failure      429                 {object}  apidoc.ErrorResponse  "Too many login attempts"
+// @Router       /auth/login [post]
 func (h *Handler) Login(c *fiber.Ctx) error {
 	var req model.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -158,7 +184,17 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 }
 
-// GetUserProfile gets user and profile by ID from JWT token
+// GetUserProfile godoc
+// @Summary      Get authenticated user's profile
+// @Description  Returns the user object and profile of the JWT-authenticated user.
+// @Tags         Profile
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      403  {object}  apidoc.ErrorResponse  "Account deactivated"
+// @Failure      500  {object}  apidoc.ErrorResponse
+// @Router       /auth/profile [get]
 func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
@@ -195,7 +231,19 @@ func (h *Handler) GetUserProfile(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateUser updates user information from JWT token (first_name, last_name, and optionally role)
+// UpdateUser godoc
+// @Summary      Update authenticated user's basic info
+// @Description  Updates first name, last name, and optionally role for the JWT-authenticated user.
+// @Tags         Profile
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.UpdateUserRequest  true  "Fields to update"
+// @Success      200   {object}  apidoc.UserIDResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Failure      500   {object}  apidoc.ErrorResponse
+// @Router       /auth/user [put]
 func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
@@ -230,7 +278,19 @@ func (h *Handler) UpdateUser(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteUser deletes a user from JWT token with password confirmation
+// DeleteUser godoc
+// @Summary      Permanently delete the authenticated user
+// @Description  Requires password confirmation in the request body. This action is irreversible.
+// @Tags         Profile
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{password=string}  true  "Password confirmation"
+// @Success      200   {object}  apidoc.UserIDResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Failure      500   {object}  apidoc.ErrorResponse
+// @Router       /auth/user [delete]
 func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
@@ -262,7 +322,17 @@ func (h *Handler) DeleteUser(c *fiber.Ctx) error {
 	})
 }
 
-// RefreshToken generates a new access token and refresh token using token rotation
+// RefreshToken godoc
+// @Summary      Rotate access & refresh tokens
+// @Description  Exchanges a valid refresh token for a new access token and a freshly rotated refresh token.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.RefreshTokenRequest  true  "Refresh token payload"
+// @Success      200   {object}  apidoc.TokenPairResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse  "Refresh token expired or revoked"
+// @Router       /auth/refresh [post]
 func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	var req model.RefreshTokenRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -296,7 +366,19 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	})
 }
 
-// Logout revokes one refresh token when provided, otherwise revokes all refresh tokens.
+// Logout godoc
+// @Summary      Logout (revoke refresh tokens)
+// @Description  If a refresh_token is provided in the body, only that session is revoked.
+// @Description  Otherwise all refresh tokens for the user are revoked.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.LogoutRequest  false  "Optional specific refresh token to revoke"
+// @Success      200   {object}  apidoc.MessageResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /auth/logout [post]
 func (h *Handler) Logout(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
@@ -341,7 +423,16 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	})
 }
 
-// DeactivateAccount deactivates account temporarily and revokes active refresh sessions
+// DeactivateAccount godoc
+// @Summary      Temporarily deactivate the authenticated user's account
+// @Description  Marks the account as deactivated for the configured grace period and revokes all active refresh sessions.
+// @Tags         Auth
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.UserIDResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      500  {object}  apidoc.ErrorResponse
+// @Router       /auth/deactivate [post]
 func (h *Handler) DeactivateAccount(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
@@ -369,7 +460,16 @@ func (h *Handler) DeactivateAccount(c *fiber.Ctx) error {
 	})
 }
 
-// ReactivateAccount reactivates a temporary deactivated account
+// ReactivateAccount godoc
+// @Summary      Reactivate a deactivated account
+// @Description  Clears the deactivation flag for the JWT-authenticated user, restoring access immediately.
+// @Tags         Auth
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.UserIDResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      500  {object}  apidoc.ErrorResponse
+// @Router       /auth/reactivate [post]
 func (h *Handler) ReactivateAccount(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
@@ -394,7 +494,18 @@ func (h *Handler) ReactivateAccount(c *fiber.Ctx) error {
 	})
 }
 
-// GetActiveSessions retrieves all active sessions/devices for the authenticated user
+// GetActiveSessions godoc
+// @Summary      List active sessions / devices
+// @Description  Returns the list of active refresh-token sessions for the authenticated user.
+// @Description  Pass the current refresh token in the body to flag the current session in the response.
+// @Tags         Sessions
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      object{current_refresh_token=string}  false  "Optional current refresh token"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /auth/sessions [get]
 func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {
@@ -423,7 +534,17 @@ func (h *Handler) GetActiveSessions(c *fiber.Ctx) error {
 	})
 }
 
-// LogoutSession revokes a specific session by session ID
+// LogoutSession godoc
+// @Summary      Logout a specific session/device
+// @Description  Revokes the refresh token associated with the given session ID.
+// @Tags         Sessions
+// @Produce      json
+// @Security     BearerAuth
+// @Param        session_id  path      string  true  "Session ID to revoke"
+// @Success      200         {object}  apidoc.MessageResponse
+// @Failure      400         {object}  apidoc.ErrorResponse
+// @Failure      401         {object}  apidoc.ErrorResponse
+// @Router       /auth/sessions/{session_id} [delete]
 func (h *Handler) LogoutSession(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil || userID == "" {

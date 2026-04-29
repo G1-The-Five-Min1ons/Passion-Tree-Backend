@@ -9,7 +9,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// GET /onboarding
+// GetOnboarding godoc
+// @Summary      Get the authenticated user's onboarding answers
+// @Tags         Onboarding
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Failure      404  {object}  apidoc.ErrorResponse
+// @Router       /onboarding [get]
 func (h *Handler) GetOnboarding(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()

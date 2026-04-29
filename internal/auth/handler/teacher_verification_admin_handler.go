@@ -12,6 +12,18 @@ import (
 	"passiontree/internal/pkg/middleware"
 )
 
+// ListTeacherApplications godoc
+// @Summary      List teacher applications (admin)
+// @Description  Returns teacher applications filtered by status. Defaults to pending.
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status  query     string  false  "Filter by status (pending, approved, rejected)"  Enums(pending, approved, rejected)
+// @Success      200     {object}  apidoc.SuccessResponse
+// @Failure      400     {object}  apidoc.ErrorResponse
+// @Failure      401     {object}  apidoc.ErrorResponse
+// @Failure      403     {object}  apidoc.ErrorResponse
+// @Router       /auth/admin/teacher-applications [get]
 func (h *Handler) ListTeacherApplications(c *fiber.Ctx) error {
 	// Supported status values for filtering: pending (default), approved, rejected
 	status := strings.ToLower(strings.TrimSpace(c.Query("status", model.TeacherApplicationStatusPending)))
@@ -36,6 +48,21 @@ func (h *Handler) ListTeacherApplications(c *fiber.Ctx) error {
 	})
 }
 
+// ReviewTeacherApplication godoc
+// @Summary      Review a teacher application (admin)
+// @Description  Approves or rejects the specified teacher application.
+// @Tags         Admin
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request_id  path      string                                 true  "Teacher application ID"
+// @Param        body        body      model.ReviewTeacherApplicationRequest  true  "Decision payload"
+// @Success      200         {object}  apidoc.MessageResponse
+// @Failure      400         {object}  apidoc.ErrorResponse
+// @Failure      401         {object}  apidoc.ErrorResponse
+// @Failure      403         {object}  apidoc.ErrorResponse
+// @Failure      404         {object}  apidoc.ErrorResponse
+// @Router       /auth/admin/teacher-applications/{request_id} [put]
 func (h *Handler) ReviewTeacherApplication(c *fiber.Ctx) error {
 	adminID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

@@ -10,6 +10,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// GetResume godoc
+// @Summary      Get the next node to resume on a learning path
+// @Description  Returns the node where the user should resume based on their last activity for the given path.
+// @Tags         Learning Paths
+// @Produce      json
+// @Security     BearerAuth
+// @Param        path_id  query     string  true  "Learning path ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /user/learningpaths/resume [get]
 func (h *Handler) GetResume(c *fiber.Ctx) error {
 	pathID := c.Query("path_id")
 	userID, err := middleware.GetUserIDFromContext(c)

@@ -20,6 +20,14 @@ func (h *Handler) setOAuthStateCookie(c *fiber.Ctx, state string) {
 	})
 }
 
+// GoogleLogin godoc
+// @Summary      Initiate Google OAuth2 login (web)
+// @Description  Returns a Google authorization URL the client should redirect to.
+// @Description  Sets a CSRF state cookie that must be echoed back on callback.
+// @Tags         Social Auth
+// @Produce      json
+// @Success      200  {object}  apidoc.AuthURLResponse
+// @Router       /auth/google [get]
 func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
@@ -38,8 +46,13 @@ func (h *Handler) GoogleLogin(c *fiber.Ctx) error {
 	})
 }
 
-// DiscordLogin initiates Discord OAuth2 flow
-// @route GET /auth/discord
+// DiscordLogin godoc
+// @Summary      Initiate Discord OAuth2 login (web)
+// @Description  Returns a Discord authorization URL the client should redirect to.
+// @Tags         Social Auth
+// @Produce      json
+// @Success      200  {object}  apidoc.AuthURLResponse
+// @Router       /auth/discord [get]
 func (h *Handler) DiscordLogin(c *fiber.Ctx) error {
 	// Generate state for CSRF protection
 	state := uuid.New().String()
@@ -117,20 +130,47 @@ func (h *Handler) handleOAuth(c *fiber.Ctx, provider string) error {
 	}
 }
 
-// GoogleCallback handles Google OAuth2 callback
-// @route GET /auth/google/callback
+// GoogleCallback godoc
+// @Summary      Google OAuth2 callback (web)
+// @Description  Exchanges the OAuth code for tokens and either logs the user in or returns a link-confirmation payload if the email already maps to another account.
+// @Tags         Social Auth
+// @Produce      json
+// @Param        code   query     string  true   "Authorization code from Google"
+// @Param        state  query     string  true   "CSRF state echoed from /auth/google"
+// @Success      200    {object}  apidoc.SuccessResponse
+// @Failure      300    {object}  apidoc.ErrorResponse  "Account linking confirmation required"
+// @Failure      400    {object}  apidoc.ErrorResponse
+// @Router       /auth/google/callback [get]
 func (h *Handler) GoogleCallback(c *fiber.Ctx) error {
 	return h.handleOAuth(c, "google")
 }
 
-// DiscordCallback handles Discord OAuth2 callback
-// @route GET /auth/discord/callback
+// DiscordCallback godoc
+// @Summary      Discord OAuth2 callback (web)
+// @Description  Exchanges the OAuth code for tokens and either logs the user in or returns a link-confirmation payload.
+// @Tags         Social Auth
+// @Produce      json
+// @Param        code   query     string  true   "Authorization code from Discord"
+// @Param        state  query     string  true   "CSRF state echoed from /auth/discord"
+// @Success      200    {object}  apidoc.SuccessResponse
+// @Failure      300    {object}  apidoc.ErrorResponse  "Account linking confirmation required"
+// @Failure      400    {object}  apidoc.ErrorResponse
+// @Router       /auth/discord/callback [get]
 func (h *Handler) DiscordCallback(c *fiber.Ctx) error {
 	return h.handleOAuth(c, "discord")
 }
 
-// NativeGoogleSignIn handles native Google Sign-In from mobile apps
-// @route POST /auth/native/google
+// NativeGoogleSignIn godoc
+// @Summary      Native Google Sign-In (mobile)
+// @Description  Verifies a Google ID token coming from a mobile client and returns access & refresh tokens.
+// @Tags         Social Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.NativeGoogleSignInRequest  true  "Google ID token"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse  "Invalid ID token"
+// @Router       /auth/native/google [post]
 func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 	var req model.NativeGoogleSignInRequest
 
@@ -173,8 +213,16 @@ func (h *Handler) NativeGoogleSignIn(c *fiber.Ctx) error {
 	})
 }
 
-// NativeDiscordSignIn handles native Discord Sign-In from mobile apps
-// @route POST /auth/native/discord
+// NativeDiscordSignIn godoc
+// @Summary      Native Discord Sign-In (mobile)
+// @Description  Exchanges a Discord OAuth code captured by the mobile client for access & refresh tokens.
+// @Tags         Social Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.NativeDiscordSignInRequest  true  "Discord OAuth code"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Router       /auth/native/discord [post]
 func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
 	var req model.NativeDiscordSignInRequest
 
@@ -221,10 +269,15 @@ func (h *Handler) NativeDiscordSignIn(c *fiber.Ctx) error {
 	})
 }
 
-// DiscordNativeCallback handles the Discord OAuth2 redirect for native mobile apps.
-// Discord redirects here with ?code=..., and this handler redirects to the
-// app's custom URL scheme so flutter_web_auth_2 can capture the code.
-// @route GET /auth/discord/native/callback
+// DiscordNativeCallback godoc
+// @Summary      Discord OAuth2 native bridge
+// @Description  Discord redirects here with ?code=...; this endpoint serves an HTML page that immediately redirects to the mobile app's custom URL scheme so flutter_web_auth_2 can capture the code.
+// @Tags         Social Auth
+// @Produce      html
+// @Param        code   query     string  false  "Authorization code from Discord"
+// @Param        error  query     string  false  "Error code from Discord"
+// @Success      200    {string}  string  "HTML redirect page"
+// @Router       /auth/discord/native/callback [get]
 func (h *Handler) DiscordNativeCallback(c *fiber.Ctx) error {
 	code := c.Query("code")
 	errorParam := c.Query("error")
@@ -313,6 +366,16 @@ func (h *Handler) DiscordNativeCallback(c *fiber.Ctx) error {
 	return renderRedirectPage(appScheme+"?code="+code, buildIntentURL("?code="+code), false)
 }
 
+// ConfirmAccountLink godoc
+// @Summary      Confirm or decline OAuth account linking
+// @Description  Called after a social login returns a link-confirmation requirement. If `confirm=true`, the social identity is linked to the existing local account.
+// @Tags         Social Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      model.ConfirmAccountLinkRequest  true  "Link token and decision"
+// @Success      200   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Router       /auth/confirm-link [post]
 func (h *Handler) ConfirmAccountLink(c *fiber.Ctx) error {
 	var req model.ConfirmAccountLinkRequest
 

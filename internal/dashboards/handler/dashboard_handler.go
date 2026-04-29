@@ -8,6 +8,15 @@ import (
 	"passiontree/internal/pkg/middleware"
 )
 
+// GetDashboard godoc
+// @Summary      Get the authenticated user's personal dashboard
+// @Description  Returns aggregated stats for the user (paths in progress, reflections count, mission progress, etc.).
+// @Tags         Dashboard
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  apidoc.SuccessResponse
+// @Failure      401  {object}  apidoc.ErrorResponse
+// @Router       /dashboard [get]
 func (h *Handler) GetDashboard(c *fiber.Ctx) error {
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {

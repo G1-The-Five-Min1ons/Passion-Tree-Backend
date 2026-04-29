@@ -9,7 +9,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// CreateTreeNode handles the creation of a new tree node
+// CreateTreeNode godoc
+// @Summary      Create a tree node
+// @Tags         Tree Nodes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.CreateTreeNodeRequest  true  "Tree node payload"
+// @Success      201   {object}  apidoc.SuccessResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /tree-nodes [post]
 func (h *Handler) CreateTreeNode(c *fiber.Ctx) error {
 	var req model.CreateTreeNodeRequest
 	ctx, cancel := context.WithTimeout(c.UserContext(), 30*time.Second)
@@ -35,7 +45,16 @@ func (h *Handler) CreateTreeNode(c *fiber.Ctx) error {
 	})
 }
 
-// GetTreeNodesByTreeID handles retrieving all tree nodes for a tree
+// GetTreeNodesByTreeID godoc
+// @Summary      List tree nodes belonging to a tree
+// @Tags         Tree Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_id  query     string  true  "Tree ID"
+// @Success      200      {object}  apidoc.SuccessResponse
+// @Failure      400      {object}  apidoc.ErrorResponse
+// @Failure      401      {object}  apidoc.ErrorResponse
+// @Router       /tree-nodes [get]
 func (h *Handler) GetTreeNodesByTreeID(c *fiber.Ctx) error {
 	treeID := c.Query("tree_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -62,7 +81,16 @@ func (h *Handler) GetTreeNodesByTreeID(c *fiber.Ctx) error {
 	})
 }
 
-// GetTreeNodeByID handles retrieving a tree node by its ID
+// GetTreeNodeByID godoc
+// @Summary      Get a tree node by ID
+// @Tags         Tree Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_node_id  path      string  true  "Tree node ID"
+// @Success      200           {object}  apidoc.SuccessResponse
+// @Failure      401           {object}  apidoc.ErrorResponse
+// @Failure      404           {object}  apidoc.ErrorResponse
+// @Router       /tree-nodes/{tree_node_id} [get]
 func (h *Handler) GetTreeNodeByID(c *fiber.Ctx) error {
 	treeNodeID := c.Params("tree_node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
@@ -84,7 +112,19 @@ func (h *Handler) GetTreeNodeByID(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateTreeNode handles updating a tree node
+// UpdateTreeNode godoc
+// @Summary      Update a tree node
+// @Tags         Tree Nodes
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_node_id  path      string                       true  "Tree node ID"
+// @Param        body          body      model.UpdateTreeNodeRequest  true  "Updated fields"
+// @Success      200           {object}  apidoc.SuccessResponse
+// @Failure      400           {object}  apidoc.ErrorResponse
+// @Failure      401           {object}  apidoc.ErrorResponse
+// @Failure      404           {object}  apidoc.ErrorResponse
+// @Router       /tree-nodes/{tree_node_id} [put]
 func (h *Handler) UpdateTreeNode(c *fiber.Ctx) error {
 	treeNodeID := c.Params("tree_node_id")
 	var req model.UpdateTreeNodeRequest
@@ -111,7 +151,16 @@ func (h *Handler) UpdateTreeNode(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteTreeNode handles deleting a tree node
+// DeleteTreeNode godoc
+// @Summary      Delete a tree node
+// @Tags         Tree Nodes
+// @Produce      json
+// @Security     BearerAuth
+// @Param        tree_node_id  path      string  true  "Tree node ID"
+// @Success      200           {object}  apidoc.SuccessResponse
+// @Failure      401           {object}  apidoc.ErrorResponse
+// @Failure      404           {object}  apidoc.ErrorResponse
+// @Router       /tree-nodes/{tree_node_id} [delete]
 func (h *Handler) DeleteTreeNode(c *fiber.Ctx) error {
 	treeNodeID := c.Params("tree_node_id")
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)

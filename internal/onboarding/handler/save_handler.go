@@ -11,7 +11,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// POST /onboarding
+// SaveOnboarding godoc
+// @Summary      Save onboarding answers
+// @Description  Persists the user's onboarding survey answers (interests, goals, etc.).
+// @Tags         Onboarding
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        body  body      model.SaveOnboardingRequest  true  "Onboarding answers"
+// @Success      200   {object}  apidoc.MessageResponse
+// @Failure      400   {object}  apidoc.ErrorResponse
+// @Failure      401   {object}  apidoc.ErrorResponse
+// @Router       /onboarding [post]
 func (h *Handler) SaveOnboarding(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), 10*time.Second)
 	defer cancel()
