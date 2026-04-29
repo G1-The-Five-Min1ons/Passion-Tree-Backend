@@ -123,11 +123,12 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 	from := s.config.GmailEmail
 	password := s.config.GmailAppPassword
 
-	// Sanitize header values to prevent SMTP header injection
+	// Sanitize & Encode
 	to = sanitizeHeaderValue(to)
 	subject = sanitizeHeaderValue(subject)
 	fromAddress := mail.Address{Name: fromName, Address: from}
 	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
+
 	encodedTextBody, err := encodeQuotedPrintableBody(textBody)
 	if err != nil {
 		return fmt.Errorf("failed to encode text body: %w", err)
@@ -137,62 +138,53 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 		return fmt.Errorf("failed to encode html body: %w", err)
 	}
 
-	// Generate boundary for multipart/alternative
+	// Generate boundary
 	boundaryBuffer := make([]byte, 16)
-	_, err = rand.Read(boundaryBuffer)
-	if err != nil {
+	if _, err := rand.Read(boundaryBuffer); err != nil {
 		return fmt.Errorf("failed to generate boundary: %w", err)
 	}
 	boundary := fmt.Sprintf("%x", boundaryBuffer)
 
-	// 1. สร้างหัวจดหมาย (Headers) - ต้องใช้ \r\n เท่านั้น
-	header := fmt.Sprintf("From: %s\r\n", fromAddress.String())
-	header += fmt.Sprintf("To: %s\r\n", to)
-	header += fmt.Sprintf("Subject: %s\r\n", encodedSubject)
-	header += "MIME-Version: 1.0\r\n"
-	header += fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary)
-	header += "\r\n" // บรรทัดว่างแบ่ง Header และ Body (ห้ามขาด!)
+	// --- 1. สร้าง Message ด้วย bytes.Buffer เพื่อคุมบรรทัดให้แม่นยำ ---
+	var msg bytes.Buffer
 
-	// 2. สร้าง Body ที่มีทั้ง Plain Text และ HTML Parts
-	body := ""
+	// Headers
+	msg.WriteString(fmt.Sprintf("From: %s\r\n", fromAddress.String()))
+	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
+	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", encodedSubject))
+	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary))
+	msg.WriteString("\r\n") // บรรทัดว่างคั่น Header และ Body
 
+	// --- 2. สร้าง Body Parts ---
 	// Plain text part
-	body += fmt.Sprintf("--%s\r\n", boundary)
-	body += "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: quoted-printable\r\n"
-	body += "\r\n"
-	body += encodedTextBody + "\r\n"
+	msg.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	msg.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
+	msg.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+	msg.WriteString("\r\n")
+	msg.WriteString(encodedTextBody)
+	msg.WriteString("\r\n")
 
 	// HTML part
-	body += fmt.Sprintf("--%s\r\n", boundary)
-	body += "Content-Type: text/html; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: quoted-printable\r\n"
-	body += "\r\n"
-	body += encodedHTMLBody + "\r\n"
+	msg.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	msg.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
+	msg.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+	msg.WriteString("\r\n")
+	msg.WriteString(encodedHTMLBody)
+	msg.WriteString("\r\n")
 
 	// Closing boundary
-	body += fmt.Sprintf("--%s--\r\n", boundary)
+	msg.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 
-	// 3. รวมร่าง Message
-	message := []byte(header + body)
-
-	// 4. ตรวจเช็ค Context ว่าไม่ถูก Cancel หรือ Timeout
-	select {
-	case <-ctx.Done():
-		s.logger.Warn("context cancelled before sending email", "to", to)
-		return ctx.Err()
-	default:
-	}
-
-	// 5. Authentication & Send with timeout
-	sendCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	// --- 3. การส่งเมล ---
+	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	// Create a channel to send the result
 	errChan := make(chan error, 1)
 	go func() {
 		auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
-		errChan <- smtpSendMail("smtp.gmail.com:587", auth, from, []string{to}, message)
+		// ส่งก้อน Message ทั้งหมด
+		errChan <- smtp.SendMail("smtp.gmail.com:587", auth, from, []string{to}, msg.Bytes())
 	}()
 
 	select {
@@ -204,8 +196,7 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 		s.logger.Info("email sent via Gmail successfully", "to", to)
 		return nil
 	case <-sendCtx.Done():
-		s.logger.Warn("email send timeout", "to", to, "error", sendCtx.Err())
-		return sendCtx.Err()
+		return fmt.Errorf("email send timeout after 15s")
 	}
 }
 
