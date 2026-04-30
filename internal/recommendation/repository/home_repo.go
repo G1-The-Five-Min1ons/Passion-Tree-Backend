@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"passiontree/internal/recommendation/model"
 
@@ -154,6 +155,73 @@ func (r *repositoryImpl) GetBatchProfiles(ctx context.Context) ([]model.UserProf
 		return nil, fmt.Errorf("failed to iterate profiles: %w", err)
 	}
 	return profiles, nil
+}
+
+func (r *repositoryImpl) GetUserInteractions(ctx context.Context, userID string) ([]model.UserInteraction, error) {
+	query := `
+		SELECT
+			CONVERT(VARCHAR(36), pe.user_id) AS user_id,
+			CONVERT(VARCHAR(36), pe.path_id) AS path_id,
+			(
+				CASE WHEN pe.enrollment_status = 'completed' THEN 5.0 ELSE 2.0 END +
+				ISNULL(np_agg.node_score, 0)
+			) AS score
+		FROM dbo.Path_Enroll pe
+		LEFT JOIN (
+			SELECT
+				np.user_id,
+				n.path_id,
+				SUM(CASE WHEN np.complete = 'true' THEN 2.0 ELSE 1.0 END) as node_score
+			FROM dbo.Node_progress np
+			JOIN dbo.Node n ON np.node_id = n.node_id
+			GROUP BY np.user_id, n.path_id
+		) AS np_agg ON pe.user_id = np_agg.user_id AND pe.path_id = np_agg.path_id
+		WHERE pe.user_id = @p1
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user interactions: %w", err)
+	}
+	defer rows.Close()
+
+	var interactions []model.UserInteraction
+	for rows.Next() {
+		var i model.UserInteraction
+		if err := rows.Scan(&i.UserID, &i.PathID, &i.Score); err != nil {
+			return nil, fmt.Errorf("failed to scan interaction: %w", err)
+		}
+		interactions = append(interactions, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate user interactions: %w", err)
+	}
+	return interactions, nil
+}
+
+func (r *repositoryImpl) GetUserProfile(ctx context.Context, userID string) (*model.UserProfile, error) {
+	query := `
+		SELECT
+			CONVERT(VARCHAR(36), user_id) AS user_id,
+			CONCAT(
+				'Interested in: ', ISNULL(subjects, ''), '. ',
+				'Learning style: ', ISNULL(learning_styles, ''), '. ',
+				'Motivation: ', ISNULL(motivation, ''), '. ',
+				'Daily Goal: ', ISNULL(daily_goal, '')
+			) AS interests
+		FROM dbo.onboarding_answers
+		WHERE user_id = @p1
+	`
+
+	var p model.UserProfile
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&p.UserID, &p.Interests)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to query user profile: %w", err)
+	}
+	return &p, nil
 }
 
 func (r *repositoryImpl) SaveBatchRecommendations(ctx context.Context, results []model.BatchRecommendationResult) error {

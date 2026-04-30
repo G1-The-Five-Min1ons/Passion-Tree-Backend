@@ -21,9 +21,13 @@ import (
 	missionservice "passiontree/internal/mission/service"
 	onboarding "passiontree/internal/onboarding"
 	recommendation "passiontree/internal/recommendation"
+	recrepo "passiontree/internal/recommendation/repository"
+	recservice "passiontree/internal/recommendation/service"
 	reflection "passiontree/internal/reflection"
 	setting "passiontree/internal/setting"
 	upload "passiontree/internal/upload"
+
+	pathrepo "passiontree/internal/learning-path/repository"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -55,6 +59,15 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 		logger,
 	)
 
+	// Build recommendation service up front so the onboarding flow can trigger
+	// a personalized recompute for new users without waiting for the daily cron.
+	recSvc := recservice.NewService(
+		recrepo.NewRepository(db),
+		pathrepo.NewRepository(db),
+		aiClient,
+		logger,
+	)
+
 	if err := auth.RegisterRoutes(api, db, missionSvc, logger); err != nil {
 		return fmt.Errorf("failed to register auth routes: %w", err)
 	}
@@ -64,7 +77,7 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 	recommendation.RegisterRoutes(api, db, aiClient, jwtService, logger, storageClient)
 	setting.RegisterRoutes(api, db, jwtService, notificationWorker, logger)
 	dashboard.RegisterRoutes(api, db, jwtService, logger)
-	onboarding.RegisterRoutes(api, db, jwtService, logger)
+	onboarding.RegisterRoutes(api, db, recSvc, jwtService, logger)
 	mission.RegisterRoutes(api, db, jwtService, logger)
 
 	return nil

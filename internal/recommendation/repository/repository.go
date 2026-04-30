@@ -15,6 +15,8 @@ type RepositoryRecommendation interface {
 type BatchRepository interface {
 	GetBatchInteractions(ctx context.Context) ([]model.UserInteraction, error)
 	GetBatchProfiles(ctx context.Context) ([]model.UserProfile, error)
+	GetUserInteractions(ctx context.Context, userID string) ([]model.UserInteraction, error)
+	GetUserProfile(ctx context.Context, userID string) (*model.UserProfile, error)
 	SaveBatchRecommendations(ctx context.Context, results []model.BatchRecommendationResult) error
 	GetSavedHomeRecommendations(ctx context.Context, userID string) ([]model.RecommendedPath, error)
 }

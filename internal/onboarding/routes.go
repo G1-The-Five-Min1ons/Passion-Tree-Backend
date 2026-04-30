@@ -13,9 +13,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(r fiber.Router, db connection.Database, jwtService *jwt.Service, logger *slog.Logger) {
+func RegisterRoutes(r fiber.Router, db connection.Database, recomputer service.RecommendationRecomputer, jwtService *jwt.Service, logger *slog.Logger) {
 	repo := repository.NewRepository(db)
 	svc := service.NewService(repo, logger)
+	if recomputer != nil {
+		if setter, ok := svc.(service.RecomputerSetter); ok {
+			setter.SetRecommendationRecomputer(recomputer)
+		}
+	}
 	h := handler.NewHandler(svc, logger)
 
 	protected := r.Group("/onboarding", middleware.JWTMiddleware(jwtService, logger))

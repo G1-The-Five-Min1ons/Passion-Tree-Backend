@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"passiontree/internal/onboarding/model"
 	"passiontree/internal/pkg/apperror"
@@ -31,6 +32,24 @@ func (s *serviceImpl) SaveOnboarding(ctx context.Context, userID string, req mod
 		return apperror.NewInternal("failed to save onboarding: %v", err)
 	}
 
+	s.recomputeRecommendationsAsync(userID)
+
 	s.logger.InfoContext(ctx, "onboarding saved", "user_id", userID)
 	return nil
+}
+
+// recomputeRecommendationsAsync triggers a personalized recommendation
+// recompute for the user without blocking the onboarding response. Failures
+// are logged; the daily batch cron remains the safety net.
+func (s *serviceImpl) recomputeRecommendationsAsync(userID string) {
+	if s.recomputer == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		if err := s.recomputer.RecomputeForUser(ctx, userID); err != nil {
+			s.logger.ErrorContext(ctx, "failed to recompute recommendations after onboarding", "user_id", userID, "error", err)
+		}
+	}()
 }
