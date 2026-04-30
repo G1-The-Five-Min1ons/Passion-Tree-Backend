@@ -13,14 +13,17 @@ import (
 	"passiontree/internal/pkg/jwt"
 
 	auth "passiontree/internal/auth"
+	authrepo "passiontree/internal/auth/repository"
+	dashboard "passiontree/internal/dashboards"
 	learningpath "passiontree/internal/learning-path"
+	mission "passiontree/internal/mission"
+	missionrepo "passiontree/internal/mission/repository"
+	missionservice "passiontree/internal/mission/service"
 	onboarding "passiontree/internal/onboarding"
 	recommendation "passiontree/internal/recommendation"
 	reflection "passiontree/internal/reflection"
 	setting "passiontree/internal/setting"
 	upload "passiontree/internal/upload"
-	dashboard "passiontree/internal/dashboards"
-	mission "passiontree/internal/mission"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -44,7 +47,15 @@ func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, 
 		return healthCheck(c, db, storageClient)
 	})
 
-	if err := auth.RegisterRoutes(api, db, logger); err != nil {
+	// Build mission service up front so the auth signup flow can seed initial
+	// missions for new users without waiting for the weekly cron.
+	missionSvc := missionservice.NewService(
+		missionrepo.NewRepository(db),
+		authrepo.NewRepository(db),
+		logger,
+	)
+
+	if err := auth.RegisterRoutes(api, db, missionSvc, logger); err != nil {
 		return fmt.Errorf("failed to register auth routes: %w", err)
 	}
 	learningpath.RegisterRoutes(api, db, aiClient, jwtService, logger, storageClient)

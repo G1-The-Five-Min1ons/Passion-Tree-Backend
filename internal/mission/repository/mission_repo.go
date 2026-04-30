@@ -147,7 +147,7 @@ func (r *repositoryImpl) GetUserActiveMissions(ctx context.Context, userID strin
 			m.reward_xp, m.reward_heart, um.current_value, m.target_value, um.status, um.expire_at
 		FROM user_mission um
 		JOIN mission m ON um.mission_id = m.mission_id
-		WHERE um.user_id = @p1 AND um.status = 'active' AND um.expire_at > GETDATE()`
+		WHERE um.user_id = @p1 AND um.status IN ('active', 'completed') AND um.expire_at > GETDATE()`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
