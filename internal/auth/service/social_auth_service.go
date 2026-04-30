@@ -290,6 +290,7 @@ func (s *userServiceImpl) createUserFromOAuth(ctx context.Context, userInfo *mod
 	}
 
 	user.UserID = userID
+	s.assignInitialMissionsAsync(userID)
 	return user, nil
 }
 

@@ -119,6 +119,47 @@ func (s *serviceImpl) AutoAssignWeeklyMissionsByUser(ctx context.Context, userID
 	return s.AutoAssignWeeklyMissions(ctx)
 }
 
+func (s *serviceImpl) AssignMissionsForNewUser(ctx context.Context, userID string) error {
+	s.logger.InfoContext(ctx, "assigning initial missions to new user", "user_id", userID)
+
+	templates, err := s.repo.GetActiveTemplates(ctx)
+	if err != nil {
+		return apperror.NewInternal("failed to fetch active templates: %w", err)
+	}
+	if len(templates) == 0 {
+		s.logger.WarnContext(ctx, "no active mission templates available for new user", "user_id", userID)
+		return nil
+	}
+
+	var commonTemplates, personalizedTemplates []model.MissionTemplate
+	for _, t := range templates {
+		if t.ConditionType == model.ConditionCommon {
+			commonTemplates = append(commonTemplates, t)
+		} else {
+			personalizedTemplates = append(personalizedTemplates, t)
+		}
+	}
+
+	seenIDs := make(map[string]bool)
+	stat := model.UserBehaviorStat{UserID: userID}
+
+	missionsToAssign := pickWithRotation(commonTemplates, seenIDs, 3)
+	missionsToAssign = append(missionsToAssign, pickPersonalized(personalizedTemplates, seenIDs, stat)...)
+
+	if len(missionsToAssign) == 0 {
+		return nil
+	}
+
+	expireDate := time.Now().AddDate(0, 0, 7)
+	if err := s.repo.AssignMissionsToUser(ctx, userID, missionsToAssign, expireDate); err != nil {
+		s.logger.ErrorContext(ctx, "failed to assign initial missions to new user", "user_id", userID, "error", err)
+		return apperror.NewInternal("failed to assign initial missions")
+	}
+
+	s.logger.InfoContext(ctx, "initial missions assigned to new user", "user_id", userID, "count", len(missionsToAssign))
+	return nil
+}
+
 func (s *serviceImpl) AutoAssignWeeklyMissions(ctx context.Context) error {
 	s.logger.InfoContext(ctx, "starting intelligent weekly mission auto-assignment")
 

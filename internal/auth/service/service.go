@@ -70,6 +70,12 @@ type EmailService interface {
 	SendNotificationEmail(ctx context.Context, to, subject, headline, message string) error
 }
 
+// MissionAssigner allows the auth flow to seed initial missions for a new user
+// without coupling the auth package to the mission service implementation.
+type MissionAssigner interface {
+	AssignMissionsForNewUser(ctx context.Context, userID string) error
+}
+
 type SocialAuthService interface {
 	GetGoogleAuthURL(state string) string
 	GetDiscordAuthURL(state string) string
@@ -81,13 +87,14 @@ type SocialAuthService interface {
 }
 
 type userServiceImpl struct {
-	repo          repository.Repository
-	emailService  EmailService
-	jwtService    *jwt.Service
-	config        *config.Config
-	logger        *slog.Logger
-	googleConfig  *oauth2.Config
-	discordConfig *oauth2.Config
+	repo            repository.Repository
+	emailService    EmailService
+	jwtService      *jwt.Service
+	config          *config.Config
+	logger          *slog.Logger
+	googleConfig    *oauth2.Config
+	discordConfig   *oauth2.Config
+	missionAssigner MissionAssigner
 }
 
 type fetchUserInfoFunc func(context.Context, *oauth2.Token) (*model.OAuthUserInfo, error)
@@ -117,6 +124,12 @@ func NewUserService(repo repository.Repository, emailSvc EmailService, cfg *conf
 	}
 }
 
+// SetMissionAssigner injects the mission assigner used to seed initial missions
+// for newly created users. Safe to call after construction; nil disables seeding.
+func (s *userServiceImpl) SetMissionAssigner(m MissionAssigner) {
+	s.missionAssigner = m
+}
+
 func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 	verificationTmpl := template.Must(template.New("verification").Parse(verificationTemplate))
 	passwordResetTmpl := template.Must(template.New("passwordReset").Parse(passwordResetTemplate))
@@ -133,6 +146,12 @@ func NewEmailService(cfg *config.Config, logger *slog.Logger) EmailService {
 		config: cfg,
 		logger: logger,
 	}
+}
+
+// MissionAssignerSetter is implemented by UserService/SocialAuthService values whose
+// underlying type can accept an injected MissionAssigner after construction.
+type MissionAssignerSetter interface {
+	SetMissionAssigner(MissionAssigner)
 }
 
 // NewSocialAuthService จะคืนค่าเป็น userServiceImpl ที่มีการตั้งค่า OAuth

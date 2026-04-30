@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/mail"
+	"time"
 
 	"passiontree/internal/auth/model"
 	"passiontree/internal/pkg/apperror"
@@ -133,8 +134,26 @@ func (s *userServiceImpl) CreateUser(ctx context.Context, user *model.User, prof
 		}
 	}
 
+	s.assignInitialMissionsAsync(userID)
+
 	s.logger.InfoContext(ctx, "user registered successfully", "user_id", userID)
 	return userID, nil
+}
+
+// assignInitialMissionsAsync seeds missions for a freshly created user without
+// blocking the signup response. Failures are logged; the weekly cron remains
+// the safety net.
+func (s *userServiceImpl) assignInitialMissionsAsync(userID string) {
+	if s.missionAssigner == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := s.missionAssigner.AssignMissionsForNewUser(ctx, userID); err != nil {
+			s.logger.ErrorContext(ctx, "failed to assign initial missions for new user", "user_id", userID, "error", err)
+		}
+	}()
 }
 
 // GetUserByID retrieves user and profile by ID
