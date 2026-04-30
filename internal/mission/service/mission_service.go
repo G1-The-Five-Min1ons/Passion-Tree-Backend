@@ -248,32 +248,36 @@ func (s *serviceImpl) ProcessMissionEvent(ctx context.Context, userID string, co
 		return apperror.NewInternal("database error during mission event processing")
 	}
 
-	if len(missions) == 0 {
-		return nil
-	}
+	if len(missions) > 0 {
+		var missionsToUpdate []model.UserMission
+		var totalRewardXP int64 = 0
+		var totalRewardHeart int64 = 0
 
-	var missionsToUpdate []model.UserMission
-	var totalRewardXP int64 = 0
-	var totalRewardHeart int64 = 0
+		for _, m := range missions {
+			m.CurrentValue += 1
+			isCompleted := m.CurrentValue >= m.TargetValue
 
-	for _, m := range missions {
-		m.CurrentValue += 1
-		isCompleted := m.CurrentValue >= m.TargetValue
+			if isCompleted {
+				m.Status = "completed"
+				totalRewardXP += m.RewardXP
+				totalRewardHeart += m.RewardHeart
+				s.logger.InfoContext(ctx, "user completed a mission!", "user_id", userID, "mission_title", m.Title)
+			}
 
-		if isCompleted {
-			m.Status = "completed"
-			totalRewardXP += m.RewardXP
-			totalRewardHeart += m.RewardHeart
-			s.logger.InfoContext(ctx, "user completed a mission!", "user_id", userID, "mission_title", m.Title)
+			missionsToUpdate = append(missionsToUpdate, m)
 		}
 
-		missionsToUpdate = append(missionsToUpdate, m)
+		if err := s.repo.BatchUpdateMissionProgressAndReward(ctx, userID, missionsToUpdate, totalRewardXP, totalRewardHeart); err != nil {
+			s.logger.ErrorContext(ctx, "failed to batch update mission progress", "error", err, "user_id", userID)
+			return apperror.NewInternal("failed to update mission progress")
+		}
 	}
 
-	err = s.repo.BatchUpdateMissionProgressAndReward(ctx, userID, missionsToUpdate, totalRewardXP, totalRewardHeart)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to batch update mission progress", "error", err, "user_id", userID)
-		return apperror.NewInternal("failed to update mission progress")
+	// COMMON_ROUTINE นับทุก event ที่ user ทำกิจกรรมในแอป (guard กัน recursion)
+	if conditionType != model.ConditionCommon {
+		if err := s.ProcessMissionEvent(ctx, userID, model.ConditionCommon); err != nil {
+			s.logger.WarnContext(ctx, "failed to bump common routine", "error", err, "user_id", userID)
+		}
 	}
 
 	return nil
