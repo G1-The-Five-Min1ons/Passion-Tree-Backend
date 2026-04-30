@@ -203,6 +203,11 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 	}
 }
 
+// MockOTPCode is a fixed OTP used when SMTP is unavailable (e.g. Render blocks
+// outbound SMTP). The login flow uses this instead of GenerateVerificationToken
+// so users can verify with a known code without a real email being sent.
+const MockOTPCode = "729384"
+
 func GenerateVerificationToken() (string, error) {
 	bytes := make([]byte, 4)
 	if _, err := rand.Read(bytes); err != nil {

@@ -87,12 +87,8 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 	if user.Require2FANextLogin {
 		s.logger.WarnContext(ctx, "2FA verification required", "user_id", user.UserID)
 
-		// Generate 2FA OTP
-		otpCode, err := GenerateVerificationToken()
-		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to generate 2FA OTP", "error", err)
-			return "", "", apperror.NewInternal("failed to generate security code")
-		}
+		// Use fixed mock OTP (SMTP disabled — see MockOTPCode)
+		otpCode := MockOTPCode
 
 		// Delete old 2FA tokens for this user
 		_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenType2FA)
@@ -111,22 +107,10 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 			return "", "", apperror.NewInternal("failed to store security code")
 		}
 
-		// Send OTP to user's email
-		if s.emailService != nil {
-			if err := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); err != nil {
-				s.logger.ErrorContext(ctx, "failed to send 2FA OTP email (1st attempt)", "error", err, "user_id", user.UserID)
-
-				// ถอยออกมาตั้งหลักสัก 1-2 วินาทีก่อนลองใหม่
-				time.Sleep(1 * time.Second)
-
-				if retryErr := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); retryErr != nil {
-					s.logger.ErrorContext(ctx, "failed to send 2FA OTP email (2nd attempt)", "error", retryErr, "user_id", user.UserID)
-					// แจ้งให้ User ทราบใน Error Message ว่าอีเมลอาจจะมาช้าหน่อย
-				}
-			}
-		}
-
-		s.logger.InfoContext(ctx, "2FA OTP sent to email", "user_id", user.UserID, "email", user.Email)
+		// SMTP send skipped — log mock OTP instead. Real email send code in
+		// emailService.SendVerificationEmail / sendViaGmail is kept intact.
+		s.logger.InfoContext(ctx, "[MOCK] 2FA OTP issued (email not sent)",
+			"user_id", user.UserID, "email", user.Email, "otp_code", otpCode)
 		return "", "", apperror.NewForbidden("security verification required. we've sent a verification code to your email: %s", user.Email)
 	}
 
@@ -135,11 +119,8 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		_ = s.repo.ResetFailedLogin(ctx, user.UserID)
 	}
 
-	otpCode, err := GenerateVerificationToken()
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to generate otp", "error", err)
-		return "", "", apperror.NewInternal("failed to generate verification code")
-	}
+	// Use fixed mock OTP (SMTP disabled — see MockOTPCode)
+	otpCode := MockOTPCode
 
 	_ = s.repo.DeleteTokensByUserAndType(ctx, user.UserID, model.TokenTypeEmailVerification)
 
@@ -156,19 +137,15 @@ func (s *userServiceImpl) Login(ctx context.Context, identifier string, password
 		return "", "", apperror.NewInternal("failed to store verification code")
 	}
 
-	s.logger.InfoContext(ctx, "[DEBUG] OTP stored successfully",
+	// SMTP send skipped — log mock OTP instead. Real email send code in
+	// emailService.SendVerificationEmail / sendViaGmail is kept intact.
+	s.logger.InfoContext(ctx, "[MOCK] login OTP issued (email not sent)",
 		"otp_code", otpCode,
 		"user_id", user.UserID,
+		"email", user.Email,
 		"token_type", model.TokenTypeEmailVerification,
 		"expire_at", otpToken.ExpireAt,
 	)
-
-	if err := s.emailService.SendVerificationEmail(ctx, user.Email, otpCode); err != nil {
-		s.logger.ErrorContext(ctx, "failed to send otp email", "error", err)
-		return "", "", apperror.NewInternal("failed to send verification email")
-	}
-
-	s.logger.InfoContext(ctx, "login step 1 success, otp sent", "user_id", user.UserID)
 	return "", "", apperror.NewForbidden("verification_required: please enter the 6-digit code sent to %s", user.Email)
 }
 
