@@ -188,16 +188,6 @@ func (s *userServiceImpl) findOrCreateUser(ctx context.Context, userInfo *model.
 			// Continue anyway - update is not critical
 		}
 
-		// Update profile (avatar)
-		profile := &model.Profile{
-			AvatarURL: userInfo.AvatarURL,
-		}
-		err = s.repo.UpsertSocialUserProfile(ctx, user.UserID, profile)
-		if err != nil {
-			s.logger.ErrorContext(ctx, "failed to update profile", "error", err)
-			// Continue anyway - profile update is not critical
-		}
-
 		user.FirstName = userInfo.FirstName
 		user.LastName = userInfo.LastName
 		user.Email = userInfo.Email
