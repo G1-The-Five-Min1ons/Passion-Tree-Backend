@@ -16,7 +16,7 @@
         },
         "version": "1.0"
     },
-    "host": "api.passion-tree.org",
+    "host": "passion-tree-backend-jj6w.onrender.com",
     "basePath": "/api/v1",
     "paths": {
         "/admin/missions/templates": {

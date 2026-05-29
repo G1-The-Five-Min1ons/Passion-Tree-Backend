@@ -53,7 +53,7 @@ const (
 //
 // @license.name    Proprietary
 //
-// @host            api.passion-tree.org
+// @host            passion-tree-backend-jj6w.onrender.com
 // @BasePath        /api/v1
 // @schemes         https
 //

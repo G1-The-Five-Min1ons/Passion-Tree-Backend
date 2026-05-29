@@ -656,7 +656,7 @@ definitions:
       title:
         type: string
     type: object
-host: api.passion-tree.org
+host: passion-tree-backend-jj6w.onrender.com
 info:
   contact:
     name: Passion Tree Team
