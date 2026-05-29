@@ -194,7 +194,7 @@ func createFiberApp(logger *slog.Logger) *fiber.App {
 	app.Use(fiberRecover.New())
 	app.Use(cors.New(cors.Config{
 		AllowOriginsFunc: func(origin string) bool {
-			if origin == "https://passion-tree.org" || origin == "http://localhost:3000" {
+			if origin == "https://passion-tree.org" || origin == "http://localhost:3000" || origin == "https://passion-tree-backend-jj6w.onrender.com" {
 				return true
 			}
 
@@ -238,9 +238,9 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 
 	// Run every midnight
 	_, err := c.AddFunc("0 0 * * *", withSafeCron(
-		"StorageCleanup", 
+		"StorageCleanup",
 		30*time.Minute, // ให้เวลา Cleanup สูงสุด 30 นาที
-		logger, 
+		logger,
 		func(ctx context.Context) error {
 			cleanupWorker.RunCleanup()
 			return nil
@@ -276,9 +276,9 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 	}
 
 	_, err = c.AddFunc("0 0 * * *", withSafeCron(
-		"CleanupExpiredMissions", 
-		5*time.Minute, 
-		logger, 
+		"CleanupExpiredMissions",
+		5*time.Minute,
+		logger,
 		func(ctx context.Context) error {
 			return mSvc.CleanupExpiredMissions(ctx)
 		},
@@ -289,9 +289,9 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 
 	// Run daily notifications at 08:00
 	_, err = c.AddFunc("0 8 * * *", withSafeCron(
-		"DailyNotifications", 
-		15*time.Minute, 
-		logger, 
+		"DailyNotifications",
+		15*time.Minute,
+		logger,
 		func(ctx context.Context) error {
 			notificationWorker.RunDailyNotifications()
 			return nil
@@ -304,9 +304,9 @@ func initializeBackgroundJobs(db connection.Database, storage *storage.BlobServi
 
 	// Run weekly notifications every Monday at 09:00
 	_, err = c.AddFunc("0 9 * * 1", withSafeCron(
-		"WeeklyNotifications", 
-		15*time.Minute, 
-		logger, 
+		"WeeklyNotifications",
+		15*time.Minute,
+		logger,
 		func(ctx context.Context) error {
 			notificationWorker.RunWeeklyNotifications()
 			return nil
