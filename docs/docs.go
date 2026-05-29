@@ -80,7 +80,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_mission_model.CreateTemplateRequest"
+                            "$ref": "#/definitions/model.CreateTemplateRequest"
                         }
                     }
                 ],
@@ -221,7 +221,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.CreateAlbumRequest"
+                            "$ref": "#/definitions/model.CreateAlbumRequest"
                         }
                     }
                 ],
@@ -321,7 +321,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.UpdateAlbumRequest"
+                            "$ref": "#/definitions/model.UpdateAlbumRequest"
                         }
                     }
                 ],
@@ -389,6 +389,43 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/admin/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a simple admin dashboard greeting (admin only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin dashboard greeting",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.MessageResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/apidoc.ErrorResponse"
                         }
@@ -527,7 +564,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.ReviewTeacherApplicationRequest"
+                            "$ref": "#/definitions/model.ReviewTeacherApplicationRequest"
                         }
                     }
                 ],
@@ -631,7 +668,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_auth_handler.adminCreateUserRequest"
+                            "$ref": "#/definitions/handler.adminCreateUserRequest"
                         }
                     }
                 ],
@@ -701,7 +738,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_auth_handler.adminUpdateUserRequest"
+                            "$ref": "#/definitions/handler.adminUpdateUserRequest"
                         }
                     }
                 ],
@@ -820,7 +857,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.ChangePasswordRequest"
+                            "$ref": "#/definitions/model.ChangePasswordRequest"
                         }
                     }
                 ],
@@ -866,7 +903,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.ConfirmAccountLinkRequest"
+                            "$ref": "#/definitions/model.ConfirmAccountLinkRequest"
                         }
                     }
                 ],
@@ -1045,7 +1082,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.ForgotPasswordRequest"
+                            "$ref": "#/definitions/model.ForgotPasswordRequest"
                         }
                     }
                 ],
@@ -1159,7 +1196,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.LoginRequest"
+                            "$ref": "#/definitions/model.LoginRequest"
                         }
                     }
                 ],
@@ -1215,7 +1252,7 @@ const docTemplate = `{
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.LogoutRequest"
+                            "$ref": "#/definitions/model.LogoutRequest"
                         }
                     }
                 ],
@@ -1261,7 +1298,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.NativeDiscordSignInRequest"
+                            "$ref": "#/definitions/model.NativeDiscordSignInRequest"
                         }
                     }
                 ],
@@ -1301,7 +1338,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.NativeGoogleSignInRequest"
+                            "$ref": "#/definitions/model.NativeGoogleSignInRequest"
                         }
                     }
                 ],
@@ -1393,7 +1430,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.UpdateProfileRequest"
+                            "$ref": "#/definitions/model.UpdateProfileRequest"
                         }
                     }
                 ],
@@ -1476,7 +1513,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.RefreshTokenRequest"
+                            "$ref": "#/definitions/model.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -1522,7 +1559,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.RegisterRequest"
+                            "$ref": "#/definitions/model.RegisterRequest"
                         }
                     }
                 ],
@@ -1574,7 +1611,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.ResendVerificationRequest"
+                            "$ref": "#/definitions/model.ResendVerificationRequest"
                         }
                     }
                 ],
@@ -1614,7 +1651,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.ResetPasswordRequest"
+                            "$ref": "#/definitions/model.ResetPasswordRequest"
                         }
                     }
                 ],
@@ -1754,7 +1791,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.ApplyTeacherRequest"
+                            "$ref": "#/definitions/model.ApplyTeacherRequest"
                         }
                     }
                 ],
@@ -1779,6 +1816,43 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Application already exists",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/teacher/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a simple teacher dashboard greeting (teacher only).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Teacher"
+                ],
+                "summary": "Teacher dashboard greeting",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.MessageResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/apidoc.ErrorResponse"
                         }
@@ -1848,7 +1922,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.UpdateUserRequest"
+                            "$ref": "#/definitions/model.UpdateUserRequest"
                         }
                     }
                 ],
@@ -1960,7 +2034,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_auth_model.VerifyEmailRequest"
+                            "$ref": "#/definitions/model.VerifyEmailRequest"
                         }
                     }
                 ],
@@ -2053,6 +2127,104 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/notifications/announcements": {
+            "post": {
+                "description": "Creates a platform announcement and schedules it for notification delivery. Available only in non-production.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Debug"
+                ],
+                "summary": "Create platform announcement (debug)",
+                "parameters": [
+                    {
+                        "description": "Announcement payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/setting.createAnnouncementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/notifications/daily": {
+            "post": {
+                "description": "Triggers the daily notification worker. Available only in non-production.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Debug"
+                ],
+                "summary": "Trigger daily notifications (debug)",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.MessageResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/debug/notifications/weekly": {
+            "post": {
+                "description": "Triggers the weekly notification worker. Available only in non-production.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Debug"
+                ],
+                "summary": "Trigger weekly notifications (debug)",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/apidoc.MessageResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/apidoc.ErrorResponse"
                         }
@@ -2179,7 +2351,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreatePathRequest"
+                            "$ref": "#/definitions/model.CreatePathRequest"
                         }
                     }
                 ],
@@ -2237,7 +2409,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.UpdateCommentRequest"
+                            "$ref": "#/definitions/model.UpdateCommentRequest"
                         }
                     }
                 ],
@@ -2356,7 +2528,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateMentionRequest"
+                            "$ref": "#/definitions/model.CreateMentionRequest"
                         }
                     }
                 ],
@@ -2414,7 +2586,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateReactionRequest"
+                            "$ref": "#/definitions/model.CreateReactionRequest"
                         }
                     }
                 ],
@@ -2511,7 +2683,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.AIGeneratePathRequest"
+                            "$ref": "#/definitions/model.AIGeneratePathRequest"
                         }
                     }
                 ],
@@ -2662,7 +2834,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.UpdateNodeRequest"
+                            "$ref": "#/definitions/model.UpdateNodeRequest"
                         }
                     }
                 ],
@@ -2806,7 +2978,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateCommentRequest"
+                            "$ref": "#/definitions/model.CreateCommentRequest"
                         }
                     }
                 ],
@@ -2908,7 +3080,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateMaterialRequest"
+                            "$ref": "#/definitions/model.CreateMaterialRequest"
                         }
                     }
                 ],
@@ -3002,7 +3174,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateQuestionRequest"
+                            "$ref": "#/definitions/model.CreateQuestionRequest"
                         }
                     }
                 ],
@@ -3104,7 +3276,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.UpdateChoiceRequest"
+                            "$ref": "#/definitions/model.UpdateChoiceRequest"
                         }
                     }
                 ],
@@ -3210,7 +3382,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.UpdateQuestionRequest"
+                            "$ref": "#/definitions/model.UpdateQuestionRequest"
                         }
                     }
                 ],
@@ -3316,7 +3488,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateChoiceRequest"
+                            "$ref": "#/definitions/model.CreateChoiceRequest"
                         }
                     }
                 ],
@@ -3367,7 +3539,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.SearchPathRequest"
+                            "$ref": "#/definitions/model.SearchPathRequest"
                         }
                     }
                 ],
@@ -3618,7 +3790,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.UpdateImageRequest"
+                            "$ref": "#/definitions/model.UpdateImageRequest"
                         }
                     }
                 ],
@@ -3749,7 +3921,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.UpdatePathRequest"
+                            "$ref": "#/definitions/model.UpdatePathRequest"
                         }
                     }
                 ],
@@ -3898,7 +4070,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateCommentRequest"
+                            "$ref": "#/definitions/model.CreateCommentRequest"
                         }
                     }
                 ],
@@ -3998,7 +4170,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateNodeRequest"
+                            "$ref": "#/definitions/model.CreateNodeRequest"
                         }
                     }
                 ],
@@ -4055,7 +4227,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.ReorderNodesRequest"
+                            "$ref": "#/definitions/model.ReorderNodesRequest"
                         }
                     }
                 ],
@@ -4149,7 +4321,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_learning-path_model.RatingRequest"
+                            "$ref": "#/definitions/model.RatingRequest"
                         }
                     }
                 ],
@@ -4329,7 +4501,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_onboarding_model.SaveOnboardingRequest"
+                            "$ref": "#/definitions/model.SaveOnboardingRequest"
                         }
                     }
                 ],
@@ -4505,7 +4677,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.CreateReflectionRequest"
+                            "$ref": "#/definitions/model.CreateReflectionRequest"
                         }
                     }
                 ],
@@ -4642,7 +4814,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.UpdateReflectionRequest"
+                            "$ref": "#/definitions/model.UpdateReflectionRequest"
                         }
                     }
                 ],
@@ -4772,7 +4944,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/passiontree_internal_setting_model.SettingRequest"
+                                "$ref": "#/definitions/model.SettingRequest"
                             }
                         }
                     }
@@ -4873,7 +5045,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_setting_model.SettingRequest"
+                            "$ref": "#/definitions/model.SettingRequest"
                         }
                     }
                 ],
@@ -4940,6 +5112,16 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/swagger/{any}": {
+            "get": {
+                "description": "Serves the interactive Swagger UI.",
+                "tags": [
+                    "Docs"
+                ],
+                "summary": "Swagger UI",
+                "responses": {}
             }
         },
         "/system/missions/auto-assign": {
@@ -5046,7 +5228,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.CreateTreeNodeRequest"
+                            "$ref": "#/definitions/model.CreateTreeNodeRequest"
                         }
                     }
                 ],
@@ -5146,7 +5328,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.UpdateTreeNodeRequest"
+                            "$ref": "#/definitions/model.UpdateTreeNodeRequest"
                         }
                     }
                 ],
@@ -5294,7 +5476,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.CreateTreeRequest"
+                            "$ref": "#/definitions/model.CreateTreeRequest"
                         }
                     }
                 ],
@@ -5394,7 +5576,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.UpdateTreeRequest"
+                            "$ref": "#/definitions/model.UpdateTreeRequest"
                         }
                     }
                 ],
@@ -5545,7 +5727,7 @@ const docTemplate = `{
                         "name": "body",
                         "in": "body",
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_reflection_model.PauseTreeRequest"
+                            "$ref": "#/definitions/model.PauseTreeRequest"
                         }
                     }
                 ],
@@ -5694,7 +5876,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/passiontree_internal_upload_model.UploadImageRequest"
+                            "$ref": "#/definitions/model.UploadImageRequest"
                         }
                     }
                 ],
@@ -6072,7 +6254,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_auth_handler.adminCreateUserRequest": {
+        "handler.adminCreateUserRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -6088,14 +6270,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
-                    "$ref": "#/definitions/passiontree_internal_auth_model.UserRole"
+                    "$ref": "#/definitions/model.UserRole"
                 },
                 "username": {
                     "type": "string"
                 }
             }
         },
-        "internal_auth_handler.adminUpdateUserRequest": {
+        "handler.adminUpdateUserRequest": {
             "type": "object",
             "properties": {
                 "first_name": {
@@ -6105,11 +6287,19 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "role": {
-                    "$ref": "#/definitions/passiontree_internal_auth_model.UserRole"
+                    "$ref": "#/definitions/model.UserRole"
                 }
             }
         },
-        "passiontree_internal_auth_model.ApplyTeacherRequest": {
+        "model.AIGeneratePathRequest": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ApplyTeacherRequest": {
             "type": "object",
             "properties": {
                 "phone_number": {
@@ -6123,7 +6313,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_auth_model.ChangePasswordRequest": {
+        "model.ChangePasswordRequest": {
             "type": "object",
             "properties": {
                 "new_password": {
@@ -6134,7 +6324,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_auth_model.ConfirmAccountLinkRequest": {
+        "model.ConfirmAccountLinkRequest": {
             "type": "object",
             "properties": {
                 "confirm": {
@@ -6145,189 +6335,21 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_auth_model.ForgotPasswordRequest": {
+        "model.CreateAlbumRequest": {
             "type": "object",
             "properties": {
-                "email": {
+                "album_name": {
+                    "type": "string"
+                },
+                "cover_image_url": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }
         },
-        "passiontree_internal_auth_model.LoginRequest": {
-            "type": "object",
-            "properties": {
-                "identifier": {
-                    "description": "รองรับทั้ง Username หรือ Email",
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.LogoutRequest": {
-            "type": "object",
-            "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.NativeDiscordSignInRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.NativeGoogleSignInRequest": {
-            "type": "object",
-            "properties": {
-                "id_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.RefreshTokenRequest": {
-            "type": "object",
-            "required": [
-                "refresh_token"
-            ],
-            "properties": {
-                "refresh_token": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.RegisterRequest": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
-                "bio": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "role": {
-                    "$ref": "#/definitions/passiontree_internal_auth_model.UserRole"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.ResendVerificationRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.ResetPasswordRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "new_password": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.ReviewTeacherApplicationRequest": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.UpdateProfileRequest": {
-            "type": "object",
-            "properties": {
-                "avatar_url": {
-                    "type": "string"
-                },
-                "bio": {
-                    "type": "string"
-                },
-                "date_format": {
-                    "type": "string"
-                },
-                "location": {
-                    "type": "string"
-                },
-                "phone_number": {
-                    "type": "string"
-                },
-                "time_zone": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.UpdateUserRequest": {
-            "type": "object",
-            "properties": {
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                },
-                "role": {
-                    "$ref": "#/definitions/passiontree_internal_auth_model.UserRole"
-                }
-            }
-        },
-        "passiontree_internal_auth_model.UserRole": {
-            "type": "string",
-            "enum": [
-                "student",
-                "teacher",
-                "admin",
-                "pending"
-            ],
-            "x-enum-varnames": [
-                "RoleStudent",
-                "RoleTeacher",
-                "RoleAdmin",
-                "RolePending"
-            ]
-        },
-        "passiontree_internal_auth_model.VerifyEmailRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.AIGeneratePathRequest": {
-            "type": "object",
-            "properties": {
-                "topic": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.CreateChoiceRequest": {
+        "model.CreateChoiceRequest": {
             "type": "object",
             "required": [
                 "choice_text"
@@ -6347,7 +6369,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreateCommentRequest": {
+        "model.CreateCommentRequest": {
             "type": "object",
             "properties": {
                 "message": {
@@ -6364,7 +6386,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreateMaterialRequest": {
+        "model.CreateMaterialRequest": {
             "type": "object",
             "required": [
                 "type",
@@ -6382,7 +6404,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreateMentionRequest": {
+        "model.CreateMentionRequest": {
             "type": "object",
             "properties": {
                 "mentioned_user_id": {
@@ -6391,7 +6413,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreateNodeRequest": {
+        "model.CreateNodeRequest": {
             "type": "object",
             "required": [
                 "link_vdo",
@@ -6403,7 +6425,7 @@ const docTemplate = `{
                 "Question": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateQuestionWithChoices"
+                        "$ref": "#/definitions/model.CreateQuestionWithChoices"
                     }
                 },
                 "description": {
@@ -6415,7 +6437,7 @@ const docTemplate = `{
                 "material": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateMaterialRequest"
+                        "$ref": "#/definitions/model.CreateMaterialRequest"
                     }
                 },
                 "path_id": {
@@ -6429,7 +6451,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreatePathRequest": {
+        "model.CreatePathRequest": {
             "type": "object",
             "required": [
                 "title"
@@ -6455,7 +6477,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreateQuestionRequest": {
+        "model.CreateQuestionRequest": {
             "type": "object",
             "required": [
                 "question_text",
@@ -6473,7 +6495,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreateQuestionWithChoices": {
+        "model.CreateQuestionWithChoices": {
             "type": "object",
             "required": [
                 "question_text",
@@ -6483,7 +6505,7 @@ const docTemplate = `{
                 "choice": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/passiontree_internal_learning-path_model.CreateChoiceRequest"
+                        "$ref": "#/definitions/model.CreateChoiceRequest"
                     }
                 },
                 "node_id": {
@@ -6497,7 +6519,7 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.CreateReactionRequest": {
+        "model.CreateReactionRequest": {
             "type": "object",
             "properties": {
                 "reaction_type": {
@@ -6505,150 +6527,30 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_learning-path_model.RatingRequest": {
+        "model.CreateReflectionRequest": {
             "type": "object",
-            "required": [
-                "rating_content",
-                "rating_instruct"
-            ],
             "properties": {
-                "rating_content": {
-                    "type": "integer"
+                "challenge_score": {
+                    "type": "number"
                 },
-                "rating_instruct": {
-                    "type": "integer"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.ReorderNodesRequest": {
-            "type": "object",
-            "required": [
-                "node_ids"
-            ],
-            "properties": {
-                "node_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.SearchPathRequest": {
-            "type": "object",
-            "required": [
-                "query"
-            ],
-            "properties": {
-                "filters": {
-                    "type": "object",
-                    "additionalProperties": true
+                "feel_score": {
+                    "type": "number"
                 },
-                "query": {
+                "learning_reflect": {
                     "type": "string"
                 },
-                "top_k": {
-                    "type": "integer"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.UpdateChoiceRequest": {
-            "type": "object",
-            "properties": {
-                "choice_text": {
+                "mood_reflect": {
                     "type": "string"
                 },
-                "is_correct": {
-                    "type": "boolean"
+                "progress_score": {
+                    "type": "number"
                 },
-                "reasoning": {
+                "tree_node_id": {
                     "type": "string"
                 }
             }
         },
-        "passiontree_internal_learning-path_model.UpdateCommentRequest": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.UpdateImageRequest": {
-            "type": "object",
-            "properties": {
-                "cover_image_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.UpdateMaterialRequest": {
-            "type": "object",
-            "required": [
-                "type",
-                "url"
-            ],
-            "properties": {
-                "type": {
-                    "type": "string"
-                },
-                "url": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.UpdateNodeRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "link_vdo": {
-                    "type": "string"
-                },
-                "materials": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/passiontree_internal_learning-path_model.UpdateMaterialRequest"
-                    }
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.UpdatePathRequest": {
-            "type": "object",
-            "properties": {
-                "cover_img_url": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "objective": {
-                    "type": "string"
-                },
-                "publish_status": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_learning-path_model.UpdateQuestionRequest": {
-            "type": "object",
-            "properties": {
-                "question_text": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_mission_model.CreateTemplateRequest": {
+        "model.CreateTemplateRequest": {
             "type": "object",
             "required": [
                 "condition_type",
@@ -6677,7 +6579,205 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_onboarding_model.SaveOnboardingRequest": {
+        "model.CreateTreeNodeRequest": {
+            "type": "object",
+            "required": [
+                "node_title",
+                "tree_id"
+            ],
+            "properties": {
+                "child_node": {
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "node_title": {
+                    "type": "string"
+                },
+                "tree_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CreateTreeRequest": {
+            "type": "object",
+            "required": [
+                "album_id",
+                "difficulties",
+                "path_id",
+                "title"
+            ],
+            "properties": {
+                "album_id": {
+                    "type": "string"
+                },
+                "difficulties": {
+                    "type": "string"
+                },
+                "path_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ForgotPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "identifier": {
+                    "description": "รองรับทั้ง Username หรือ Email",
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.LogoutRequest": {
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.NativeDiscordSignInRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.NativeGoogleSignInRequest": {
+            "type": "object",
+            "properties": {
+                "id_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.PauseTreeRequest": {
+            "type": "object",
+            "properties": {
+                "pause_from": {
+                    "type": "string"
+                },
+                "paused_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.RatingRequest": {
+            "type": "object",
+            "required": [
+                "rating_content",
+                "rating_instruct"
+            ],
+            "properties": {
+                "rating_content": {
+                    "type": "integer"
+                },
+                "rating_instruct": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.RefreshTokenRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/model.UserRole"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ReorderNodesRequest": {
+            "type": "object",
+            "required": [
+                "node_ids"
+            ],
+            "properties": {
+                "node_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "model.ResendVerificationRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ResetPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ReviewTeacherApplicationRequest": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.SaveOnboardingRequest": {
             "type": "object",
             "properties": {
                 "daily_goal": {
@@ -6712,155 +6812,25 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_reflection_model.CreateAlbumRequest": {
-            "type": "object",
-            "properties": {
-                "album_name": {
-                    "type": "string"
-                },
-                "cover_image_url": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_reflection_model.CreateReflectionRequest": {
-            "type": "object",
-            "properties": {
-                "challenge_score": {
-                    "type": "number"
-                },
-                "feel_score": {
-                    "type": "number"
-                },
-                "learning_reflect": {
-                    "type": "string"
-                },
-                "mood_reflect": {
-                    "type": "string"
-                },
-                "progress_score": {
-                    "type": "number"
-                },
-                "tree_node_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_reflection_model.CreateTreeNodeRequest": {
+        "model.SearchPathRequest": {
             "type": "object",
             "required": [
-                "node_title",
-                "tree_id"
+                "query"
             ],
             "properties": {
-                "child_node": {
+                "filters": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "query": {
                     "type": "string"
                 },
-                "node_id": {
-                    "type": "string"
-                },
-                "node_title": {
-                    "type": "string"
-                },
-                "tree_id": {
-                    "type": "string"
+                "top_k": {
+                    "type": "integer"
                 }
             }
         },
-        "passiontree_internal_reflection_model.CreateTreeRequest": {
-            "type": "object",
-            "required": [
-                "album_id",
-                "difficulties",
-                "path_id",
-                "title"
-            ],
-            "properties": {
-                "album_id": {
-                    "type": "string"
-                },
-                "difficulties": {
-                    "type": "string"
-                },
-                "path_id": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_reflection_model.PauseTreeRequest": {
-            "type": "object",
-            "properties": {
-                "pause_from": {
-                    "type": "string"
-                },
-                "paused_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_reflection_model.UpdateAlbumRequest": {
-            "type": "object",
-            "properties": {
-                "album_name": {
-                    "type": "string"
-                },
-                "cover_image_url": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_reflection_model.UpdateReflectionRequest": {
-            "type": "object",
-            "properties": {
-                "challenge_score": {
-                    "type": "number"
-                },
-                "feel_score": {
-                    "type": "number"
-                },
-                "learning_reflect": {
-                    "type": "string"
-                },
-                "mood_reflect": {
-                    "type": "string"
-                },
-                "progress_score": {
-                    "type": "number"
-                }
-            }
-        },
-        "passiontree_internal_reflection_model.UpdateTreeNodeRequest": {
-            "type": "object",
-            "properties": {
-                "child_node": {
-                    "type": "string"
-                },
-                "node_score": {
-                    "type": "number"
-                },
-                "node_title": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_reflection_model.UpdateTreeRequest": {
-            "type": "object",
-            "properties": {
-                "album_id": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                }
-            }
-        },
-        "passiontree_internal_setting_model.SettingRequest": {
+        "model.SettingRequest": {
             "type": "object",
             "required": [
                 "key",
@@ -6875,13 +6845,242 @@ const docTemplate = `{
                 }
             }
         },
-        "passiontree_internal_upload_model.UploadImageRequest": {
+        "model.UpdateAlbumRequest": {
+            "type": "object",
+            "properties": {
+                "album_name": {
+                    "type": "string"
+                },
+                "cover_image_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateChoiceRequest": {
+            "type": "object",
+            "properties": {
+                "choice_text": {
+                    "type": "string"
+                },
+                "is_correct": {
+                    "type": "boolean"
+                },
+                "reasoning": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateCommentRequest": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateImageRequest": {
+            "type": "object",
+            "properties": {
+                "cover_image_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateMaterialRequest": {
+            "type": "object",
+            "required": [
+                "type",
+                "url"
+            ],
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateNodeRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "link_vdo": {
+                    "type": "string"
+                },
+                "materials": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.UpdateMaterialRequest"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdatePathRequest": {
+            "type": "object",
+            "properties": {
+                "cover_img_url": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "objective": {
+                    "type": "string"
+                },
+                "publish_status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "date_format": {
+                    "type": "string"
+                },
+                "location": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "time_zone": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateQuestionRequest": {
+            "type": "object",
+            "properties": {
+                "question_text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateReflectionRequest": {
+            "type": "object",
+            "properties": {
+                "challenge_score": {
+                    "type": "number"
+                },
+                "feel_score": {
+                    "type": "number"
+                },
+                "learning_reflect": {
+                    "type": "string"
+                },
+                "mood_reflect": {
+                    "type": "string"
+                },
+                "progress_score": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.UpdateTreeNodeRequest": {
+            "type": "object",
+            "properties": {
+                "child_node": {
+                    "type": "string"
+                },
+                "node_score": {
+                    "type": "number"
+                },
+                "node_title": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateTreeRequest": {
+            "type": "object",
+            "properties": {
+                "album_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/definitions/model.UserRole"
+                }
+            }
+        },
+        "model.UploadImageRequest": {
             "type": "object",
             "properties": {
                 "filename": {
                     "type": "string"
                 },
                 "folder": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserRole": {
+            "type": "string",
+            "enum": [
+                "student",
+                "teacher",
+                "admin",
+                "pending"
+            ],
+            "x-enum-varnames": [
+                "RoleStudent",
+                "RoleTeacher",
+                "RoleAdmin",
+                "RolePending"
+            ]
+        },
+        "model.VerifyEmailRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "setting.createAnnouncementRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "publish_at": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }

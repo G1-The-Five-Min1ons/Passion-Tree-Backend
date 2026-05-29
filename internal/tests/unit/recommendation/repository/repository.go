@@ -11,9 +11,12 @@ import (
 // MockRecRepository satisfies recrepo.Repository for unit tests.
 type MockRecRepository struct {
 	GetUserReflectionsByTreeFunc    func(ctx context.Context, userID string, treeID string) ([]model.UserReflection, string, error)
+	GetUserEnrolledPathsForRecFunc  func(ctx context.Context, userID string) ([]model.RecommendedPath, error)
 	GetTopPopularPathsFunc          func(ctx context.Context) ([]model.RecommendedPath, error)
 	GetBatchInteractionsFunc        func(ctx context.Context) ([]model.UserInteraction, error)
 	GetBatchProfilesFunc            func(ctx context.Context) ([]model.UserProfile, error)
+	GetUserInteractionsFunc         func(ctx context.Context, userID string) ([]model.UserInteraction, error)
+	GetUserProfileFunc              func(ctx context.Context, userID string) (*model.UserProfile, error)
 	SaveBatchRecommendationsFunc    func(ctx context.Context, results []model.BatchRecommendationResult) error
 	GetSavedHomeRecommendationsFunc func(ctx context.Context, userID string) ([]model.RecommendedPath, error)
 }
@@ -23,6 +26,13 @@ func (m *MockRecRepository) GetUserReflectionsByTree(ctx context.Context, userID
 		return m.GetUserReflectionsByTreeFunc(ctx, userID, treeID)
 	}
 	return nil, "", nil
+}
+
+func (m *MockRecRepository) GetUserEnrolledPathsForRec(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
+	if m.GetUserEnrolledPathsForRecFunc != nil {
+		return m.GetUserEnrolledPathsForRecFunc(ctx, userID)
+	}
+	return nil, nil
 }
 
 func (m *MockRecRepository) GetTopPopularPaths(ctx context.Context) ([]model.RecommendedPath, error) {
@@ -42,6 +52,20 @@ func (m *MockRecRepository) GetBatchInteractions(ctx context.Context) ([]model.U
 func (m *MockRecRepository) GetBatchProfiles(ctx context.Context) ([]model.UserProfile, error) {
 	if m.GetBatchProfilesFunc != nil {
 		return m.GetBatchProfilesFunc(ctx)
+	}
+	return nil, nil
+}
+
+func (m *MockRecRepository) GetUserInteractions(ctx context.Context, userID string) ([]model.UserInteraction, error) {
+	if m.GetUserInteractionsFunc != nil {
+		return m.GetUserInteractionsFunc(ctx, userID)
+	}
+	return nil, nil
+}
+
+func (m *MockRecRepository) GetUserProfile(ctx context.Context, userID string) (*model.UserProfile, error) {
+	if m.GetUserProfileFunc != nil {
+		return m.GetUserProfileFunc(ctx, userID)
 	}
 	return nil, nil
 }

@@ -82,6 +82,86 @@ func (r *repositoryImpl) GetTopPopularPaths(ctx context.Context) ([]model.Recomm
 	return paths, nil
 }
 
+func (r *repositoryImpl) GetUserEnrolledPathsForRec(ctx context.Context, userID string) ([]model.RecommendedPath, error) {
+	query := `
+		SELECT
+			CONVERT(VARCHAR(36), lp.path_id) as path_id,
+			ISNULL(lp.title, '') as title,
+			ISNULL(lp.cover_img_url, '') as cover_img_url,
+			ISNULL(lp.objective, '') as objective,
+			ISNULL(lp.description, '') as description,
+			ISNULL(lp.avg_rating, 0) as avg_rating,
+			ISNULL(lp.publish_status, '') as publish_status,
+			lp.create_at,
+			lp.update_at,
+			CONVERT(VARCHAR(36), lp.creator_id) as creator_id,
+			ISNULL(u.first_name, '') as creator_name,
+			ISNULL(u.username, '') as creator_username,
+			ISNULL(u.first_name, '') as instructor,
+			ISNULL(n_count.total_nodes, 0) as modules,
+			ISNULL(pe_count.total_students, 0) as student
+		FROM dbo.Path_Enroll pe
+		JOIN dbo.Learning_Path lp ON pe.path_id = lp.path_id
+		JOIN dbo.users u ON lp.creator_id = u.user_id
+		LEFT JOIN (
+			SELECT path_id, COUNT(node_id) as total_nodes
+			FROM dbo.Node
+			GROUP BY path_id
+		) AS n_count ON lp.path_id = n_count.path_id
+		LEFT JOIN (
+			SELECT path_id, COUNT(enroll_id) as total_students
+			FROM dbo.Path_Enroll
+			GROUP BY path_id
+		) AS pe_count ON lp.path_id = pe_count.path_id
+		WHERE pe.user_id = @p1
+		ORDER BY pe.enroll_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("repo.GetUserEnrolledPathsForRec query failed: %w", err)
+	}
+	defer rows.Close()
+
+	var paths []model.RecommendedPath
+	for rows.Next() {
+		var p model.RecommendedPath
+		var createdAt, updatedAt sql.NullTime
+		if err := rows.Scan(
+			&p.PathID,
+			&p.Title,
+			&p.CoverImgURL,
+			&p.Objective,
+			&p.Description,
+			&p.Rating,
+			&p.Publish_status,
+			&createdAt,
+			&updatedAt,
+			&p.CreatorID,
+			&p.CreatorName,
+			&p.CreatorUsername,
+			&p.Instructor,
+			&p.Modules,
+			&p.Students,
+		); err != nil {
+			return nil, fmt.Errorf("repo.GetUserEnrolledPathsForRec scan failed: %w", err)
+		}
+		if createdAt.Valid {
+			p.CreatedAt = &createdAt.Time
+		}
+		if updatedAt.Valid {
+			p.UpdatedAt = &updatedAt.Time
+		}
+		p.Reason = "Previously enrolled learning path."
+		paths = append(paths, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repo.GetUserEnrolledPathsForRec row iteration failed: %w", err)
+	}
+
+	return paths, nil
+}
+
 func (r *repositoryImpl) GetBatchInteractions(ctx context.Context) ([]model.UserInteraction, error) {
 	//Enroll=2, Complete Path=5, Active Node=+1, Complete Node=+2
 	query := `

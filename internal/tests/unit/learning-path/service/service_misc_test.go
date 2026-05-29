@@ -193,9 +193,12 @@ func TestSearchLearningPaths(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		aiClient := aiclient.NewAIClient("http://mock-ai") // This will fail network req
 		svc := service.NewService(nil, nil, aiClient, logger)
-		_, err := svc.SearchLearningPaths(context.Background(), model.SearchPathRequest{Query: "Go"})
-		if err == nil || !strings.Contains(err.Error(), "internal server error") {
-			t.Errorf("Expected AI network failure, got %v", err)
+		resp, err := svc.SearchLearningPaths(context.Background(), model.SearchPathRequest{Query: "Go"})
+		if err != nil {
+			t.Errorf("Expected no error with AI fallback, got %v", err)
+		}
+		if resp == nil || resp.Total != 0 {
+			t.Errorf("Expected empty results on AI failure, got %+v", resp)
 		}
 	})
 
@@ -270,7 +273,8 @@ func TestSyncLearningPath(t *testing.T) {
 				tt.setup(mock)
 			}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			svc := service.NewService(mock, nil, nil, logger)
+			aiClient := aiclient.NewAIClient("http://mock-ai")
+			svc := service.NewService(mock, nil, aiClient, logger)
 
 			_, err := svc.SyncLearningPath(context.Background(), tt.pathID)
 			if tt.expectedError == "" {

@@ -49,6 +49,18 @@ func TestTreeStatusSyncOnGetTreeByID_Integration(t *testing.T) {
 		_ = repo.DeleteAlbum(context.Background(), albumID)
 	}()
 
+	pathID := uuid.New().String()
+	_, err = db.GetDB().ExecContext(ctx, `
+		INSERT INTO learning_path (path_id, title, description, creator_id, publish_status, avg_rating)
+		VALUES (@p1, 'Status Sync Path', 'Test path for reflection sync', @p2, 'published', 4.0)
+	`, pathID, userID)
+	if err != nil {
+		t.Fatalf("Failed to insert test learning path: %v", err)
+	}
+	defer func() {
+		_, _ = db.GetDB().ExecContext(context.Background(), `DELETE FROM learning_path WHERE path_id = @p1`, pathID)
+	}()
+
 	treeID := uuid.New().String()
 	staleLastReflectAt := time.Now().Add(-31 * 24 * time.Hour) // easy => fading window
 
@@ -58,10 +70,10 @@ func TestTreeStatusSyncOnGetTreeByID_Integration(t *testing.T) {
 			create_at, last_update, album_id, last_reflect_at, paused_at
 		)
 		VALUES (
-			@p1, 'Status Sync Tree', 'easy', NULL, 'growing', 0, 0,
-			GETDATE(), GETDATE(), @p2, @p3, NULL
+			@p1, 'Status Sync Tree', 'easy', @p2, 'growing', 0, 0,
+			GETDATE(), GETDATE(), @p3, @p4, NULL
 		)
-	`, treeID, albumID, staleLastReflectAt)
+	`, treeID, pathID, albumID, staleLastReflectAt)
 	if err != nil {
 		t.Fatalf("Failed to insert test tree: %v", err)
 	}

@@ -225,7 +225,7 @@ func TestLogin(t *testing.T) {
 					return errors.New("smtp server down")
 				}
 			},
-			expectedError: "internal server error",
+			expectedError: "verification_required",
 		},
 	}
 

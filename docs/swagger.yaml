@@ -109,7 +109,7 @@ definitions:
         example: true
         type: boolean
     type: object
-  internal_auth_handler.adminCreateUserRequest:
+  handler.adminCreateUserRequest:
     properties:
       email:
         type: string
@@ -120,20 +120,25 @@ definitions:
       password:
         type: string
       role:
-        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
+        $ref: '#/definitions/model.UserRole'
       username:
         type: string
     type: object
-  internal_auth_handler.adminUpdateUserRequest:
+  handler.adminUpdateUserRequest:
     properties:
       first_name:
         type: string
       last_name:
         type: string
       role:
-        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
+        $ref: '#/definitions/model.UserRole'
     type: object
-  passiontree_internal_auth_model.ApplyTeacherRequest:
+  model.AIGeneratePathRequest:
+    properties:
+      topic:
+        type: string
+    type: object
+  model.ApplyTeacherRequest:
     properties:
       phone_number:
         type: string
@@ -142,140 +147,30 @@ definitions:
       teaching_history:
         type: string
     type: object
-  passiontree_internal_auth_model.ChangePasswordRequest:
+  model.ChangePasswordRequest:
     properties:
       new_password:
         type: string
       old_password:
         type: string
     type: object
-  passiontree_internal_auth_model.ConfirmAccountLinkRequest:
+  model.ConfirmAccountLinkRequest:
     properties:
       confirm:
         type: boolean
       link_token:
         type: string
     type: object
-  passiontree_internal_auth_model.ForgotPasswordRequest:
+  model.CreateAlbumRequest:
     properties:
-      email:
+      album_name:
+        type: string
+      cover_image_url:
+        type: string
+      user_id:
         type: string
     type: object
-  passiontree_internal_auth_model.LoginRequest:
-    properties:
-      identifier:
-        description: รองรับทั้ง Username หรือ Email
-        type: string
-      password:
-        type: string
-    type: object
-  passiontree_internal_auth_model.LogoutRequest:
-    properties:
-      refresh_token:
-        type: string
-    type: object
-  passiontree_internal_auth_model.NativeDiscordSignInRequest:
-    properties:
-      code:
-        type: string
-    type: object
-  passiontree_internal_auth_model.NativeGoogleSignInRequest:
-    properties:
-      id_token:
-        type: string
-    type: object
-  passiontree_internal_auth_model.RefreshTokenRequest:
-    properties:
-      refresh_token:
-        type: string
-    required:
-    - refresh_token
-    type: object
-  passiontree_internal_auth_model.RegisterRequest:
-    properties:
-      avatar_url:
-        type: string
-      bio:
-        type: string
-      email:
-        type: string
-      first_name:
-        type: string
-      last_name:
-        type: string
-      location:
-        type: string
-      password:
-        type: string
-      role:
-        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
-      username:
-        type: string
-    type: object
-  passiontree_internal_auth_model.ResendVerificationRequest:
-    properties:
-      email:
-        type: string
-    type: object
-  passiontree_internal_auth_model.ResetPasswordRequest:
-    properties:
-      code:
-        type: string
-      new_password:
-        type: string
-    type: object
-  passiontree_internal_auth_model.ReviewTeacherApplicationRequest:
-    properties:
-      status:
-        type: string
-    type: object
-  passiontree_internal_auth_model.UpdateProfileRequest:
-    properties:
-      avatar_url:
-        type: string
-      bio:
-        type: string
-      date_format:
-        type: string
-      location:
-        type: string
-      phone_number:
-        type: string
-      time_zone:
-        type: string
-    type: object
-  passiontree_internal_auth_model.UpdateUserRequest:
-    properties:
-      first_name:
-        type: string
-      last_name:
-        type: string
-      role:
-        $ref: '#/definitions/passiontree_internal_auth_model.UserRole'
-    type: object
-  passiontree_internal_auth_model.UserRole:
-    enum:
-    - student
-    - teacher
-    - admin
-    - pending
-    type: string
-    x-enum-varnames:
-    - RoleStudent
-    - RoleTeacher
-    - RoleAdmin
-    - RolePending
-  passiontree_internal_auth_model.VerifyEmailRequest:
-    properties:
-      code:
-        type: string
-    type: object
-  passiontree_internal_learning-path_model.AIGeneratePathRequest:
-    properties:
-      topic:
-        type: string
-    type: object
-  passiontree_internal_learning-path_model.CreateChoiceRequest:
+  model.CreateChoiceRequest:
     properties:
       choice_text:
         type: string
@@ -288,7 +183,7 @@ definitions:
     required:
     - choice_text
     type: object
-  passiontree_internal_learning-path_model.CreateCommentRequest:
+  model.CreateCommentRequest:
     properties:
       message:
         type: string
@@ -299,7 +194,7 @@ definitions:
       path_id:
         type: string
     type: object
-  passiontree_internal_learning-path_model.CreateMaterialRequest:
+  model.CreateMaterialRequest:
     properties:
       node_id:
         type: string
@@ -311,17 +206,17 @@ definitions:
     - type
     - url
     type: object
-  passiontree_internal_learning-path_model.CreateMentionRequest:
+  model.CreateMentionRequest:
     properties:
       mentioned_user_id:
         description: Sent by client — who is being mentioned
         type: string
     type: object
-  passiontree_internal_learning-path_model.CreateNodeRequest:
+  model.CreateNodeRequest:
     properties:
       Question:
         items:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateQuestionWithChoices'
+          $ref: '#/definitions/model.CreateQuestionWithChoices'
         type: array
       description:
         type: string
@@ -329,7 +224,7 @@ definitions:
         type: string
       material:
         items:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateMaterialRequest'
+          $ref: '#/definitions/model.CreateMaterialRequest'
         type: array
       path_id:
         type: string
@@ -343,7 +238,7 @@ definitions:
     - sequence
     - title
     type: object
-  passiontree_internal_learning-path_model.CreatePathRequest:
+  model.CreatePathRequest:
     properties:
       cover_img_url:
         type: string
@@ -360,7 +255,7 @@ definitions:
     required:
     - title
     type: object
-  passiontree_internal_learning-path_model.CreateQuestionRequest:
+  model.CreateQuestionRequest:
     properties:
       node_id:
         type: string
@@ -372,11 +267,11 @@ definitions:
     - question_text
     - type
     type: object
-  passiontree_internal_learning-path_model.CreateQuestionWithChoices:
+  model.CreateQuestionWithChoices:
     properties:
       choice:
         items:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateChoiceRequest'
+          $ref: '#/definitions/model.CreateChoiceRequest'
         type: array
       node_id:
         type: string
@@ -388,105 +283,27 @@ definitions:
     - question_text
     - type
     type: object
-  passiontree_internal_learning-path_model.CreateReactionRequest:
+  model.CreateReactionRequest:
     properties:
       reaction_type:
         type: string
     type: object
-  passiontree_internal_learning-path_model.RatingRequest:
+  model.CreateReflectionRequest:
     properties:
-      rating_content:
-        type: integer
-      rating_instruct:
-        type: integer
-    required:
-    - rating_content
-    - rating_instruct
-    type: object
-  passiontree_internal_learning-path_model.ReorderNodesRequest:
-    properties:
-      node_ids:
-        items:
-          type: string
-        type: array
-    required:
-    - node_ids
-    type: object
-  passiontree_internal_learning-path_model.SearchPathRequest:
-    properties:
-      filters:
-        additionalProperties: true
-        type: object
-      query:
+      challenge_score:
+        type: number
+      feel_score:
+        type: number
+      learning_reflect:
         type: string
-      top_k:
-        type: integer
-    required:
-    - query
-    type: object
-  passiontree_internal_learning-path_model.UpdateChoiceRequest:
-    properties:
-      choice_text:
+      mood_reflect:
         type: string
-      is_correct:
-        type: boolean
-      reasoning:
+      progress_score:
+        type: number
+      tree_node_id:
         type: string
     type: object
-  passiontree_internal_learning-path_model.UpdateCommentRequest:
-    properties:
-      message:
-        type: string
-    type: object
-  passiontree_internal_learning-path_model.UpdateImageRequest:
-    properties:
-      cover_image_url:
-        type: string
-    type: object
-  passiontree_internal_learning-path_model.UpdateMaterialRequest:
-    properties:
-      type:
-        type: string
-      url:
-        type: string
-    required:
-    - type
-    - url
-    type: object
-  passiontree_internal_learning-path_model.UpdateNodeRequest:
-    properties:
-      description:
-        type: string
-      link_vdo:
-        type: string
-      materials:
-        items:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateMaterialRequest'
-        type: array
-      title:
-        type: string
-    type: object
-  passiontree_internal_learning-path_model.UpdatePathRequest:
-    properties:
-      cover_img_url:
-        type: string
-      description:
-        type: string
-      objective:
-        type: string
-      publish_status:
-        type: string
-      title:
-        type: string
-    type: object
-  passiontree_internal_learning-path_model.UpdateQuestionRequest:
-    properties:
-      question_text:
-        type: string
-      type:
-        type: string
-    type: object
-  passiontree_internal_mission_model.CreateTemplateRequest:
+  model.CreateTemplateRequest:
     properties:
       condition_type:
         type: string
@@ -506,7 +323,136 @@ definitions:
     - target_value
     - title
     type: object
-  passiontree_internal_onboarding_model.SaveOnboardingRequest:
+  model.CreateTreeNodeRequest:
+    properties:
+      child_node:
+        type: string
+      node_id:
+        type: string
+      node_title:
+        type: string
+      tree_id:
+        type: string
+    required:
+    - node_title
+    - tree_id
+    type: object
+  model.CreateTreeRequest:
+    properties:
+      album_id:
+        type: string
+      difficulties:
+        type: string
+      path_id:
+        type: string
+      title:
+        type: string
+    required:
+    - album_id
+    - difficulties
+    - path_id
+    - title
+    type: object
+  model.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    type: object
+  model.LoginRequest:
+    properties:
+      identifier:
+        description: รองรับทั้ง Username หรือ Email
+        type: string
+      password:
+        type: string
+    type: object
+  model.LogoutRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  model.NativeDiscordSignInRequest:
+    properties:
+      code:
+        type: string
+    type: object
+  model.NativeGoogleSignInRequest:
+    properties:
+      id_token:
+        type: string
+    type: object
+  model.PauseTreeRequest:
+    properties:
+      pause_from:
+        type: string
+      paused_at:
+        type: string
+    type: object
+  model.RatingRequest:
+    properties:
+      rating_content:
+        type: integer
+      rating_instruct:
+        type: integer
+    required:
+    - rating_content
+    - rating_instruct
+    type: object
+  model.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  model.RegisterRequest:
+    properties:
+      avatar_url:
+        type: string
+      bio:
+        type: string
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      location:
+        type: string
+      password:
+        type: string
+      role:
+        $ref: '#/definitions/model.UserRole'
+      username:
+        type: string
+    type: object
+  model.ReorderNodesRequest:
+    properties:
+      node_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - node_ids
+    type: object
+  model.ResendVerificationRequest:
+    properties:
+      email:
+        type: string
+    type: object
+  model.ResetPasswordRequest:
+    properties:
+      code:
+        type: string
+      new_password:
+        type: string
+    type: object
+  model.ReviewTeacherApplicationRequest:
+    properties:
+      status:
+        type: string
+    type: object
+  model.SaveOnboardingRequest:
     properties:
       daily_goal:
         description: single selection
@@ -531,104 +477,19 @@ definitions:
           type: string
         type: array
     type: object
-  passiontree_internal_reflection_model.CreateAlbumRequest:
+  model.SearchPathRequest:
     properties:
-      album_name:
+      filters:
+        additionalProperties: true
+        type: object
+      query:
         type: string
-      cover_image_url:
-        type: string
-      user_id:
-        type: string
-    type: object
-  passiontree_internal_reflection_model.CreateReflectionRequest:
-    properties:
-      challenge_score:
-        type: number
-      feel_score:
-        type: number
-      learning_reflect:
-        type: string
-      mood_reflect:
-        type: string
-      progress_score:
-        type: number
-      tree_node_id:
-        type: string
-    type: object
-  passiontree_internal_reflection_model.CreateTreeNodeRequest:
-    properties:
-      child_node:
-        type: string
-      node_id:
-        type: string
-      node_title:
-        type: string
-      tree_id:
-        type: string
+      top_k:
+        type: integer
     required:
-    - node_title
-    - tree_id
+    - query
     type: object
-  passiontree_internal_reflection_model.CreateTreeRequest:
-    properties:
-      album_id:
-        type: string
-      difficulties:
-        type: string
-      path_id:
-        type: string
-      title:
-        type: string
-    required:
-    - album_id
-    - difficulties
-    - path_id
-    - title
-    type: object
-  passiontree_internal_reflection_model.PauseTreeRequest:
-    properties:
-      pause_from:
-        type: string
-      paused_at:
-        type: string
-    type: object
-  passiontree_internal_reflection_model.UpdateAlbumRequest:
-    properties:
-      album_name:
-        type: string
-      cover_image_url:
-        type: string
-    type: object
-  passiontree_internal_reflection_model.UpdateReflectionRequest:
-    properties:
-      challenge_score:
-        type: number
-      feel_score:
-        type: number
-      learning_reflect:
-        type: string
-      mood_reflect:
-        type: string
-      progress_score:
-        type: number
-    type: object
-  passiontree_internal_reflection_model.UpdateTreeNodeRequest:
-    properties:
-      child_node:
-        type: string
-      node_score:
-        type: number
-      node_title:
-        type: string
-    type: object
-  passiontree_internal_reflection_model.UpdateTreeRequest:
-    properties:
-      album_id:
-        type: string
-      title:
-        type: string
-    type: object
-  passiontree_internal_setting_model.SettingRequest:
+  model.SettingRequest:
     properties:
       key:
         type: string
@@ -638,11 +499,161 @@ definitions:
     - key
     - value
     type: object
-  passiontree_internal_upload_model.UploadImageRequest:
+  model.UpdateAlbumRequest:
+    properties:
+      album_name:
+        type: string
+      cover_image_url:
+        type: string
+    type: object
+  model.UpdateChoiceRequest:
+    properties:
+      choice_text:
+        type: string
+      is_correct:
+        type: boolean
+      reasoning:
+        type: string
+    type: object
+  model.UpdateCommentRequest:
+    properties:
+      message:
+        type: string
+    type: object
+  model.UpdateImageRequest:
+    properties:
+      cover_image_url:
+        type: string
+    type: object
+  model.UpdateMaterialRequest:
+    properties:
+      type:
+        type: string
+      url:
+        type: string
+    required:
+    - type
+    - url
+    type: object
+  model.UpdateNodeRequest:
+    properties:
+      description:
+        type: string
+      link_vdo:
+        type: string
+      materials:
+        items:
+          $ref: '#/definitions/model.UpdateMaterialRequest'
+        type: array
+      title:
+        type: string
+    type: object
+  model.UpdatePathRequest:
+    properties:
+      cover_img_url:
+        type: string
+      description:
+        type: string
+      objective:
+        type: string
+      publish_status:
+        type: string
+      title:
+        type: string
+    type: object
+  model.UpdateProfileRequest:
+    properties:
+      avatar_url:
+        type: string
+      bio:
+        type: string
+      date_format:
+        type: string
+      location:
+        type: string
+      phone_number:
+        type: string
+      time_zone:
+        type: string
+    type: object
+  model.UpdateQuestionRequest:
+    properties:
+      question_text:
+        type: string
+      type:
+        type: string
+    type: object
+  model.UpdateReflectionRequest:
+    properties:
+      challenge_score:
+        type: number
+      feel_score:
+        type: number
+      learning_reflect:
+        type: string
+      mood_reflect:
+        type: string
+      progress_score:
+        type: number
+    type: object
+  model.UpdateTreeNodeRequest:
+    properties:
+      child_node:
+        type: string
+      node_score:
+        type: number
+      node_title:
+        type: string
+    type: object
+  model.UpdateTreeRequest:
+    properties:
+      album_id:
+        type: string
+      title:
+        type: string
+    type: object
+  model.UpdateUserRequest:
+    properties:
+      first_name:
+        type: string
+      last_name:
+        type: string
+      role:
+        $ref: '#/definitions/model.UserRole'
+    type: object
+  model.UploadImageRequest:
     properties:
       filename:
         type: string
       folder:
+        type: string
+    type: object
+  model.UserRole:
+    enum:
+    - student
+    - teacher
+    - admin
+    - pending
+    type: string
+    x-enum-varnames:
+    - RoleStudent
+    - RoleTeacher
+    - RoleAdmin
+    - RolePending
+  model.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+    type: object
+  setting.createAnnouncementRequest:
+    properties:
+      content:
+        type: string
+      is_active:
+        type: boolean
+      publish_at:
+        type: string
+      title:
         type: string
     type: object
 host: api.passion-tree.org
@@ -690,7 +701,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_mission_model.CreateTemplateRequest'
+          $ref: '#/definitions/model.CreateTemplateRequest'
       produces:
       - application/json
       responses:
@@ -778,7 +789,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.CreateAlbumRequest'
+          $ref: '#/definitions/model.CreateAlbumRequest'
       produces:
       - application/json
       responses:
@@ -868,7 +879,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateAlbumRequest'
+          $ref: '#/definitions/model.UpdateAlbumRequest'
       produces:
       - application/json
       responses:
@@ -893,6 +904,29 @@ paths:
       summary: Update an album
       tags:
       - Albums
+  /auth/admin/dashboard:
+    get:
+      description: Returns a simple admin dashboard greeting (admin only).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Admin dashboard greeting
+      tags:
+      - Admin
   /auth/admin/dashboard/stats:
     get:
       description: 'Returns platform-wide stats: total users, paths, enrollments,
@@ -973,7 +1007,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.ReviewTeacherApplicationRequest'
+          $ref: '#/definitions/model.ReviewTeacherApplicationRequest'
       produces:
       - application/json
       responses:
@@ -1040,7 +1074,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_auth_handler.adminCreateUserRequest'
+          $ref: '#/definitions/handler.adminCreateUserRequest'
       produces:
       - application/json
       responses:
@@ -1121,7 +1155,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_auth_handler.adminUpdateUserRequest'
+          $ref: '#/definitions/handler.adminUpdateUserRequest'
       produces:
       - application/json
       responses:
@@ -1162,7 +1196,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.ChangePasswordRequest'
+          $ref: '#/definitions/model.ChangePasswordRequest'
       produces:
       - application/json
       responses:
@@ -1195,7 +1229,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.ConfirmAccountLinkRequest'
+          $ref: '#/definitions/model.ConfirmAccountLinkRequest'
       produces:
       - application/json
       responses:
@@ -1317,7 +1351,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.ForgotPasswordRequest'
+          $ref: '#/definitions/model.ForgotPasswordRequest'
       produces:
       - application/json
       responses:
@@ -1398,7 +1432,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.LoginRequest'
+          $ref: '#/definitions/model.LoginRequest'
       produces:
       - application/json
       responses:
@@ -1433,7 +1467,7 @@ paths:
         in: body
         name: body
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.LogoutRequest'
+          $ref: '#/definitions/model.LogoutRequest'
       produces:
       - application/json
       responses:
@@ -1466,7 +1500,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.NativeDiscordSignInRequest'
+          $ref: '#/definitions/model.NativeDiscordSignInRequest'
       produces:
       - application/json
       responses:
@@ -1493,7 +1527,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.NativeGoogleSignInRequest'
+          $ref: '#/definitions/model.NativeGoogleSignInRequest'
       produces:
       - application/json
       responses:
@@ -1550,7 +1584,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.UpdateProfileRequest'
+          $ref: '#/definitions/model.UpdateProfileRequest'
       produces:
       - application/json
       responses:
@@ -1607,7 +1641,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.RefreshTokenRequest'
+          $ref: '#/definitions/model.RefreshTokenRequest'
       produces:
       - application/json
       responses:
@@ -1637,7 +1671,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.RegisterRequest'
+          $ref: '#/definitions/model.RegisterRequest'
       produces:
       - application/json
       responses:
@@ -1672,7 +1706,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.ResendVerificationRequest'
+          $ref: '#/definitions/model.ResendVerificationRequest'
       produces:
       - application/json
       responses:
@@ -1698,7 +1732,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.ResetPasswordRequest'
+          $ref: '#/definitions/model.ResetPasswordRequest'
       produces:
       - application/json
       responses:
@@ -1786,7 +1820,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.ApplyTeacherRequest'
+          $ref: '#/definitions/model.ApplyTeacherRequest'
       produces:
       - application/json
       responses:
@@ -1809,6 +1843,29 @@ paths:
       security:
       - BearerAuth: []
       summary: Apply for teacher role
+      tags:
+      - Teacher
+  /auth/teacher/dashboard:
+    get:
+      description: Returns a simple teacher dashboard greeting (teacher only).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Teacher dashboard greeting
       tags:
       - Teacher
   /auth/teacher/verification-status:
@@ -1886,7 +1943,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.UpdateUserRequest'
+          $ref: '#/definitions/model.UpdateUserRequest'
       produces:
       - application/json
       responses:
@@ -1923,7 +1980,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_auth_model.VerifyEmailRequest'
+          $ref: '#/definitions/model.VerifyEmailRequest'
       produces:
       - application/json
       responses:
@@ -1990,6 +2047,71 @@ paths:
       summary: Get the authenticated user's personal dashboard
       tags:
       - Dashboard
+  /debug/notifications/announcements:
+    post:
+      consumes:
+      - application/json
+      description: Creates a platform announcement and schedules it for notification
+        delivery. Available only in non-production.
+      parameters:
+      - description: Announcement payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/setting.createAnnouncementRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidoc.SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Create platform announcement (debug)
+      tags:
+      - Debug
+  /debug/notifications/daily:
+    post:
+      description: Triggers the daily notification worker. Available only in non-production.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Trigger daily notifications (debug)
+      tags:
+      - Debug
+  /debug/notifications/weekly:
+    post:
+      description: Triggers the weekly notification worker. Available only in non-production.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/apidoc.MessageResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidoc.ErrorResponse'
+      summary: Trigger weekly notifications (debug)
+      tags:
+      - Debug
   /health:
     get:
       description: Returns liveness/readiness for the orchestrator service plus DB
@@ -2062,7 +2184,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreatePathRequest'
+          $ref: '#/definitions/model.CreatePathRequest'
       produces:
       - application/json
       responses:
@@ -2158,7 +2280,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdatePathRequest'
+          $ref: '#/definitions/model.UpdatePathRequest'
       produces:
       - application/json
       responses:
@@ -2221,7 +2343,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateCommentRequest'
+          $ref: '#/definitions/model.CreateCommentRequest'
       produces:
       - application/json
       responses:
@@ -2284,7 +2406,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateNodeRequest'
+          $ref: '#/definitions/model.CreateNodeRequest'
       produces:
       - application/json
       responses:
@@ -2320,7 +2442,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.ReorderNodesRequest'
+          $ref: '#/definitions/model.ReorderNodesRequest'
       produces:
       - application/json
       responses:
@@ -2406,7 +2528,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.RatingRequest'
+          $ref: '#/definitions/model.RatingRequest'
       produces:
       - application/json
       responses:
@@ -2507,7 +2629,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateCommentRequest'
+          $ref: '#/definitions/model.UpdateCommentRequest'
       produces:
       - application/json
       responses:
@@ -2553,7 +2675,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateMentionRequest'
+          $ref: '#/definitions/model.CreateMentionRequest'
       produces:
       - application/json
       responses:
@@ -2591,7 +2713,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateReactionRequest'
+          $ref: '#/definitions/model.CreateReactionRequest'
       produces:
       - application/json
       responses:
@@ -2654,7 +2776,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.AIGeneratePathRequest'
+          $ref: '#/definitions/model.AIGeneratePathRequest'
       produces:
       - application/json
       responses:
@@ -2748,7 +2870,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateNodeRequest'
+          $ref: '#/definitions/model.UpdateNodeRequest'
       produces:
       - application/json
       responses:
@@ -2812,7 +2934,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateCommentRequest'
+          $ref: '#/definitions/model.CreateCommentRequest'
       produces:
       - application/json
       responses:
@@ -2876,7 +2998,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateMaterialRequest'
+          $ref: '#/definitions/model.CreateMaterialRequest'
       produces:
       - application/json
       responses:
@@ -2935,7 +3057,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateQuestionRequest'
+          $ref: '#/definitions/model.CreateQuestionRequest'
       produces:
       - application/json
       responses:
@@ -3054,7 +3176,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateQuestionRequest'
+          $ref: '#/definitions/model.UpdateQuestionRequest'
       produces:
       - application/json
       responses:
@@ -3094,7 +3216,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.CreateChoiceRequest'
+          $ref: '#/definitions/model.CreateChoiceRequest'
       produces:
       - application/json
       responses:
@@ -3157,7 +3279,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateChoiceRequest'
+          $ref: '#/definitions/model.UpdateChoiceRequest'
       produces:
       - application/json
       responses:
@@ -3194,7 +3316,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.SearchPathRequest'
+          $ref: '#/definitions/model.SearchPathRequest'
       produces:
       - application/json
       responses:
@@ -3355,7 +3477,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_learning-path_model.UpdateImageRequest'
+          $ref: '#/definitions/model.UpdateImageRequest'
       produces:
       - application/json
       responses:
@@ -3427,7 +3549,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_onboarding_model.SaveOnboardingRequest'
+          $ref: '#/definitions/model.SaveOnboardingRequest'
       produces:
       - application/json
       responses:
@@ -3543,7 +3665,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.CreateReflectionRequest'
+          $ref: '#/definitions/model.CreateReflectionRequest'
       produces:
       - application/json
       responses:
@@ -3633,7 +3755,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateReflectionRequest'
+          $ref: '#/definitions/model.UpdateReflectionRequest'
       produces:
       - application/json
       responses:
@@ -3711,7 +3833,7 @@ paths:
         required: true
         schema:
           items:
-            $ref: '#/definitions/passiontree_internal_setting_model.SettingRequest'
+            $ref: '#/definitions/model.SettingRequest'
           type: array
       produces:
       - application/json
@@ -3802,7 +3924,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_setting_model.SettingRequest'
+          $ref: '#/definitions/model.SettingRequest'
       produces:
       - application/json
       responses:
@@ -3823,6 +3945,13 @@ paths:
       summary: Update a single setting by key
       tags:
       - Settings
+  /swagger/{any}:
+    get:
+      description: Serves the interactive Swagger UI.
+      responses: {}
+      summary: Swagger UI
+      tags:
+      - Docs
   /system/missions/auto-assign:
     post:
       description: Forces the weekly mission assignment routine to run immediately
@@ -3884,7 +4013,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.CreateTreeNodeRequest'
+          $ref: '#/definitions/model.CreateTreeNodeRequest'
       produces:
       - application/json
       responses:
@@ -3974,7 +4103,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateTreeNodeRequest'
+          $ref: '#/definitions/model.UpdateTreeNodeRequest'
       produces:
       - application/json
       responses:
@@ -4040,7 +4169,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.CreateTreeRequest'
+          $ref: '#/definitions/model.CreateTreeRequest'
       produces:
       - application/json
       responses:
@@ -4130,7 +4259,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.UpdateTreeRequest'
+          $ref: '#/definitions/model.UpdateTreeRequest'
       produces:
       - application/json
       responses:
@@ -4199,7 +4328,7 @@ paths:
         in: body
         name: body
         schema:
-          $ref: '#/definitions/passiontree_internal_reflection_model.PauseTreeRequest'
+          $ref: '#/definitions/model.PauseTreeRequest'
       produces:
       - application/json
       responses:
@@ -4298,7 +4427,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/passiontree_internal_upload_model.UploadImageRequest'
+          $ref: '#/definitions/model.UploadImageRequest'
       produces:
       - application/json
       responses:

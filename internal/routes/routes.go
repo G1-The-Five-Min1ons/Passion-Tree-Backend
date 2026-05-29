@@ -35,10 +35,19 @@ import (
 	fiberSwagger "github.com/gofiber/swagger"
 )
 
+// swaggerUI godoc
+// @Summary      Swagger UI
+// @Description  Serves the interactive Swagger UI.
+// @Tags         Docs
+// @Router       /swagger/{any} [get]
+func swaggerUI(c *fiber.Ctx) error {
+	return fiberSwagger.HandlerDefault(c)
+}
+
 // Setup configures all routes for the application
 func Setup(app *fiber.App, db connection.Database, aiClient *aiclient.AIClient, storageClient *storage.BlobService, notificationWorker *worker.EmailNotificationWorker, logger *slog.Logger) error {
 	// Swagger UI — served at /swagger/index.html (outside /api/v1 because docs are not part of the API surface)
-	app.Get("/swagger/*", fiberSwagger.HandlerDefault)
+	app.Get("/swagger/*", swaggerUI)
 
 	// Health check endpoint
 	api := app.Group("/api/v1")

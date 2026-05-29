@@ -10,17 +10,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gofiber/fiber/v2"
 	"passiontree/internal/pkg/apperror"
 	rechandler "passiontree/internal/recommendation/handler"
 	"passiontree/internal/recommendation/model"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // mockService satisfies service.Service for handler unit tests.
 type mockService struct {
-	recommendPathsFunc      func(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error)
-	recommendHomePathsFunc  func(ctx context.Context, userID string) (*model.RecommendPathResponse, error)
-	runBatchFunc            func(ctx context.Context) error
+	recommendPathsFunc     func(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error)
+	recommendHomePathsFunc func(ctx context.Context, userID string) (*model.RecommendPathResponse, error)
+	runBatchFunc           func(ctx context.Context) error
+	recomputeForUserFunc   func(ctx context.Context, userID string) error
 }
 
 func (m *mockService) RecommendPathsForUser(ctx context.Context, userID string, treeID string) (*model.RecommendPathResponse, error) {
@@ -40,6 +42,13 @@ func (m *mockService) RecommendHomePathsForUser(ctx context.Context, userID stri
 func (m *mockService) RunDailyRecommendationBatch(ctx context.Context) error {
 	if m.runBatchFunc != nil {
 		return m.runBatchFunc(ctx)
+	}
+	return nil
+}
+
+func (m *mockService) RecomputeForUser(ctx context.Context, userID string) error {
+	if m.recomputeForUserFunc != nil {
+		return m.recomputeForUserFunc(ctx, userID)
 	}
 	return nil
 }
@@ -267,7 +276,7 @@ func TestTriggerBatch_NoRoleSet_Returns403(t *testing.T) {
 
 // DeleteError mapping: when SaveBatchRecommendations fails (delete step inside reconcile),
 // the raw error propagates up and handleError maps it to 500.
-func TestTriggerBatch_DeleteErrorMapsTo500(t *testing.T) {
+func TestTriggerBatch_DeleteErrorMapsTo202(t *testing.T) {
 	svc := &mockService{
 		runBatchFunc: func(ctx context.Context) error {
 			return errors.New("failed to delete old recommendations for user u1: deadlock detected")
@@ -283,16 +292,16 @@ func TestTriggerBatch_DeleteErrorMapsTo500(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/batch/recommendation/trigger", nil)
 	resp, _ := app.Test(req, -1)
-	if resp.StatusCode != http.StatusInternalServerError {
-		t.Errorf("Expected 500 for delete error, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		t.Errorf("Expected 202 for async batch trigger, got %d", resp.StatusCode)
 	}
 	body := parseBody(t, resp)
-	if body["error"] != "internal server error" {
-		t.Errorf("Expected 'internal server error', got %v", body["error"])
+	if body["success"] != true {
+		t.Errorf("Expected success=true, got %v", body["success"])
 	}
 }
 
-func TestTriggerBatch_AdminSuccess_Returns200(t *testing.T) {
+func TestTriggerBatch_AdminSuccess_Returns202(t *testing.T) {
 	svc := &mockService{
 		runBatchFunc: func(ctx context.Context) error { return nil },
 	}
@@ -306,8 +315,8 @@ func TestTriggerBatch_AdminSuccess_Returns200(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/batch/recommendation/trigger", nil)
 	resp, _ := app.Test(req, -1)
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected 200, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		t.Errorf("Expected 202, got %d", resp.StatusCode)
 	}
 	body := parseBody(t, resp)
 	if body["success"] != true {

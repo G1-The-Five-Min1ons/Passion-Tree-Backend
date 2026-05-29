@@ -62,9 +62,9 @@ type Repopository struct {
 	UpdateChoiceFunc           func(ctx context.Context, choiceID string, req model.UpdateChoiceRequest) error
 
 	// Mock hooks for Rating
-	UpsertLearningPathRatingFunc  func(ctx context.Context, rating *model.LearningPathRating) error
-	GetRatingByUserFunc           func(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error)
-	DeleteLearningPathRatingFunc  func(ctx context.Context, pathID string, userID string) error
+	UpsertLearningPathRatingFunc func(ctx context.Context, rating *model.LearningPathRating) error
+	GetRatingByUserFunc          func(ctx context.Context, pathID string, userID string) (*model.LearningPathRating, error)
+	DeleteLearningPathRatingFunc func(ctx context.Context, pathID string, userID string) error
 
 	// Mock hooks for History & Resume
 	GetHistoryByUserIDFunc func(ctx context.Context, userID string) ([]model.HistoryResponse, error)
@@ -72,6 +72,9 @@ type Repopository struct {
 
 	// Mock hooks for XP
 	AddXPAndRecalcLevelFunc func(ctx context.Context, userID string, xpAmount int) error
+
+	// Mock hooks for Streak
+	UpdateStreakFunc func(ctx context.Context, userID string) error
 }
 
 func (m *Repopository) GetAllLearningPath(ctx context.Context) ([]model.LearningPath, error) {
@@ -397,6 +400,13 @@ func (m *Repopository) GetNextNodeID(ctx context.Context, userID string, pathID 
 func (m *Repopository) AddXPAndRecalcLevel(ctx context.Context, userID string, xpAmount int) error {
 	if m.AddXPAndRecalcLevelFunc != nil {
 		return m.AddXPAndRecalcLevelFunc(ctx, userID, xpAmount)
+	}
+	return nil
+}
+
+func (m *Repopository) UpdateStreak(ctx context.Context, userID string) error {
+	if m.UpdateStreakFunc != nil {
+		return m.UpdateStreakFunc(ctx, userID)
 	}
 	return nil
 }
