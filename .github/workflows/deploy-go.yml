@@ -68,7 +68,7 @@ jobs:
               "AZURESQL_PORT=${{ secrets.AZURESQL_PORT }}" \
               "AZURESQL_USER=${{ secrets.AZURESQL_USER }}" \
               "AZURESQL_DATABASE=${{ secrets.AZURESQL_DATABASE }}" \
-              "AI_SERVICE_URL=http://passion-tree-ai-service" \
+              "AI_SERVICE_URL=${{ secrets.AI_SERVICE_URL }}" \
               "AZURE_STORAGE_ACCOUNT_NAME=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }}" \
               "CONTAINER_LEARNING_PATH=${{ secrets.CONTAINER_LEARNING_PATH }}" \
               "CONTAINER_PROFILE=${{ secrets.CONTAINER_PROFILE }}" \

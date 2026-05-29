@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"passiontree/internal/learning-path/model"
@@ -23,7 +24,7 @@ type AIClient struct {
 // NewAIClient creates a new AI service client
 func NewAIClient(baseURL string) *AIClient {
 	return &AIClient{
-		baseURL: baseURL,
+		baseURL: strings.TrimRight(baseURL, "/"),
 		client:  resty.New().SetTimeout(defaultAIClientTimeout),
 	}
 }

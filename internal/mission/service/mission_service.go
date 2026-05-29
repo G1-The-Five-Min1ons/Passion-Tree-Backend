@@ -119,6 +119,47 @@ func (s *serviceImpl) AutoAssignWeeklyMissionsByUser(ctx context.Context, userID
 	return s.AutoAssignWeeklyMissions(ctx)
 }
 
+func (s *serviceImpl) AssignMissionsForNewUser(ctx context.Context, userID string) error {
+	s.logger.InfoContext(ctx, "assigning initial missions to new user", "user_id", userID)
+
+	templates, err := s.repo.GetActiveTemplates(ctx)
+	if err != nil {
+		return apperror.NewInternal("failed to fetch active templates: %w", err)
+	}
+	if len(templates) == 0 {
+		s.logger.WarnContext(ctx, "no active mission templates available for new user", "user_id", userID)
+		return nil
+	}
+
+	var commonTemplates, personalizedTemplates []model.MissionTemplate
+	for _, t := range templates {
+		if t.ConditionType == model.ConditionCommon {
+			commonTemplates = append(commonTemplates, t)
+		} else {
+			personalizedTemplates = append(personalizedTemplates, t)
+		}
+	}
+
+	seenIDs := make(map[string]bool)
+	stat := model.UserBehaviorStat{UserID: userID}
+
+	missionsToAssign := pickWithRotation(commonTemplates, seenIDs, 3)
+	missionsToAssign = append(missionsToAssign, pickPersonalized(personalizedTemplates, seenIDs, stat)...)
+
+	if len(missionsToAssign) == 0 {
+		return nil
+	}
+
+	expireDate := time.Now().AddDate(0, 0, 7)
+	if err := s.repo.AssignMissionsToUser(ctx, userID, missionsToAssign, expireDate); err != nil {
+		s.logger.ErrorContext(ctx, "failed to assign initial missions to new user", "user_id", userID, "error", err)
+		return apperror.NewInternal("failed to assign initial missions")
+	}
+
+	s.logger.InfoContext(ctx, "initial missions assigned to new user", "user_id", userID, "count", len(missionsToAssign))
+	return nil
+}
+
 func (s *serviceImpl) AutoAssignWeeklyMissions(ctx context.Context) error {
 	s.logger.InfoContext(ctx, "starting intelligent weekly mission auto-assignment")
 
@@ -248,32 +289,36 @@ func (s *serviceImpl) ProcessMissionEvent(ctx context.Context, userID string, co
 		return apperror.NewInternal("database error during mission event processing")
 	}
 
-	if len(missions) == 0 {
-		return nil
-	}
+	if len(missions) > 0 {
+		var missionsToUpdate []model.UserMission
+		var totalRewardXP int64 = 0
+		var totalRewardHeart int64 = 0
 
-	var missionsToUpdate []model.UserMission
-	var totalRewardXP int64 = 0
-	var totalRewardHeart int64 = 0
+		for _, m := range missions {
+			m.CurrentValue += 1
+			isCompleted := m.CurrentValue >= m.TargetValue
 
-	for _, m := range missions {
-		m.CurrentValue += 1
-		isCompleted := m.CurrentValue >= m.TargetValue
+			if isCompleted {
+				m.Status = "completed"
+				totalRewardXP += m.RewardXP
+				totalRewardHeart += m.RewardHeart
+				s.logger.InfoContext(ctx, "user completed a mission!", "user_id", userID, "mission_title", m.Title)
+			}
 
-		if isCompleted {
-			m.Status = "completed"
-			totalRewardXP += m.RewardXP
-			totalRewardHeart += m.RewardHeart
-			s.logger.InfoContext(ctx, "user completed a mission!", "user_id", userID, "mission_title", m.Title)
+			missionsToUpdate = append(missionsToUpdate, m)
 		}
 
-		missionsToUpdate = append(missionsToUpdate, m)
+		if err := s.repo.BatchUpdateMissionProgressAndReward(ctx, userID, missionsToUpdate, totalRewardXP, totalRewardHeart); err != nil {
+			s.logger.ErrorContext(ctx, "failed to batch update mission progress", "error", err, "user_id", userID)
+			return apperror.NewInternal("failed to update mission progress")
+		}
 	}
 
-	err = s.repo.BatchUpdateMissionProgressAndReward(ctx, userID, missionsToUpdate, totalRewardXP, totalRewardHeart)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to batch update mission progress", "error", err, "user_id", userID)
-		return apperror.NewInternal("failed to update mission progress")
+	// COMMON_ROUTINE นับทุก event ที่ user ทำกิจกรรมในแอป (guard กัน recursion)
+	if conditionType != model.ConditionCommon {
+		if err := s.ProcessMissionEvent(ctx, userID, model.ConditionCommon); err != nil {
+			s.logger.WarnContext(ctx, "failed to bump common routine", "error", err, "user_id", userID)
+		}
 	}
 
 	return nil

@@ -18,6 +18,7 @@ type ServiceRecommendation interface {
 
 type SaveBatchRecommendations interface{
 	RunDailyRecommendationBatch(ctx context.Context) error
+	RecomputeForUser(ctx context.Context, userID string) error
 }
 
 type Service interface {

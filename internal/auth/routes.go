@@ -16,7 +16,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger) error {
+func RegisterRoutes(r fiber.Router, db connection.Database, missionAssigner service.MissionAssigner, logger *slog.Logger) error {
 	// Load configuration for email service
 	cfg, err := config.LoadDBConfig()
 	if err != nil {
@@ -29,6 +29,14 @@ func RegisterRoutes(r fiber.Router, db connection.Database, logger *slog.Logger)
 	emailSvc := service.NewEmailService(cfg, logger)
 	userSvc := service.NewUserService(repo, emailSvc, cfg, jwtService, logger)
 	socialAuthSvc := service.NewSocialAuthService(repo, cfg, jwtService, logger)
+	if missionAssigner != nil {
+		if setter, ok := userSvc.(service.MissionAssignerSetter); ok {
+			setter.SetMissionAssigner(missionAssigner)
+		}
+		if setter, ok := socialAuthSvc.(service.MissionAssignerSetter); ok {
+			setter.SetMissionAssigner(missionAssigner)
+		}
+	}
 	h := handler.NewHandler(userSvc, socialAuthSvc, cfg, logger)
 
 	auth := r.Group("/auth")

@@ -17,6 +17,7 @@ type ServiceMission interface {
 	ProcessMissionEvent(ctx context.Context, userID string, conditionType string) error
 	AutoAssignWeeklyMissions(ctx context.Context) error
 	AutoAssignWeeklyMissionsByUser(ctx context.Context, userID string) error
+	AssignMissionsForNewUser(ctx context.Context, userID string) error
 	CleanupExpiredMissions(ctx context.Context) error
 }
 

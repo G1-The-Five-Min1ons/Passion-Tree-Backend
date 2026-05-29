@@ -5,6 +5,9 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"mime"
+	"mime/quotedprintable"
+	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
@@ -26,6 +29,25 @@ func sanitizeHeaderValue(value string) string {
 	value = strings.ReplaceAll(value, "\r", "")
 	value = strings.ReplaceAll(value, "\n", "")
 	return value
+}
+
+func normalizeBodyLineEndings(value string) string {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	return strings.ReplaceAll(value, "\n", "\r\n")
+}
+
+func encodeQuotedPrintableBody(value string) (string, error) {
+	var buf bytes.Buffer
+	writer := quotedprintable.NewWriter(&buf)
+	if _, err := writer.Write([]byte(normalizeBodyLineEndings(value))); err != nil {
+		_ = writer.Close()
+		return "", err
+	}
+	if err := writer.Close(); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func (s *emailServiceImpl) SendVerificationEmail(ctx context.Context, to, token string) error {
@@ -94,73 +116,78 @@ func (s *emailServiceImpl) SendNotificationEmail(ctx context.Context, to, subjec
 
 func (s *emailServiceImpl) sendEmail(ctx context.Context, to, subject, html, text, fromName string) error {
 	// ส่งด้วย Gmail SMTP
-	return s.sendViaGmail(ctx, to, subject, html, text)
+	return s.sendViaGmail(ctx, to, subject, html, text, fromName)
 }
 
-func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBody, textBody string) error {
-	from := s.config.GmailEmail
-	password := s.config.GmailAppPassword
+func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBody, textBody, fromName string) error {
+	from := strings.TrimSpace(s.config.GmailEmail)
+	password := strings.ReplaceAll(strings.TrimSpace(s.config.GmailAppPassword), " ", "")
 
-	// Sanitize header values to prevent SMTP header injection
+	if from == "" || password == "" {
+		return fmt.Errorf("gmail credentials not configured")
+	}
+
+	// Sanitize & Encode
 	to = sanitizeHeaderValue(to)
 	subject = sanitizeHeaderValue(subject)
+	fromAddress := mail.Address{Name: fromName, Address: from}
+	encodedSubject := mime.QEncoding.Encode("UTF-8", subject)
 
-	// Generate boundary for multipart/alternative
-	boundaryBuffer := make([]byte, 16)
-	_, err := rand.Read(boundaryBuffer)
+	encodedTextBody, err := encodeQuotedPrintableBody(textBody)
 	if err != nil {
+		return fmt.Errorf("failed to encode text body: %w", err)
+	}
+	encodedHTMLBody, err := encodeQuotedPrintableBody(htmlBody)
+	if err != nil {
+		return fmt.Errorf("failed to encode html body: %w", err)
+	}
+
+	// Generate boundary
+	boundaryBuffer := make([]byte, 16)
+	if _, err := rand.Read(boundaryBuffer); err != nil {
 		return fmt.Errorf("failed to generate boundary: %w", err)
 	}
 	boundary := fmt.Sprintf("%x", boundaryBuffer)
 
-	// 1. สร้างหัวจดหมาย (Headers) - ต้องใช้ \r\n เท่านั้น
-	header := fmt.Sprintf("From: %s\r\n", from)
-	header += fmt.Sprintf("To: %s\r\n", to)
-	header += fmt.Sprintf("Subject: %s\r\n", subject)
-	header += "MIME-Version: 1.0\r\n"
-	header += fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary)
-	header += "\r\n" // บรรทัดว่างแบ่ง Header และ Body (ห้ามขาด!)
+	// --- 1. สร้าง Message ด้วย bytes.Buffer เพื่อคุมบรรทัดให้แม่นยำ ---
+	var msg bytes.Buffer
 
-	// 2. สร้าง Body ที่มีทั้ง Plain Text และ HTML Parts
-	body := ""
+	// Headers
+	msg.WriteString(fmt.Sprintf("From: %s\r\n", fromAddress.String()))
+	msg.WriteString(fmt.Sprintf("To: %s\r\n", to))
+	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", encodedSubject))
+	msg.WriteString("MIME-Version: 1.0\r\n")
+	msg.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary))
+	msg.WriteString("\r\n") // บรรทัดว่างคั่น Header และ Body
 
+	// --- 2. สร้าง Body Parts ---
 	// Plain text part
-	body += fmt.Sprintf("--%s\r\n", boundary)
-	body += "Content-Type: text/plain; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: 8bit\r\n"
-	body += "\r\n"
-	body += textBody + "\r\n"
+	msg.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	msg.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
+	msg.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+	msg.WriteString("\r\n")
+	msg.WriteString(encodedTextBody)
+	msg.WriteString("\r\n")
 
 	// HTML part
-	body += fmt.Sprintf("--%s\r\n", boundary)
-	body += "Content-Type: text/html; charset=\"UTF-8\"\r\n"
-	body += "Content-Transfer-Encoding: 8bit\r\n"
-	body += "\r\n"
-	body += htmlBody + "\r\n"
+	msg.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	msg.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
+	msg.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+	msg.WriteString("\r\n")
+	msg.WriteString(encodedHTMLBody)
+	msg.WriteString("\r\n")
 
 	// Closing boundary
-	body += fmt.Sprintf("--%s--\r\n", boundary)
+	msg.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 
-	// 3. รวมร่าง Message
-	message := []byte(header + body)
-
-	// 4. ตรวจเช็ค Context ว่าไม่ถูก Cancel หรือ Timeout
-	select {
-	case <-ctx.Done():
-		s.logger.Warn("context cancelled before sending email", "to", to)
-		return ctx.Err()
-	default:
-	}
-
-	// 5. Authentication & Send with timeout
-	sendCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	// --- 3. การส่งเมล ---
+	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	// Create a channel to send the result
 	errChan := make(chan error, 1)
 	go func() {
 		auth := smtp.PlainAuth("", from, password, "smtp.gmail.com")
-		errChan <- smtpSendMail("smtp.gmail.com:587", auth, from, []string{to}, message)
+		errChan <- smtpSendMail("smtp.gmail.com:587", auth, from, []string{to}, msg.Bytes())
 	}()
 
 	select {
@@ -172,10 +199,14 @@ func (s *emailServiceImpl) sendViaGmail(ctx context.Context, to, subject, htmlBo
 		s.logger.Info("email sent via Gmail successfully", "to", to)
 		return nil
 	case <-sendCtx.Done():
-		s.logger.Warn("email send timeout", "to", to, "error", sendCtx.Err())
-		return sendCtx.Err()
+		return fmt.Errorf("email send timeout after 15s")
 	}
 }
+
+// MockOTPCode is a fixed OTP used when SMTP is unavailable (e.g. Render blocks
+// outbound SMTP). The login flow uses this instead of GenerateVerificationToken
+// so users can verify with a known code without a real email being sent.
+const MockOTPCode = "729384"
 
 func GenerateVerificationToken() (string, error) {
 	bytes := make([]byte, 4)

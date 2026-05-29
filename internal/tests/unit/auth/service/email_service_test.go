@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"mime"
 	"net/smtp"
 	"strings"
 	"testing"
@@ -93,4 +94,34 @@ func TestEmailServiceSMTP(t *testing.T) {
 			t.Errorf("Expected mock smtp connection error, got: %v", err)
 		}
 	})
+}
+
+func TestEmailServiceEncodesSubjectHeader(t *testing.T) {
+	var capturedMessage []byte
+	originalSMTP := service.ExportSetSMTPSendMail(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+		capturedMessage = append([]byte(nil), msg...)
+		return nil
+	})
+	defer service.ExportSetSMTPSendMail(originalSMTP)
+
+	cfg := &config.Config{
+		SMTPFromEmail:    "noreply@example.com",
+		GmailEmail:       "test@gmail.com",
+		GmailAppPassword: "mock-password",
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	emailSvc := service.NewEmailService(cfg, logger)
+
+	if err := emailSvc.SendVerificationEmail(context.Background(), "user@example.com", "123456"); err != nil {
+		t.Fatalf("expected no error from mocked SMTP, got %v", err)
+	}
+
+	message := string(capturedMessage)
+	if !strings.Contains(message, "Subject: "+mime.QEncoding.Encode("UTF-8", "รหัสยืนยันตัวตน - Passion-Tree")) {
+		t.Fatalf("expected encoded subject header, got message: %s", message)
+	}
+	if !strings.Contains(message, "From:") || !strings.Contains(message, "Passiontree Team") || !strings.Contains(message, "test@gmail.com") {
+		t.Fatalf("expected from header to contain sender address, got message: %s", message)
+	}
 }
